@@ -1,0 +1,12 @@
+# The site is the repository root — plain static HTML, nothing generated.
+#
+# Kept here rather than set in the Netlify UI on purpose: a publish
+# directory that exists only in a dashboard is a setting nothing in this
+# repo records.
+[build]
+  publish = "."
+  # There is nothing to build, and now nothing to guess at either: this
+  # repo has no package.json, so Netlify's auto-detection has no framework
+  # to find. It used to find an Expo/React Native app, which is how the
+  # site came to cost minutes it had no use for.
+  command = ""

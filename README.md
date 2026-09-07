@@ -7,21 +7,24 @@ the app deep-links to from auth emails (`verified.html`,
 at `/feedbackas`.
 
 Plain static HTML. No build step, no dependencies, nothing to install.
-Served by GitHub Pages from the root of `main`.
+Deployed by Netlify from the root of `main`.
 
 ## Why this is its own repo
 
 The site used to live in the app's private repo, as its `docs/` folder, and
-was deployed from there. That is what made it expensive: the app repo takes
-around a hundred pushes a month and the site changes in maybe eight of them,
-but a host watching that repo rebuilds on every push regardless — and it
-rebuilds a React Native tree, because that is what the repo looks like from
-the outside. Ninety-odd deploys a month of an unchanged 1.7 MB of HTML is
-what burned through a free tier.
+was deployed from there. That is what made it expensive, and the host had
+nothing to do with it: the app repo takes around a hundred pushes a month
+and the site changes in maybe eight of them, but a host watching that repo
+rebuilds on every push regardless of what moved — and it rebuilds a React
+Native tree, because that is what the repo looks like from the outside.
+Ninety-odd deploys a month of an unchanged 1.7 MB of HTML is what burned
+through a month of free build minutes.
 
 Splitting the site out fixes that at the root rather than with build
 filters: a deploy happens when the site changes, because nothing else is
-in here to change.
+in here to change. Eight builds a month of a folder with no package.json
+in it costs nothing anywhere, which is why moving hosts turned out to be
+unnecessary once the repo was split.
 
 The app repo keeps its `docs/` folder for the internal engineering notes
 (the store-release checklist, the moderation checklist, the accessibility
@@ -32,9 +35,14 @@ accident — linked from nowhere, but fetchable — and now they are not.
 
 Push to `main`. That is the whole procedure.
 
-`.nojekyll` disables Jekyll, since none of this needs processing.
-`CNAME` holds the custom domain and must survive any reorganisation —
-deleting it un-sets the domain in the repository settings.
+`netlify.toml` says the publish directory is the repo root and there is no
+build command; it lives here rather than in the Netlify dashboard so the
+setting is recorded somewhere a person reading this repo can find it.
+
+`CNAME` is a GitHub Pages leftover from before the split. Netlify ignores
+it and it is left in place deliberately — it documents which domain this
+repo is, and it is what would re-configure Pages automatically if this ever
+needed to move again in a hurry.
 
 ## The feedback board
 
