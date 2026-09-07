@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>„Laiškelis“</title>
+<meta name="description" content="Anoniminiai laiškeliai nepažįstamiesiems. Parašyk laiškelį — jis atkeliaus atsitiktiniam žmogui arba liks laukti vietoje žemėlapyje.">
+<meta name="theme-color" content="#e7dec8">
+<meta property="og:type" content="website">
+<meta property="og:title" content="„Laiškelis“">
+<meta property="og:description" content="Anoniminiai laiškeliai nepažįstamiesiems.">
+<meta property="og:url" content="https://laiskelis.lt/">
+<meta property="og:image" content="https://laiskelis.lt/feature-graphic.png">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="stylesheet" href="legal.css">
+<style>
+  .banner {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0 0 8px;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .hero .tagline {
+    font-size: 19px;
+    margin: 0 auto 12px;
+    max-width: 30ch;
+  }
+
+  .hero .blurb {
+    color: var(--subtext);
+    font-size: 15px;
+    margin: 0 auto;
+    max-width: 46ch;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  a.card {
+    display: block;
+    background: var(--brick);
+    border: 1px solid var(--brick);
+    border-radius: 10px;
+    padding: 18px 20px;
+    text-decoration: none;
+    color: var(--on-brick);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+
+  a.card:hover {
+    background: var(--brick-dark);
+    border-color: var(--brick-dark);
+    transform: translateY(-1px);
+  }
+
+  a.card:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  a.card .label {
+    display: block;
+    font-size: 17px;
+    color: var(--on-brick);
+    margin-bottom: 4px;
+  }
+
+  a.card .desc {
+    display: block;
+    font-size: 14px;
+    color: rgba(247, 241, 228, 0.82);
+    line-height: 1.5;
+  }
+
+  a.card .lang {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(247, 241, 228, 0.82);
+    border: 1px solid rgba(247, 241, 228, 0.45);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: 2px;
+  }
+
+  .store-cta {
+    text-align: center;
+    margin: 0 0 32px;
+  }
+
+  .store-badge {
+    display: inline-block;
+    /* Apple asks for clear space of at least 10% of the badge height on every
+       side; the badge renders 60px tall, so 8px clears the floor. */
+    padding: 8px;
+    border-radius: 12px;
+    transition: transform 0.15s ease;
+  }
+
+  .store-badge img {
+    display: block;
+    width: 180px;
+    height: auto;
+  }
+
+  .store-badge:hover { transform: translateY(-1px); }
+
+  .store-badge:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
+  .store-note {
+    color: var(--subtext);
+    font-size: 14px;
+    margin: 4px 0 0;
+  }
+
+  .contact {
+    margin-top: 32px;
+    text-align: center;
+    color: var(--subtext);
+    font-size: 15px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    a.card, .store-badge { transition: none; }
+    a.card:hover, .store-badge:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img class="banner" src="banner.png"
+         alt="„Laiškelis“ — kreidele pieštas logotipas ir telefonas su laiškeliu, prisegtu prie vietos žemėlapyje">
+    <h1 class="sr-only">„Laiškelis“</h1>
+    <p class="tagline">Anoniminiai laiškeliai nepažįstamiesiems.</p>
+    <p class="blurb">Laiškelis yra unikali galimybė išsilieti ne tik savo užrašų knygutei ar notepadui — savo mintimis galite apkrauti ir nepažįstamuosius! Taip pat laiškelius galima palikti ir pagal žemėlapio lokaciją kažkam, ką toje vietoje sutikai.</p>
+  </header>
+
+  <!-- The badge is Apple's official Lithuanian artwork, fetched from
+       toolbox.marketingtools.apple.com and committed as app-store-lt.svg so
+       the page never depends on an Apple host at load time. Their guidelines
+       want it unaltered and with clear space around it, which is what the
+       .store-badge padding is for. Google Play has no listing yet — when it
+       does, its badge goes beside this one and the note below goes away. -->
+  <section class="store-cta">
+    <a class="store-badge" href="https://apps.apple.com/lt/app/id6796757249">
+      <img src="app-store-lt.svg" alt="Atsisiųskite „Laiškelį“ iš „App Store“">
+    </a>
+    <p class="store-note">„Android“ versija dar ruošiama.</p>
+  </section>
+
+  <nav class="cards">
+
+    <a class="card" href="story/">
+      <span class="label">Story<span class="lang">EN</span></span>
+      <span class="desc">The idea, the process, and the goals.</span>
+    </a>
+
+    <a class="card" href="csae-standards.html">
+      <span class="label">CSAE Standards<span class="lang">EN</span></span>
+      <span class="desc">Child sexual abuse and exploitation standards, as
+      required by Google Play.</span>
+    </a>
+
+    <a class="card" href="support.html">
+      <span class="label">Pagalba</span>
+      <span class="desc">Dažniausi klausimai: slaptažodis, patvirtinimo
+      laiškas, skundai, blokavimas.</span>
+    </a>
+
+    <a class="card" href="privacy.html">
+      <span class="label">Privatumo politika</span>
+      <span class="desc">Kokius duomenis renkame, kiek laiko saugome ir ko
+      neprašome niekada.</span>
+    </a>
+
+    <a class="card" href="terms.html">
+      <span class="label">Naudojimo sąlygos</span>
+      <span class="desc">Taisyklės, turinio ribos ir ko tikimasi iš
+      naudotojų.</span>
+    </a>
+
+    <a class="card" href="delete-account.html">
+      <span class="label">Paskyros ištrynimas</span>
+      <span class="desc">Kaip ištrinti paskyrą ir kas nutinka Jūsų
+      laiškeliams.</span>
+    </a>
+
+  </nav>
+
+
+  <footer>„Laiškelis“ · Aleksandras Abrutis · aleksandrasabrutis18@gmail.com</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>„Laiškelis“ – El. paštas patvirtintas</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.png">
+<link rel="stylesheet" href="legal.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="lang-toggle">
+    <button type="button" id="lang-btn" onclick="toggleLang()">English</button>
+  </div>
+
+  <div id="lt">
+    <h1>El. paštas patvirtintas ✓</h1>
+    <p>Jūsų „Laiškelis“ paskyra patvirtinta. Dabar galite grįžti į programėlę ir prisijungti.</p>
+    <a class="btn" href="laiskelis://auth/callback">Atidaryti programėlę</a>
+    <p class="muted">Jei mygtukas programėlės neatidaro, atsidarykite ją patys ir prisijunkite įprastu būdu — el. paštas jau patvirtintas.</p>
+  </div>
+
+  <div id="en" hidden>
+    <h1>Email verified ✓</h1>
+    <p>Your Laiškelis account is confirmed. You can now return to the app and sign in.</p>
+    <a class="btn" href="laiskelis://auth/callback">Open the app</a>
+    <p class="muted">If the button doesn't open the app, just open it yourself and sign in as usual — your email is already confirmed.</p>
+  </div>
+
+  <footer>„Laiškelis“ · Aleksandras Abrutis · aleksandrasabrutis18@gmail.com</footer>
+</div>
+<script>
+function toggleLang() {
+  var lt = document.getElementById('lt');
+  var en = document.getElementById('en');
+  var btn = document.getElementById('lang-btn');
+  var showEn = lt.hidden;
+  lt.hidden = showEn;
+  en.hidden = !showEn;
+  btn.textContent = showEn ? 'Lietuviškai' : 'English';
+  document.documentElement.lang = showEn ? 'lt' : 'en';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Kodas</title>
+<style>
+/* Nothing but the code.
+
+   Projected on a wall or printed once and stuck to it — either way the
+   room already knows what it is for, and a heading, an address and three
+   numbered steps are all things a class reads instead of scanning.
+
+   Forced light with a real white quiet zone in every case: an inverted
+   code is legal QR but plenty of phone cameras will not take it, and this
+   is scanned once, at a distance, by thirty people in a hurry. */
+
+:root { color-scheme: light; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #fff;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The smaller viewport side, less a margin — so it fills a projector in
+   landscape and a phone in portrait without ever cropping. */
+img {
+  width: min(88vw, 88vh);
+  height: min(88vw, 88vh);
+  display: block;
+}
+
+@media print {
+  @page { size: auto; margin: 12mm; }
+  img { width: 170mm; height: 170mm; }
+}
+</style>
+</head>
+<body>
+  <img src="qr.svg" alt="QR kodas į laiskelis.lt/feedbackas">
+</body>
+</html>

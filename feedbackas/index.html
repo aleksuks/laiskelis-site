@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Pamokos atsiliepimai</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Three states, one at a time: waiting for the server, no lesson
+       open, the form. A fourth (thank you) replaces the form in place. -->
+
+  <div id="loading" class="center">
+    <p class="sub">Kraunama…</p>
+  </div>
+
+  <div id="closed" class="center" hidden>
+    <div class="big">🕒</div>
+    <h1>Šiuo metu atsiliepimų nerenkame</h1>
+    <p class="sub">Palauk, kol mokytojas pradės, ir atnaujink šį puslapį.</p>
+  </div>
+
+  <div id="done" class="center" hidden>
+    <div class="big">✅</div>
+    <h1>Ačiū!</h1>
+    <p class="sub">Tavo atsakymas anonimiškai pateko į ekraną.</p>
+  </div>
+
+  <form id="form" hidden>
+    <h1>Pamokos atsiliepimas</h1>
+    <p class="sub">Anonimiškai — vardo niekur rašyti nereikia ir neįmanoma.</p>
+
+    <div id="error" class="msg error" hidden></div>
+
+    <div class="field">
+      <label class="q" for="a1" id="label1"></label>
+      <textarea id="a1" maxlength="500" autocomplete="off"></textarea>
+      <div class="count"><span id="c1">0</span>/500</div>
+    </div>
+
+    <div class="field">
+      <label class="q" for="a2" id="label2"></label>
+      <textarea id="a2" maxlength="500" autocomplete="off"></textarea>
+      <div class="count"><span id="c2">0</span>/500</div>
+    </div>
+
+    <button type="submit" id="send">Siųsti</button>
+  </form>
+
+</div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var session = null;
+
+  function show(id) {
+    ["loading", "closed", "done", "form"].forEach(function (k) {
+      el(k).hidden = k !== id;
+    });
+  }
+
+  function showError(text) {
+    el("error").textContent = text;
+    el("error").hidden = false;
+  }
+
+  // Counters. maxlength already caps typing; this just shows the room left.
+  [["a1", "c1"], ["a2", "c2"]].forEach(function (pair) {
+    el(pair[0]).addEventListener("input", function () {
+      el(pair[1]).textContent = String(el(pair[0]).value.length);
+    });
+  });
+
+  // Remembering which session this browser already answered is a courtesy
+  // against a double tap and a refresh, not a security control — the row
+  // cap in feedback_submit() is what actually bounds a session. Anyone who
+  // clears their storage can answer twice, and that is fine: this is a
+  // classroom, not a ballot.
+  function alreadyAnswered(id) {
+    try { return localStorage.getItem("feedbackas.done." + id) === "1"; }
+    catch (e) { return false; }
+  }
+
+  function rememberAnswered(id) {
+    try { localStorage.setItem("feedbackas.done." + id, "1"); } catch (e) {}
+  }
+
+  function load() {
+    rpc("feedback_current").then(function (rows) {
+      var s = rows && rows[0];
+      if (!s) { show("closed"); return; }
+      session = s;
+      if (alreadyAnswered(s.session_id)) { show("done"); return; }
+      el("label1").textContent = s.prompt_1;
+      el("label2").textContent = s.prompt_2;
+      show("form");
+    }).catch(function (err) {
+      show("form");
+      el("label1").textContent = "";
+      el("label2").textContent = "";
+      showError(err.message);
+      el("send").disabled = true;
+    });
+  }
+
+  el("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!session) return;
+    el("error").hidden = true;
+
+    var a1 = el("a1").value.trim();
+    var a2 = el("a2").value.trim();
+    if (!a1 && !a2) { showError("Parašyk bent į vieną laukelį."); return; }
+
+    el("send").disabled = true;
+    el("send").textContent = "Siunčiama…";
+
+    rpc("feedback_submit", {
+      p_session_id: session.session_id,
+      p_answer_1: a1,
+      p_answer_2: a2
+    }).then(function () {
+      rememberAnswered(session.session_id);
+      show("done");
+    }).catch(function (err) {
+      showError(err.message);
+      el("send").disabled = false;
+      el("send").textContent = "Siųsti";
+    });
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+/* The feedback board looks nothing like Laiškelis on purpose.
+
+   It shares a database with the letter app and nothing else, and a child
+   scanning a QR code in a classroom should not land on something wearing
+   the branding of a product they have no account for. So: a plain school
+   palette, no banner, no navigation back into the site. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #1c2024;
+  --subtext: #5b6470;
+  --border: #dde1e7;
+  --accent: #1f6f5c;
+  --accent-text: #ffffff;
+  --danger: #9b2c22;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171a;
+    --surface: #1d2125;
+    --text: #eceef0;
+    --subtext: #9aa4b0;
+    --border: #2e343b;
+    --accent: #3f9c85;
+    --accent-text: #0c1210;
+    --danger: #e0796d;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 28px 18px 64px;
+}
+
+.wrap.wide { max-width: 1100px; }
+
+h1 {
+  font-size: 24px;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.sub {
+  color: var(--subtext);
+  font-size: 15px;
+  margin: 0 0 28px;
+}
+
+label.q {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px;
+  font: inherit;
+  font-size: 17px; /* 17px+ stops iOS zooming the page on focus */
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field { margin-bottom: 26px; }
+
+.count {
+  font-size: 13px;
+  color: var(--subtext);
+  text-align: right;
+  margin-top: 6px;
+}
+
+button {
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 14px 22px;
+  min-height: 50px; /* thumb-sized: this is used standing up, in a hurry */
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+button.danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--border);
+}
+
+button:disabled { opacity: 0.5; cursor: default; }
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.msg {
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 20px;
+}
+
+.msg.error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.center {
+  text-align: center;
+  padding: 60px 0;
+}
+
+.center .big { font-size: 44px; margin-bottom: 12px; }
+
+input[type="text"] {
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 17px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* ---- teacher board ---- */
+
+.board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin-top: 26px;
+}
+
+@media (max-width: 760px) {
+  .board { grid-template-columns: 1fr; }
+}
+
+.column h2 {
+  font-size: 17px;
+  margin: 0 0 12px;
+  color: var(--subtext);
+  font-weight: 600;
+}
+
+/* A card is a button: one click removes that answer from the wall, with
+   no confirmation, because the case it exists for is something unkind
+   being two metres tall on a projector. Styled back down from the
+   accent-filled default button above. */
+button.card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 400;
+  min-height: 0;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+
+/* The affordance stays quiet until pointed at — thirty cards all looking
+   pressable is a board that reads as a control panel rather than as the
+   class's answers. */
+button.card:hover,
+button.card:focus-visible {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+button.card:active { opacity: 0.6; }
+
+@media (hover: none) {
+  /* Touch has no hover to warn with, so nothing is highlighted and the
+     hint line below the buttons is what explains the tap. */
+  button.card:hover { border-color: var(--border); color: var(--text); }
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--subtext);
+  margin-bottom: 18px;
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 7px;
+  vertical-align: middle;
+}
+
+.dot.off { background: var(--subtext); }
+
+details.setup {
+  margin-top: 30px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+details.setup summary {
+  cursor: pointer;
+  color: var(--subtext);
+  font-size: 14px;
+}
+
+details.setup .field { margin: 16px 0; }
+
+.hint {
+  font-size: 13px;
+  color: var(--subtext);
+  margin-top: 6px;
+}

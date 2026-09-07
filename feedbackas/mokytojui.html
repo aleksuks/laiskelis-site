@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Atsiliepimai — mokytojui</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap wide">
+
+  <!-- The key lives in the URL fragment, which browsers never send to a
+       server and which stays out of GitHub Pages' logs and any referrer.
+       It reaches Supabase only in the RPC body, where it has to. -->
+
+  <div id="unlock" hidden>
+    <h1>Mokytojo raktas</h1>
+    <p class="sub">Įklijuok raktą vieną kartą — naršyklė jį prisimins.</p>
+    <div id="unlockError" class="msg error" hidden></div>
+    <div class="field">
+      <input type="text" id="keyInput" autocomplete="off" spellcheck="false" placeholder="32 simbolių raktas">
+      <p class="hint">Patogiausia išsisaugoti adresą su raktu po žvaigždute:
+      <code>laiskelis.lt/feedbackas/mokytojui.html#RAKTAS</code></p>
+    </div>
+    <button id="unlockBtn">Atrakinti</button>
+  </div>
+
+  <div id="main" hidden>
+    <h1>Pamokos atsiliepimai</h1>
+
+    <div id="error" class="msg error" hidden></div>
+
+    <div class="status">
+      <span id="state"><span class="dot off"></span>Nepradėta</span>
+      <span id="count"></span>
+      <span id="timeleft"></span>
+      <span id="deleteHint" hidden>paspausk ant atsakymo, kad jį pašalintum</span>
+    </div>
+
+    <div class="row">
+      <button id="start">Pradėti pamoką</button>
+      <button id="end" class="secondary" hidden>Baigti rinkti</button>
+      <button id="wipe" class="danger" hidden>Išvalyti ekraną</button>
+      <a href="kodas.html" target="_blank" rel="noopener">
+        <button type="button" class="secondary">Kodas</button>
+      </a>
+    </div>
+
+    <div class="board">
+      <div class="column">
+        <h2 id="head1">—</h2>
+        <div id="col1"></div>
+      </div>
+      <div class="column">
+        <h2 id="head2">—</h2>
+        <div id="col2"></div>
+      </div>
+    </div>
+
+    <details class="setup">
+      <summary>Klausimai ir pamokos žymė</summary>
+      <div class="field">
+        <label class="q" for="p1">Pirmas klausimas</label>
+        <input type="text" id="p1" maxlength="200" value="Ką šiandien supratai geriausiai?">
+      </div>
+      <div class="field">
+        <label class="q" for="p2">Antras klausimas</label>
+        <input type="text" id="p2" maxlength="200" value="Kas liko neaišku?">
+      </div>
+      <div class="field">
+        <label class="q" for="lbl">Žymė sau (nebūtina)</label>
+        <input type="text" id="lbl" maxlength="80" placeholder="pvz. 8b, antra pamoka">
+        <p class="hint">Klausimai įsimenami šioje naršyklėje ir taikomi
+        kitai pamokai, kurią pradėsi. Mokiniams žymė nerodoma.</p>
+      </div>
+      <button type="button" id="savePrompts" class="secondary">Įsiminti klausimus</button>
+    </details>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+
+  var POLL_MS = 4000;      // the board refresh; a lesson is not a live chat
+  var key = null;
+  var session = null;      // the open session, from feedback_current()
+  var timer = null;
+
+  /* ---------- the key ---------- */
+
+  function readKey() {
+    var fromHash = (location.hash || "").replace(/^#/, "").trim();
+    if (fromHash) {
+      try { localStorage.setItem("feedbackas.key", fromHash); } catch (e) {}
+      return fromHash;
+    }
+    try { return localStorage.getItem("feedbackas.key") || null; }
+    catch (e) { return null; }
+  }
+
+  function forgetKey() {
+    try { localStorage.removeItem("feedbackas.key"); } catch (e) {}
+  }
+
+  /* ---------- remembered prompts ---------- */
+
+  function loadPrompts() {
+    try {
+      var raw = localStorage.getItem("feedbackas.prompts");
+      if (!raw) return;
+      var p = JSON.parse(raw);
+      if (p.p1) el("p1").value = p.p1;
+      if (p.p2) el("p2").value = p.p2;
+      if (p.lbl) el("lbl").value = p.lbl;
+    } catch (e) {}
+  }
+
+  function savePrompts() {
+    try {
+      localStorage.setItem("feedbackas.prompts", JSON.stringify({
+        p1: el("p1").value, p2: el("p2").value, lbl: el("lbl").value
+      }));
+    } catch (e) {}
+  }
+
+  /* ---------- rendering ---------- */
+
+  function showError(text) {
+    el("error").textContent = text;
+    el("error").hidden = false;
+  }
+
+  function clearError() { el("error").hidden = true; }
+
+  function minutesLeft(iso) {
+    var ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 0;
+    return Math.ceil(ms / 60000);
+  }
+
+  function renderStatus() {
+    var open = !!session;
+    el("state").innerHTML = open
+      ? '<span class="dot"></span>Renkami atsakymai'
+      : '<span class="dot off"></span>Nepradėta';
+    el("start").textContent = open ? "Pradėti iš naujo" : "Pradėti pamoką";
+    el("end").hidden = !open;
+    el("timeleft").textContent = open
+      ? "liko ~" + minutesLeft(session.expires_at) + " min."
+      : "";
+    el("head1").textContent = open ? session.prompt_1 : "—";
+    el("head2").textContent = open ? session.prompt_2 : "—";
+  }
+
+  // Cards removed by a click, held until the server agrees. A poll that
+  // was already in flight when the click landed would otherwise put the
+  // card back for four seconds — which, for the one card the teacher is
+  // trying to get off a projector, is the whole problem again.
+  var removed = new Set();
+
+  function card(text, id, field) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "card";
+    b.textContent = text;              // textContent, never innerHTML
+    b.dataset.id = id;
+    b.dataset.field = String(field);
+    b.title = "Pašalinti šį atsakymą";
+    b.setAttribute("aria-label", "Pašalinti atsakymą: " + text);
+    return b;
+  }
+
+  function renderAnswers(rows) {
+    var visible = (rows || []).filter(function (r) {
+      return (r.answer_1 && !removed.has(r.id + ":1")) ||
+             (r.answer_2 && !removed.has(r.id + ":2"));
+    });
+
+    el("wipe").hidden = !visible.length;
+    el("deleteHint").hidden = !visible.length;
+    el("count").textContent = visible.length ? visible.length + " ats." : "";
+
+    var c1 = document.createDocumentFragment();
+    var c2 = document.createDocumentFragment();
+
+    (rows || []).forEach(function (r) {
+      if (r.answer_1 && !removed.has(r.id + ":1")) {
+        c1.appendChild(card(r.answer_1, r.id, 1));
+      }
+      if (r.answer_2 && !removed.has(r.id + ":2")) {
+        c2.appendChild(card(r.answer_2, r.id, 2));
+      }
+    });
+
+    el("col1").replaceChildren(c1);
+    el("col2").replaceChildren(c2);
+  }
+
+  // One click, no confirmation, and the card goes immediately rather than
+  // on the server's reply — school wi-fi should not decide how long an
+  // unkind sentence stays on the wall. If the delete fails it comes back
+  // on the next poll and the error line says why.
+  function onCardClick(e) {
+    var btn = e.target.closest("button.card");
+    if (!btn) return;
+
+    var id = btn.dataset.id;
+    var field = Number(btn.dataset.field);
+    removed.add(id + ":" + field);
+    btn.remove();
+
+    rpc("feedback_delete_answer", { p_key: key, p_id: id, p_field: field })
+      .catch(function (err) {
+        removed.delete(id + ":" + field);
+        showError(err.message);
+      })
+      .then(refresh);
+  }
+
+  el("col1").addEventListener("click", onCardClick);
+  el("col2").addEventListener("click", onCardClick);
+
+  /* ---------- polling ---------- */
+
+  function refresh() {
+    // Two calls: the session (public, tells us what is open and until
+    // when) and the answers (key-gated). feedback_current() is also what
+    // expires a finished lesson, so the board empties itself.
+    return rpc("feedback_current").then(function (rows) {
+      session = (rows && rows[0]) || null;
+      renderStatus();
+      return rpc("feedback_read", { p_key: key });
+    }).then(function (rows) {
+      renderAnswers(rows);
+      clearError();
+    }).catch(function (err) {
+      if (err.message === "Neteisingas raktas.") {
+        stopPolling();
+        forgetKey();
+        location.hash = "";
+        el("main").hidden = true;
+        el("unlock").hidden = false;
+        el("unlockError").textContent = err.message;
+        el("unlockError").hidden = false;
+        return;
+      }
+      showError(err.message);
+    });
+  }
+
+  function startPolling() {
+    stopPolling();
+    refresh();
+    timer = setInterval(refresh, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  // A projector screen sits idle for 45 minutes; no reason to keep asking
+  // while the tab is in the background.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopPolling();
+    else if (key) startPolling();
+  });
+
+  /* ---------- actions ---------- */
+
+  el("start").addEventListener("click", function () {
+    savePrompts();
+    el("start").disabled = true;
+    rpc("feedback_start", {
+      p_key: key,
+      p_prompt_1: el("p1").value,
+      p_prompt_2: el("p2").value,
+      p_label: el("lbl").value
+    }).then(function () {
+      return refresh();
+    }).catch(function (err) {
+      showError(err.message);
+    }).then(function () {
+      el("start").disabled = false;
+    });
+  });
+
+  el("end").addEventListener("click", function () {
+    rpc("feedback_end", { p_key: key })
+      .then(refresh)
+      .catch(function (err) { showError(err.message); });
+  });
+
+  el("wipe").addEventListener("click", function () {
+    if (!confirm("Ištrinti visus atsakymus iš ekrano? Atstatyti nebus galima.")) return;
+    rpc("feedback_wipe", { p_key: key })
+      .then(refresh)
+      .catch(function (err) { showError(err.message); });
+  });
+
+  el("savePrompts").addEventListener("click", function () {
+    savePrompts();
+    el("savePrompts").textContent = "Įsiminta ✓";
+    setTimeout(function () {
+      el("savePrompts").textContent = "Įsiminti klausimus";
+    }, 1500);
+  });
+
+  el("unlockBtn").addEventListener("click", function () {
+    var v = el("keyInput").value.trim();
+    if (!v) return;
+    try { localStorage.setItem("feedbackas.key", v); } catch (e) {}
+    location.reload();
+  });
+
+  el("keyInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") el("unlockBtn").click();
+  });
+
+  /* ---------- boot ---------- */
+
+  key = readKey();
+  loadPrompts();
+
+  if (!key) {
+    el("unlock").hidden = false;
+  } else {
+    // Drop the key out of the address bar once it is stored, so it is not
+    // sitting on a projector in front of thirty pupils.
+    if (location.hash) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    el("main").hidden = false;
+    startPolling();
+  }
+})();
+</script>
+</body>
+</html>
