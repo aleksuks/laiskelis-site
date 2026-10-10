@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17151f">
+<title>Rokui — vedėjui</title>
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- The key arrives in the URL fragment (never sent to a server), is kept
+     in localStorage, and is wiped from the address bar straight away so it
+     is not up on the TV. -->
+
+<div id="unlock" class="wrap" hidden>
+  <h1>Raktas</h1>
+  <input type="text" id="keyInput" autocomplete="off" spellcheck="false">
+  <div id="unlockError" class="error"></div>
+  <button id="unlockBtn" class="full">Atrakinti</button>
+</div>
+
+<div id="app" class="wrap host" hidden></div>
+
+<div id="footer" class="footer" hidden>
+  <button id="pdfBtn" class="secondary" hidden>PDF</button>
+  <button id="newBtn" class="secondary">Naujas žaidimas</button>
+</div>
+
+<div id="offline" class="offline" hidden>Nėra ryšio</div>
+
+<script src="api.js"></script>
+<script src="draw.js"></script>
+<script src="jspdf.umd.min.js"></script>
+<script>
+(function () {
+  const KEY_STORE = "rokas:host";
+  const $ = (id) => document.getElementById(id);
+  const app = $("app");
+
+  function store(k, v) {
+    try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* fine */ }
+  }
+  function load(k) {
+    try { return localStorage.getItem(k); } catch (e) { return null; }
+  }
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  let key = null;
+  if (location.hash.length > 1) {
+    key = decodeURIComponent(location.hash.slice(1)).trim();
+    store(KEY_STORE, key);
+    history.replaceState(null, "", location.pathname + location.search);
+  } else {
+    key = load(KEY_STORE);
+  }
+
+  // ---------- unlock ----------
+
+  function showUnlock(msg) {
+    $("unlock").hidden = false;
+    app.hidden = true;
+    $("footer").hidden = true;
+    $("unlockError").textContent = msg || "";
+  }
+
+  $("unlockBtn").addEventListener("click", () => {
+    key = $("keyInput").value.trim();
+    store(KEY_STORE, key);
+    $("unlock").hidden = true;
+    poll();
+  });
+
+  // ---------- state ----------
+
+  let state = null;
+  let view = null;          // which skeleton is rendered
+  let deadline = null;
+  let advanced = null;      // round we have already asked to leave
+  let allInTimer = null;
+  let photoData = null;     // id -> data url, loaded on demand
+  let showPhotos = false;
+
+  let pollTimer = null;
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (!key) return showUnlock();
+    try {
+      const s = await rpc("party_host_state", { p_key: key });
+      $("offline").hidden = true;
+      $("unlock").hidden = true;
+      app.hidden = false;
+      $("footer").hidden = false;
+      apply(s);
+    } catch (e) {
+      if (e.code === "party_denied") {
+        store(KEY_STORE, null);
+        key = null;
+        return showUnlock(e.message);
+      }
+      $("offline").hidden = false;
+    }
+    pollTimer = setTimeout(poll, 1000);
+  }
+
+  function apply(s) {
+    const prevGame = state && state.game_id;
+    state = s;
+    deadline = s && s.seconds_left != null ? Date.now() + s.seconds_left * 1000 : null;
+    if (s && prevGame && prevGame !== s.game_id) {
+      photoData = null;
+      reveal = null;
+    }
+
+    $("pdfBtn").hidden = !(s && s.phase === "reveal");
+
+    if (!s) return render("none", renderNone);
+    if (s.phase === "lobby") {
+      render("lobby:" + s.game_id, renderLobby);
+      return updateLobby();
+    }
+    if (s.phase === "playing") {
+      render("playing:" + s.game_id + ":" + s.round, renderPlaying);
+      updatePlaying();
+      return;
+    }
+    render("reveal:" + s.game_id, renderReveal);
+  }
+
+  function render(v, fn) {
+    if (view === v) return;
+    view = v;
+    app.innerHTML = "";
+    fn();
+  }
+
+  // ---------- no game ----------
+
+  function renderNone() {
+    app.appendChild(el("h1", null, "Rokui"));
+    const b = el("button", null, "Naujas žaidimas");
+    b.addEventListener("click", newGame);
+    app.appendChild(b);
+  }
+
+  async function newGame() {
+    try {
+      await rpc("party_host_new", { p_key: key });
+      sessionStorage.removeItem("rokas:slide");
+      view = null;
+      poll();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  $("newBtn").addEventListener("click", () => {
+    if (state && state.phase !== "lobby" &&
+        !confirm("Pradėti naują žaidimą? Šio žaidimo rezultatai liks tik PDF faile.")) return;
+    if (state && state.phase === "lobby" && !confirm("Pradėti naują žaidimą?")) return;
+    newGame();
+  });
+
+  // ---------- lobby ----------
+
+  let lobbyEls = null;
+
+  function renderLobby() {
+    const grid = el("div", "lobby");
+
+    const qrBox = el("div");
+    const qr = el("div", "qr");
+    const img = el("img");
+    img.src = "qr.svg";
+    img.alt = "";
+    qr.appendChild(img);
+    qrBox.appendChild(qr);
+    qrBox.appendChild(el("div", "qr-url", "laiskelis.lt/rokas"));
+    grid.appendChild(qrBox);
+
+    const right = el("div");
+    right.appendChild(el("h1", null, "Rokui"));
+    const count = el("div", "stage");
+    right.appendChild(count);
+    const names = el("div", "names");
+    right.appendChild(names);
+
+    const row = el("div", "row");
+    const start = el("button", null, "Pradėti");
+    start.id = "startBtn";
+    start.addEventListener("click", startGame);
+    row.appendChild(start);
+    const photosBtn = el("button", "secondary", "Nuotraukos");
+    photosBtn.addEventListener("click", () => {
+      showPhotos = !showPhotos;
+      panel.hidden = !showPhotos;
+      if (showPhotos) refreshPhotos();
+    });
+    row.appendChild(photosBtn);
+    right.appendChild(row);
+    const reason = el("div", "error");
+    right.appendChild(reason);
+
+    grid.appendChild(right);
+    app.appendChild(grid);
+
+    const panel = el("div", "photos-panel");
+    panel.hidden = !showPhotos;
+    app.appendChild(panel);
+
+    lobbyEls = { count, names, start, reason, panel, namesKey: null, photosKey: null };
+    if (showPhotos) refreshPhotos();
+  }
+
+  function updateLobby() {
+    const s = state;
+    const L = lobbyEls;
+    const n = s.players.length;
+    const m = s.photos.length;
+    L.count.textContent = "Žaidėjų: " + n;
+
+    const namesKey = s.players.map((p) => p.id).join(",");
+    if (L.namesKey !== namesKey) {
+      L.namesKey = namesKey;
+      L.names.innerHTML = "";
+      for (const p of s.players) {
+        const chip = el("span", "name", p.name);
+        const x = el("button", "x", "×");
+        x.title = "Pašalinti";
+        x.addEventListener("click", async () => {
+          if (!confirm("Pašalinti " + p.name + "?")) return;
+          try {
+            await rpc("party_host_kick", { p_key: key, p_player: p.id });
+            poll();
+          } catch (e) { alert(e.message); }
+        });
+        chip.appendChild(x);
+        L.names.appendChild(chip);
+      }
+    }
+
+    let why = "";
+    if (n < 2) why = "";
+    else if (m < n) why = "Nuotraukų: " + m + ", žaidėjų: " + n + ". Reikia bent tiek nuotraukų, kiek žaidėjų.";
+    L.reason.textContent = why;
+    L.start.disabled = n < 2 || m < n;
+
+    const photosKey = s.photos.map((p) => p.id).join(",");
+    if (showPhotos && L.photosKey !== photosKey && !uploading) {
+      refreshPhotos();
+    }
+  }
+
+  async function startGame() {
+    const n = state.players.length;
+    if (!confirm("Pradėti su " + n + " žaidėjais? Vėliau prisijungti nebus galima.")) return;
+    lobbyEls.start.disabled = true;
+    try {
+      await rpc("party_host_start", { p_key: key });
+      showPhotos = false;
+      poll();
+    } catch (e) {
+      alert(e.message);
+      lobbyEls.start.disabled = false;
+    }
+  }
+
+  // ---------- photos (lobby only: thumbnails on the TV are spoilers) ----------
+
+  let uploading = false;
+
+  async function refreshPhotos() {
+    const L = lobbyEls;
+    if (!L) return;
+    L.photosKey = state.photos.map((p) => p.id).join(",");
+    try {
+      photoData = await rpc("party_host_photos", { p_key: key });
+    } catch (e) {
+      L.photosKey = null;
+      L.panel.textContent = e.message;
+      return;
+    }
+    if (lobbyEls === L) drawPhotoPanel();
+  }
+
+  function drawPhotoPanel() {
+    const L = lobbyEls;
+    const panel = L.panel;
+    panel.innerHTML = "";
+
+    const head = el("div", "row");
+    const pick = el("input");
+    pick.type = "file";
+    pick.accept = "image/*";
+    pick.multiple = true;
+    pick.hidden = true;
+    pick.addEventListener("change", () => upload(Array.from(pick.files || [])));
+    const add = el("button", null, "Pridėti nuotraukų");
+    add.addEventListener("click", () => pick.click());
+    head.appendChild(add);
+    head.appendChild(pick);
+    const info = el("span", "muted");
+    const undated = state.photos.filter((p) => !p.year).length;
+    info.textContent = state.photos.length + " nuotr." + (undated ? " · be metų: " + undated : "");
+    head.appendChild(info);
+    panel.appendChild(head);
+    L.uploadInfo = info;
+
+    const rows = el("div", "photo-rows");
+    for (const p of state.photos) {
+      const row = el("div", "photo-row");
+      const img = el("img");
+      img.alt = "";
+      if (photoData && photoData[p.id]) img.src = photoData[p.id];
+      row.appendChild(img);
+
+      const dates = el("div", "dates");
+      const year = el("input");
+      year.type = "number";
+      year.min = 1950;
+      year.max = 2100;
+      year.placeholder = "Metai";
+      if (p.year) year.value = p.year;
+      else year.classList.add("missing");
+      const month = el("select");
+      month.appendChild(new Option("Mėnuo", ""));
+      MONTHS.forEach((name, i) => month.appendChild(new Option(name, String(i + 1))));
+      if (p.month) month.value = String(p.month);
+      const save = async () => {
+        const y = parseInt(year.value, 10);
+        const okYear = y >= 1950 && y <= 2100;
+        year.classList.toggle("missing", !okYear);
+        try {
+          await rpc("party_host_photo_date", {
+            p_key: key,
+            p_id: p.id,
+            p_year: okYear ? y : null,
+            p_month: month.value ? parseInt(month.value, 10) : null,
+          });
+          p.year = okYear ? y : null;
+          p.month = month.value ? parseInt(month.value, 10) : null;
+        } catch (e) { alert(e.message); }
+      };
+      year.addEventListener("change", save);
+      month.addEventListener("change", save);
+      dates.appendChild(year);
+      dates.appendChild(month);
+      row.appendChild(dates);
+
+      const del = el("button", "secondary", "Pašalinti");
+      del.style.fontSize = "14px";
+      del.style.padding = "8px 12px";
+      del.addEventListener("click", async () => {
+        if (!confirm("Pašalinti nuotrauką?")) return;
+        try {
+          await rpc("party_host_photo_delete", { p_key: key, p_id: p.id });
+          await poll();
+          refreshPhotos();
+        } catch (e) { alert(e.message); }
+      });
+      row.appendChild(del);
+      rows.appendChild(row);
+    }
+    panel.appendChild(rows);
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  // Shrinks to at most 1400px on the long edge, as JPEG, under the
+  // database's 900K-character cap for a data URL.
+  async function shrink(file) {
+    let src;
+    try {
+      src = await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch (e) {
+      src = await loadImage(URL.createObjectURL(file));
+    }
+    let edge = 1400;
+    for (;;) {
+      const scale = Math.min(1, edge / Math.max(src.width, src.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(src.width * scale);
+      c.height = Math.round(src.height * scale);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(src, 0, 0, c.width, c.height);
+      for (const q of [0.85, 0.75, 0.62]) {
+        const data = c.toDataURL("image/jpeg", q);
+        if (data.length < 850000) return data;
+      }
+      edge = Math.round(edge * 0.75);
+    }
+  }
+
+  async function upload(files) {
+    if (!files.length) return;
+    uploading = true;
+    const failed = [];
+    let i = 0;
+    for (const f of files) {
+      i++;
+      if (lobbyEls.uploadInfo) lobbyEls.uploadInfo.textContent = "Įkeliama " + i + " / " + files.length + "…";
+      try {
+        const data = await shrink(f);
+        await rpc("party_host_photo_add", { p_key: key, p_data: data, p_year: null, p_month: null });
+      } catch (e) {
+        failed.push(f.name);
+      }
+    }
+    uploading = false;
+    await poll();
+    await refreshPhotos();
+    if (failed.length) {
+      alert("Nepavyko įkelti: " + failed.join(", ") +
+        "\n\nJei tai HEIC nuotraukos iš iPhone, paversk jas į JPG.");
+    }
+  }
+
+  // ---------- playing ----------
+
+  let playEls = null;
+
+  function renderPlaying() {
+    const s = state;
+    const kind = s.round === 0 ? "describe" : s.round % 2 === 1 ? "draw" : "guess";
+    const label = { describe: "Aprašo nuotrauką", draw: "Piešia", guess: "Spėja" }[kind];
+
+    app.appendChild(el("div", "stage", s.round + 1 + " / " + s.rounds + " · " + label));
+    const clock = el("div", "clock");
+    app.appendChild(clock);
+    const names = el("div", "names");
+    app.appendChild(names);
+
+    const row = el("div", "row");
+    const more = el("button", "secondary", "+30 s");
+    more.addEventListener("click", async () => {
+      try {
+        await rpc("party_host_extend", { p_key: key, p_seconds: 30 });
+        poll();
+      } catch (e) { alert(e.message); }
+    });
+    row.appendChild(more);
+    const next = el("button", "secondary", "Toliau");
+    next.addEventListener("click", () => advance(s.round));
+    row.appendChild(next);
+    app.appendChild(row);
+
+    playEls = { clock, names, round: s.round };
+    clearTimeout(allInTimer);
+    allInTimer = null;
+  }
+
+  function updatePlaying() {
+    const s = state;
+    const seated = s.players.filter((p) => p.seat != null);
+    playEls.names.innerHTML = "";
+    for (const p of seated) {
+      playEls.names.appendChild(el("span", "name" + (p.submitted ? " done" : ""), (p.submitted ? "✓ " : "") + p.name));
+    }
+    const allIn = seated.length > 0 && seated.every((p) => p.submitted);
+    if (allIn && !allInTimer) {
+      const r = s.round;
+      allInTimer = setTimeout(() => advance(r), 1500);
+    }
+    tick();
+  }
+
+  async function advance(round) {
+    if (advanced === round) return;
+    advanced = round;
+    try {
+      await rpc("party_host_next", { p_key: key, p_round: round });
+    } catch (e) {
+      advanced = null;
+    }
+    poll();
+  }
+
+  function tick() {
+    if (!state || state.phase !== "playing" || !playEls || deadline == null) return;
+    const left = Math.max(0, deadline - Date.now());
+    const secs = Math.ceil(left / 1000);
+    playEls.clock.textContent = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+    playEls.clock.classList.toggle("low", secs <= 10);
+    // Phones send what they have when their clock runs out; give those a
+    // few seconds to land before moving on.
+    if (Date.now() > deadline + 4000) advance(state.round);
+  }
+  setInterval(tick, 250);
+
+  // ---------- reveal ----------
+
+  let reveal = null; // { chains, slides, images, index }
+
+  async function loadReveal() {
+    const [chains, data] = await Promise.all([
+      rpc("party_host_results", { p_key: key }),
+      rpc("party_host_photos", { p_key: key }),
+    ]);
+    const images = {};
+    await Promise.all(Object.keys(data || {}).map(async (id) => {
+      try { images[id] = await loadImage(data[id]); } catch (e) { /* missing photo */ }
+    }));
+    const slides = [];
+    chains.forEach((c, ci) => {
+      c.steps.forEach((st, si) => slides.push({ ci, si }));
+      slides.push({ ci, photo: true });
+    });
+    let index = -1;
+    const saved = parseInt(sessionStorage.getItem("rokas:slide") || "", 10);
+    if (saved >= -1 && saved <= slides.length) index = saved;
+    return { chains, slides, images, index };
+  }
+
+  function renderReveal() {
+    const box = el("div", "reveal");
+    app.appendChild(box);
+    box.appendChild(el("div", "center", "…"));
+
+    const attempt = async () => {
+      try {
+        reveal = await loadReveal();
+        drawSlide();
+      } catch (e) {
+        box.innerHTML = "";
+        const c = el("div", "center");
+        c.appendChild(el("div", "big", e.message));
+        const retry = el("button", null, "Dar kartą");
+        retry.addEventListener("click", (ev) => { ev.stopPropagation(); attempt(); });
+        c.appendChild(retry);
+        box.appendChild(c);
+      }
+    };
+    attempt();
+
+    box.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      go(1);
+    });
+  }
+
+  function go(d) {
+    if (!reveal) return;
+    reveal.index = Math.max(-1, Math.min(reveal.slides.length, reveal.index + d));
+    sessionStorage.setItem("rokas:slide", String(reveal.index));
+    drawSlide();
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (!reveal || !view || !view.startsWith("reveal")) return;
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); go(1); }
+    if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); go(-1); }
+  });
+
+  function whoLabel(st) {
+    const name = st.name || "?";
+    if (st.kind === "describe") return "Aprašė " + name;
+    if (st.kind === "draw") return "Nupiešė " + name;
+    return "Spėjo " + name;
+  }
+
+  function stepCard(st, cls, size) {
+    const card = el("div", "card " + cls);
+    card.appendChild(el("div", "who", whoLabel(st)));
+    if (st.kind === "draw") {
+      if (st.drawing && !isEmptyDrawing(st.drawing)) card.appendChild(drawingCanvas(st.drawing, size));
+      else card.appendChild(el("div", "blank", "—"));
+    } else if (st.text) {
+      card.appendChild(el("div", "say", "„" + st.text + "“"));
+    } else {
+      card.appendChild(el("div", "blank", "—"));
+    }
+    return card;
+  }
+
+  function drawSlide() {
+    const box = app.querySelector(".reveal");
+    if (!box || !reveal) return;
+    box.innerHTML = "";
+    const { chains, slides, images, index } = reveal;
+
+    const progress = el("div", "progress");
+    progress.style.width = ((index + 1) / (slides.length + 1)) * 100 + "%";
+    box.appendChild(progress);
+
+    if (index < 0) {
+      const c = el("div", "center");
+      c.style.flex = "1";
+      c.appendChild(el("h1", null, "Rokui"));
+      c.appendChild(el("div", "muted", "→"));
+      box.appendChild(c);
+      return;
+    }
+
+    if (index >= slides.length) {
+      const c = el("div", "center reveal-end");
+      c.style.flex = "1";
+      c.appendChild(el("h1", null, "Viskas."));
+      const pdf = el("button", null, "Išsaugoti PDF");
+      pdf.addEventListener("click", savePdf);
+      c.appendChild(pdf);
+      box.appendChild(c);
+      return;
+    }
+
+    const slide = slides[index];
+    const chain = chains[slide.ci];
+    const head = el("div", "reveal-head");
+    head.appendChild(el("span", null, formatDate(chain.year, chain.month)));
+    head.appendChild(el("span", null, slide.ci + 1 + " / " + chains.length));
+    box.appendChild(head);
+
+    const body = el("div", "reveal-body");
+    const big = Math.min(window.innerHeight * 0.62, window.innerWidth * 0.46);
+    const small = big * 0.7;
+
+    if (slide.photo) {
+      const last = chain.steps[chain.steps.length - 1];
+      if (last) body.appendChild(stepCard(last, "prev", small));
+      const card = el("div", "card now");
+      const img = images[chain.photo_id];
+      if (img) {
+        const real = el("img", "real");
+        real.src = img.src;
+        real.alt = "";
+        card.appendChild(real);
+      }
+      const when = formatDate(chain.year, chain.month);
+      if (when) card.appendChild(el("div", "when", when));
+      body.appendChild(card);
+    } else {
+      if (slide.si > 0) body.appendChild(stepCard(chain.steps[slide.si - 1], "prev", small));
+      body.appendChild(stepCard(chain.steps[slide.si], "now", big));
+    }
+    box.appendChild(body);
+  }
+
+  // ---------- PDF ----------
+
+  $("pdfBtn").addEventListener("click", savePdf);
+
+  async function savePdf() {
+    try {
+      if (!reveal) reveal = await loadReveal();
+      if (!window.jspdf) throw new Error("PDF biblioteka neįsikėlė.");
+      const names = state ? state.players.filter((p) => p.seat != null).map((p) => p.name) : [];
+      const pdf = buildPdf(reveal.chains, reveal.images, names);
+      pdf.save("Rokui.pdf");
+    } catch (e) {
+      alert("Nepavyko: " + e.message);
+    }
+  }
+
+  function wrapLines(ctx, text, maxWidth) {
+    const lines = [];
+    for (const para of String(text).split("\n")) {
+      let line = "";
+      for (const word of para.split(/\s+/)) {
+        if (!word) continue;
+        const tryLine = line ? line + " " + word : word;
+        if (ctx.measureText(tryLine).width <= maxWidth || !line) {
+          line = tryLine;
+          // A single word longer than the box: break it by characters.
+          while (ctx.measureText(line).width > maxWidth && line.length > 1) {
+            let cut = line.length - 1;
+            while (cut > 1 && ctx.measureText(line.slice(0, cut)).width > maxWidth) cut--;
+            lines.push(line.slice(0, cut));
+            line = line.slice(cut);
+          }
+        } else {
+          lines.push(line);
+          line = word;
+        }
+      }
+      lines.push(line);
+    }
+    return lines;
+  }
+
+  function fitText(ctx, text, x, y, w, h) {
+    const quoted = "„" + text + "“";
+    for (let size = 64; size >= 18; size -= 2) {
+      ctx.font = size + "px Georgia, 'Times New Roman', serif";
+      const lines = wrapLines(ctx, quoted, w);
+      const lh = size * 1.25;
+      if (lines.length * lh <= h || size === 18) {
+        const top = y + Math.max(0, (h - lines.length * lh) / 2);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        lines.forEach((ln, i) => {
+          if (top + i * lh + lh <= y + h + 1) ctx.fillText(ln, x + w / 2, top + i * lh);
+        });
+        ctx.textAlign = "left";
+        return;
+      }
+    }
+  }
+
+  function buildPdf(chains, images, names) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const W = 2339, H = 1654;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    const INK = "#1d1a16", SUB = "#7a7266", PAPER = "#fbf7ef", LINE = "#e3dccf";
+
+    function page(first) {
+      if (!first) pdf.addPage();
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.9), "JPEG", 0, 0, 297, 210);
+    }
+
+    // Cover.
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = INK;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "bold 220px Georgia, 'Times New Roman', serif";
+    ctx.fillText("Rokui", W / 2, H * 0.42);
+    const d = new Date();
+    ctx.font = "56px Georgia, 'Times New Roman', serif";
+    ctx.fillStyle = SUB;
+    ctx.fillText(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"), W / 2, H * 0.42 + 110);
+    if (names.length) {
+      ctx.font = "44px -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+      const lines = wrapLines(ctx, names.join(" · "), W * 0.7);
+      lines.forEach((ln, i) => ctx.fillText(ln, W / 2, H * 0.68 + i * 62));
+    }
+    ctx.textAlign = "left";
+    page(true);
+
+    chains.forEach((chain, ci) => {
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(0, 0, W, H);
+
+      const M = 90;
+      ctx.fillStyle = INK;
+      ctx.textBaseline = "alphabetic";
+      ctx.font = "bold 72px Georgia, 'Times New Roman', serif";
+      ctx.fillText(formatDate(chain.year, chain.month) || " ", M, M + 50);
+      ctx.font = "44px -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+      ctx.fillStyle = SUB;
+      ctx.textAlign = "right";
+      ctx.fillText(ci + 1 + " / " + chains.length, W - M, M + 50);
+      ctx.textAlign = "left";
+
+      const cells = [{ photo: true }].concat(chain.steps);
+      const cols = 3, rows = 2, gap = 50;
+      const top = M + 110;
+      const cw = (W - 2 * M - (cols - 1) * gap) / cols;
+      const ch = (H - top - M - (rows - 1) * gap) / rows;
+
+      cells.slice(0, 6).forEach((cell, i) => {
+        const x = M + (i % cols) * (cw + gap);
+        const y = top + Math.floor(i / cols) * (ch + gap);
+        const labelH = 56;
+
+        ctx.fillStyle = SUB;
+        ctx.textBaseline = "top";
+        ctx.font = "36px -apple-system, 'Segoe UI', Roboto, Arial, sans-serif";
+        ctx.fillText(cell.photo ? "Nuotrauka" : whoLabel(cell), x, y);
+
+        const bx = x, by = y + labelH, bw = cw, bh = ch - labelH;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = LINE;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bx, by, bw, bh);
+
+        if (cell.photo) {
+          const img = images[chain.photo_id];
+          if (img) {
+            const s = Math.min(bw / img.width, bh / img.height);
+            const iw = img.width * s, ih = img.height * s;
+            ctx.drawImage(img, bx + (bw - iw) / 2, by + (bh - ih) / 2, iw, ih);
+          }
+        } else if (cell.kind === "draw") {
+          if (cell.drawing && !isEmptyDrawing(cell.drawing)) {
+            const size = Math.min(bw, bh) - 20;
+            renderDrawing(ctx, cell.drawing, bx + (bw - size) / 2, by + (bh - size) / 2, size);
+          } else {
+            ctx.fillStyle = SUB;
+            ctx.font = "60px Georgia, serif";
+            ctx.textAlign = "center";
+            ctx.fillText("—", bx + bw / 2, by + bh / 2 - 30);
+            ctx.textAlign = "left";
+          }
+        } else {
+          ctx.fillStyle = INK;
+          if (cell.text) fitText(ctx, cell.text, bx + 36, by + 30, bw - 72, bh - 60);
+          else {
+            ctx.fillStyle = SUB;
+            ctx.font = "60px Georgia, serif";
+            ctx.textAlign = "center";
+            ctx.fillText("—", bx + bw / 2, by + bh / 2 - 30);
+            ctx.textAlign = "left";
+          }
+        }
+      });
+      ctx.textBaseline = "alphabetic";
+      page(false);
+    });
+
+    return pdf;
+  }
+
+  keepAwake();
+  poll();
+})();
+</script>
+</body>
+</html>

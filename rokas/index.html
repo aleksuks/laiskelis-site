@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17151f">
+<title>Rokui</title>
+<link rel="icon" href="../favicon.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div id="join" hidden>
+    <h1>Rokui</h1>
+    <input type="text" id="nameInput" maxlength="30" autocomplete="off" placeholder="Tavo vardas" enterkeyhint="go">
+    <div id="joinError" class="error"></div>
+    <button id="joinBtn" class="full">Prisijungti</button>
+  </div>
+
+  <div id="screen"></div>
+</div>
+
+<div id="offline" class="offline" hidden>Nėra ryšio</div>
+
+<script src="api.js"></script>
+<script src="draw.js"></script>
+<script>
+(function () {
+  const TOKEN_KEY = "rokas:token";
+
+  const $ = (id) => document.getElementById(id);
+  const screenEl = $("screen");
+
+  function store(key, value) {
+    try {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch (e) { /* private mode: lose drafts, keep playing */ }
+  }
+  function load(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  let token = load(TOKEN_KEY);
+  let shownKey = null;      // which screen is on display
+  let task = null;          // the task being worked on, if any
+  let deadline = null;      // Date.now() ms at which the round closes
+  const done = new Set();   // task keys this phone has finished
+  const photos = {};        // photo id -> Promise<data url>
+
+  // ---------- joining ----------
+
+  function showJoin(message) {
+    shownKey = null;
+    task = null;
+    screenEl.innerHTML = "";
+    $("join").hidden = false;
+    $("joinError").textContent = message || "";
+  }
+
+  async function join() {
+    const name = $("nameInput").value.trim();
+    if (!name) {
+      $("joinError").textContent = ERRORS.party_name_empty;
+      return;
+    }
+    $("joinBtn").disabled = true;
+    $("joinError").textContent = "";
+    try {
+      const res = await rpc("party_join", { p_name: name });
+      token = res.token;
+      store(TOKEN_KEY, token);
+      $("join").hidden = true;
+      poll();
+    } catch (e) {
+      $("joinError").textContent = e.message;
+    } finally {
+      $("joinBtn").disabled = false;
+    }
+  }
+
+  $("joinBtn").addEventListener("click", join);
+  $("nameInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") join();
+  });
+
+  // ---------- polling ----------
+
+  let pollTimer = null;
+  async function poll() {
+    clearTimeout(pollTimer);
+    if (!token) {
+      showJoin();
+      return;
+    }
+    try {
+      const s = await rpc("party_state", { p_token: token });
+      $("offline").hidden = true;
+      apply(s);
+    } catch (e) {
+      if (e.code === "party_gone") {
+        token = null;
+        store(TOKEN_KEY, null);
+        showJoin();
+        return;
+      }
+      $("offline").hidden = false;
+    }
+    pollTimer = setTimeout(poll, 1500);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") poll();
+  });
+
+  function apply(s) {
+    $("join").hidden = true;
+    deadline = s.seconds_left == null ? null : Date.now() + s.seconds_left * 1000;
+
+    if (s.phase === "lobby") {
+      return show("lobby", () => message("Laukiam visų.", s.name));
+    }
+    if (s.phase === "reveal") {
+      return show("reveal", () => message("Žiūrėkit į ekraną."));
+    }
+    if (!s.in_game || !s.task) {
+      return show("late", () => message("Žaidimas jau vyksta.", "Žiūrėk į ekraną."));
+    }
+
+    const key = s.game_id + ":" + s.round;
+    if (s.task.submitted || done.has(key)) {
+      return show("wait:" + key, () => message("Palauk kitų."));
+    }
+    show("task:" + key, () => renderTask(key, s));
+  }
+
+  function show(key, render) {
+    if (shownKey === key) return;
+    shownKey = key;
+    if (task && task.pad) task.pad.destroy();
+    task = null;
+    screenEl.innerHTML = "";
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function message(big, small) {
+    const box = el("div", "center");
+    box.appendChild(el("div", "big", big));
+    if (small) box.appendChild(el("div", "muted", small));
+    screenEl.appendChild(box);
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function photo(id) {
+    if (!photos[id]) {
+      photos[id] = rpc("party_photo", { p_token: token, p_photo_id: id }).catch((e) => {
+        delete photos[id];
+        throw e;
+      });
+    }
+    return photos[id];
+  }
+
+  function photoImg(id, maxHeight) {
+    const img = el("img", "photo");
+    img.alt = "";
+    if (maxHeight) img.style.maxHeight = maxHeight;
+    const attempt = (n) =>
+      photo(id).then((src) => { if (src) img.src = src; }).catch(() => {
+        if (n < 5) setTimeout(() => attempt(n + 1), 1500);
+      });
+    attempt(0);
+    return img;
+  }
+
+  // ---------- the task ----------
+
+  function renderTask(key, s) {
+    const kind = s.task.kind;
+    const prompt = s.task.prompt;
+    const draftKey = "rokas:draft:" + key;
+
+    task = { key, round: s.round, kind, sent: false, busy: false, pad: null, input: null, draftKey };
+
+    const top = el("div", "topbar");
+    top.appendChild(el("span", null, s.round + 1 + " / " + s.rounds));
+    const timer = el("span", "timer");
+    top.appendChild(timer);
+    task.timer = timer;
+    screenEl.appendChild(top);
+
+    // What they were handed.
+    if (prompt.type === "photo") {
+      screenEl.appendChild(photoImg(prompt.photo_id, kind === "draw" ? "28vh" : null));
+    } else if (prompt.type === "text") {
+      screenEl.appendChild(el("div", "prompt-text", prompt.text));
+    } else if (prompt.type === "drawing") {
+      const size = Math.min(screenEl.clientWidth, window.innerHeight * 0.5);
+      screenEl.appendChild(drawingCanvas(prompt.drawing, size));
+    }
+
+    // What they do with it.
+    let instruction;
+    if (kind === "describe") instruction = "Aprašyk, kas nuotraukoje.";
+    else if (kind === "draw") instruction = prompt.type === "photo" ? "Nupiešk šią nuotrauką." : "Nupiešk.";
+    else instruction = "Kas čia?";
+    screenEl.appendChild(el("p", "lead", instruction));
+
+    if (kind === "draw") {
+      const host = el("div", "pad-host");
+      screenEl.appendChild(host);
+      task.pad = new DrawPad(host, () => store(draftKey, JSON.stringify(task.pad.strokes)));
+      try {
+        const saved = JSON.parse(load(draftKey) || "null");
+        if (Array.isArray(saved)) task.pad.load(saved);
+      } catch (e) { /* bad draft; start clean */ }
+      screenEl.appendChild(tools(task.pad));
+    } else {
+      const ta = el("textarea");
+      ta.maxLength = 300;
+      ta.value = load(draftKey) || "";
+      ta.addEventListener("input", () => store(draftKey, ta.value));
+      screenEl.appendChild(ta);
+      task.input = ta;
+    }
+
+    const err = el("div", "error");
+    task.error = err;
+    screenEl.appendChild(err);
+
+    const btn = el("button", "full", "Baigta");
+    btn.addEventListener("click", () => submit(false));
+    task.button = btn;
+    screenEl.appendChild(btn);
+
+    tick();
+  }
+
+  function tools(pad) {
+    const box = el("div");
+
+    const colors = el("div", "tools");
+    const swatches = [];
+    PALETTE.forEach((c, i) => {
+      const b = el("button", "swatch" + (i === ERASER ? " eraser" : ""));
+      b.type = "button";
+      if (i === ERASER) {
+        b.textContent = "⌫";
+        b.setAttribute("aria-label", "Trintukas");
+      } else {
+        b.style.background = c;
+      }
+      b.addEventListener("click", () => {
+        pad.color = i;
+        swatches.forEach((x, j) => x.classList.toggle("on", j === i));
+      });
+      swatches.push(b);
+      colors.appendChild(b);
+    });
+    swatches[0].classList.add("on");
+    box.appendChild(colors);
+
+    const row = el("div", "tools");
+    const sizes = [];
+    [8, 14, 22].forEach((d, i) => {
+      const b = el("button", "size" + (i === pad.width ? " on" : ""));
+      b.type = "button";
+      const dot = el("i");
+      dot.style.width = d + "px";
+      dot.style.height = d + "px";
+      b.appendChild(dot);
+      b.addEventListener("click", () => {
+        pad.width = i;
+        sizes.forEach((x, j) => x.classList.toggle("on", j === i));
+      });
+      sizes.push(b);
+      row.appendChild(b);
+    });
+    row.appendChild(el("span", "spacer"));
+    const undo = el("button", "tool", "Atgal");
+    undo.type = "button";
+    undo.addEventListener("click", () => pad.undo());
+    row.appendChild(undo);
+    const clear = el("button", "tool", "Išvalyti");
+    clear.type = "button";
+    clear.addEventListener("click", () => pad.clear());
+    row.appendChild(clear);
+    box.appendChild(row);
+
+    return box;
+  }
+
+  function currentValue() {
+    if (task.kind === "draw") {
+      const v = task.pad.value();
+      return isEmptyDrawing(v) ? null : { p_text: null, p_drawing: v };
+    }
+    const t = task.input.value.trim();
+    return t ? { p_text: t, p_drawing: null } : null;
+  }
+
+  function finish(t) {
+    done.add(t.key);
+    store(t.draftKey, null);
+    if (task === t) show("wait:" + t.key, () => message("Palauk kitų."));
+  }
+
+  // auto: the clock ran out. Send whatever is there; if there is nothing,
+  // there is nothing to send and the chain simply skips this step.
+  async function submit(auto, attempt) {
+    const t = task;
+    if (!t || t.sent || (t.busy && !attempt)) return;
+    const value = currentValue();
+    if (!value) {
+      if (auto) return finish(t);
+      t.error.textContent = t.kind === "draw" ? "Nupiešk ką nors." : "Parašyk ką nors.";
+      return;
+    }
+    t.busy = true;
+    t.button.disabled = true;
+    t.error.textContent = "";
+    try {
+      await rpc("party_submit", Object.assign({ p_token: token, p_round: t.round }, value));
+      t.sent = true;
+      finish(t);
+    } catch (e) {
+      if (e.code === "party_round_over" || e.code === "party_gone") {
+        t.sent = true;
+        finish(t);
+        poll();
+        return;
+      }
+      if (auto && (attempt || 0) < 4) {
+        setTimeout(() => submit(true, (attempt || 0) + 1), 1500);
+        return;
+      }
+      t.busy = false;
+      t.button.disabled = false;
+      t.error.textContent = e.message;
+    }
+  }
+
+  function tick() {
+    if (task && task.timer && deadline != null) {
+      const left = Math.max(0, deadline - Date.now());
+      const secs = Math.ceil(left / 1000);
+      task.timer.textContent = Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+      task.timer.classList.toggle("low", secs <= 10);
+      if (left <= 400 && !task.autoSent) {
+        task.autoSent = true;
+        submit(true);
+      }
+    }
+  }
+  setInterval(tick, 250);
+
+  keepAwake();
+  poll();
+})();
+</script>
+</body>
+</html>

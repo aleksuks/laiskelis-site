@@ -1,0 +1,466 @@
+/* The birthday game. One dark theme for the phones and the TV alike —
+   it is played in the evening, and the drawings sit on white paper so
+   they read on it either way. */
+
+:root {
+  color-scheme: dark;
+  --bg: #17151f;
+  --surface: #221f2d;
+  --surface-2: #2c2839;
+  --text: #f3ede1;
+  --subtext: #a49db4;
+  --border: #3a3549;
+  --accent: #ff8a5c;
+  --accent-text: #1a1210;
+  --ok: #7fd4a0;
+  --danger: #ff7a7a;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+[hidden] { display: none !important; }
+
+.wrap {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+}
+
+h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-size: 34px;
+  margin: 12px 0 18px;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+.muted { color: var(--subtext); }
+
+.center {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.center .big {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+}
+
+input[type="text"], input[type="number"], textarea, select {
+  width: 100%;
+  font: inherit;
+  font-size: 18px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-radius: 999px;
+  padding: 13px 26px;
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+
+button.secondary {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+button.full { width: 100%; margin-top: 12px; }
+
+.error {
+  color: var(--danger);
+  margin: 8px 0;
+  min-height: 1.4em;
+}
+
+/* ---------- phone ---------- */
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--subtext);
+  font-size: 15px;
+  margin-bottom: 10px;
+  min-height: 24px;
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.timer.low { color: var(--danger); }
+
+.photo {
+  display: block;
+  width: 100%;
+  max-height: 52vh;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #000;
+  margin-bottom: 14px;
+}
+
+.prompt-text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 22px;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+
+canvas.drawing {
+  display: block;
+  border-radius: 10px;
+  background: #fff;
+  margin: 0 auto 14px;
+}
+
+.pad-host {
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+canvas.pad {
+  display: block;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.swatch {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+
+.swatch.on { outline: 3px solid var(--text); outline-offset: 2px; }
+
+.swatch.eraser {
+  background: #fff;
+  color: #555;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 30px;
+}
+
+.size {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.size i {
+  display: block;
+  background: var(--text);
+  border-radius: 50%;
+}
+
+.size.on { outline: 3px solid var(--text); outline-offset: 1px; }
+
+.tool {
+  padding: 8px 14px;
+  font-size: 15px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.spacer { flex: 1; }
+
+.offline {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  background: var(--danger);
+  color: #1a0d0d;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+/* ---------- host / TV ---------- */
+
+.host {
+  max-width: none;
+  padding: 3vh 4vw;
+  min-height: 100vh;
+}
+
+.host h1 { font-size: clamp(32px, 4vw, 64px); margin: 0 0 2vh; }
+
+.lobby {
+  display: grid;
+  grid-template-columns: minmax(260px, 40vh) 1fr;
+  gap: 4vw;
+  align-items: start;
+}
+
+.qr {
+  background: #fff;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.qr img { display: block; width: 100%; }
+
+.qr-url {
+  text-align: center;
+  font-size: clamp(18px, 2vw, 30px);
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 2vh 0 4vh;
+}
+
+.name {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: clamp(18px, 2vw, 30px);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name.done { border-color: var(--ok); color: var(--ok); }
+
+.name .x {
+  background: none;
+  color: var(--subtext);
+  padding: 0 4px;
+  font-size: 0.9em;
+}
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+.stage {
+  font-size: clamp(22px, 3vw, 44px);
+  color: var(--subtext);
+}
+
+.clock {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(90px, 18vw, 260px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin: 2vh 0;
+}
+
+.clock.low { color: var(--danger); }
+
+.footer {
+  position: fixed;
+  right: 2vw;
+  bottom: 2vh;
+  display: flex;
+  gap: 10px;
+  opacity: 0.55;
+}
+
+.footer:hover { opacity: 1; }
+
+.footer button { font-size: 14px; padding: 8px 14px; }
+
+/* photo setup */
+
+.photos-panel {
+  margin-top: 3vh;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.photo-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.photo-row {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.photo-row img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #000;
+}
+
+.photo-row .dates { display: flex; gap: 8px; }
+
+.photo-row input, .photo-row select { font-size: 15px; padding: 8px 10px; }
+
+.photo-row .missing { outline: 2px solid var(--danger); }
+
+/* reveal */
+
+.reveal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 3vh 4vw 4vh;
+  cursor: pointer;
+  user-select: none;
+}
+
+.reveal-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: clamp(18px, 2.2vw, 34px);
+  color: var(--subtext);
+}
+
+.reveal-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4vw;
+  min-height: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  min-width: 0;
+  max-height: 100%;
+}
+
+.card.prev { opacity: 0.45; transform: scale(0.8); flex: 0 1 34vw; }
+.card.now { flex: 0 1 52vw; }
+
+.card .who {
+  font-size: clamp(16px, 2vw, 30px);
+  color: var(--subtext);
+}
+
+.card .say {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(28px, 4.2vw, 72px);
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.card.prev .say { font-size: clamp(20px, 2.6vw, 44px); }
+
+.card .blank { font-size: clamp(22px, 3vw, 48px); color: var(--subtext); }
+
+.card canvas.drawing { border-radius: 14px; margin: 0; }
+
+.card img.real {
+  max-width: 100%;
+  max-height: 72vh;
+  border-radius: 14px;
+  object-fit: contain;
+}
+
+.card .when {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(26px, 3.5vw, 60px);
+}
+
+.reveal-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vh;
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+@media (max-width: 700px) {
+  .lobby { grid-template-columns: 1fr; }
+}
