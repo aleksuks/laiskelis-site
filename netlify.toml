@@ -10,3 +10,15 @@
   # to find. It used to find an Expo/React Native app, which is how the
   # site came to cost minutes it had no use for.
   command = ""
+
+# The party game lived at /rokas before it was renamed; old QR codes and
+# links still land on it.
+[[redirects]]
+  from = "/rokas/*"
+  to = "/birthday/:splat"
+  status = 301
+
+[[redirects]]
+  from = "/rokas"
+  to = "/birthday/"
+  status = 301

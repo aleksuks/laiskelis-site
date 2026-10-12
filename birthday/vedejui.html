@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#17151f">
-<title>Rokui — vedėjui</title>
+<title>Gimtadienis — vedėjui</title>
 <link rel="icon" href="../favicon.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -36,7 +36,7 @@
 <script src="jspdf.umd.min.js"></script>
 <script>
 (function () {
-  const KEY_STORE = "rokas:host";
+  const KEY_STORE = "birthday:host";
   const $ = (id) => document.getElementById(id);
   const app = $("app");
 
@@ -59,7 +59,7 @@
     store(KEY_STORE, key);
     history.replaceState(null, "", location.pathname + location.search);
   } else {
-    key = load(KEY_STORE);
+    key = load(KEY_STORE) || load("rokas:host");  // the folder was rokas/ once
   }
 
   // ---------- unlock ----------
@@ -144,7 +144,7 @@
   // ---------- no game ----------
 
   function renderNone() {
-    app.appendChild(el("h1", null, "Rokui"));
+    app.appendChild(el("h1", null, "Gimtadienis"));
     const b = el("button", null, "Naujas žaidimas");
     b.addEventListener("click", newGame);
     app.appendChild(b);
@@ -153,7 +153,7 @@
   async function newGame() {
     try {
       await rpc("party_host_new", { p_key: key });
-      sessionStorage.removeItem("rokas:slide");
+      sessionStorage.removeItem("birthday:slide");
       view = null;
       poll();
     } catch (e) {
@@ -182,11 +182,11 @@
     img.alt = "";
     qr.appendChild(img);
     qrBox.appendChild(qr);
-    qrBox.appendChild(el("div", "qr-url", "laiskelis.lt/rokas"));
+    qrBox.appendChild(el("div", "qr-url", "laiskelis.lt/birthday"));
     grid.appendChild(qrBox);
 
     const right = el("div");
-    right.appendChild(el("h1", null, "Rokui"));
+    right.appendChild(el("h1", null, "Gimtadienis"));
     const count = el("div", "stage");
     right.appendChild(count);
     const names = el("div", "names");
@@ -522,7 +522,7 @@
       slides.push({ ci, photo: true });
     });
     let index = -1;
-    const saved = parseInt(sessionStorage.getItem("rokas:slide") || "", 10);
+    const saved = parseInt(sessionStorage.getItem("birthday:slide") || "", 10);
     if (saved >= -1 && saved <= slides.length) index = saved;
     return { chains, slides, images, index };
   }
@@ -557,7 +557,7 @@
   function go(d) {
     if (!reveal) return;
     reveal.index = Math.max(-1, Math.min(reveal.slides.length, reveal.index + d));
-    sessionStorage.setItem("rokas:slide", String(reveal.index));
+    sessionStorage.setItem("birthday:slide", String(reveal.index));
     drawSlide();
   }
 
@@ -601,7 +601,7 @@
     if (index < 0) {
       const c = el("div", "center");
       c.style.flex = "1";
-      c.appendChild(el("h1", null, "Rokui"));
+      c.appendChild(el("h1", null, "Gimtadienis"));
       c.appendChild(el("div", "muted", "→"));
       box.appendChild(c);
       return;
@@ -660,7 +660,7 @@
       if (!window.jspdf) throw new Error("PDF biblioteka neįsikėlė.");
       const names = state ? state.players.filter((p) => p.seat != null).map((p) => p.name) : [];
       const pdf = buildPdf(reveal.chains, reveal.images, names);
-      pdf.save("Rokui.pdf");
+      pdf.save("Gimtadienis.pdf");
     } catch (e) {
       alert("Nepavyko: " + e.message);
     }
@@ -733,7 +733,7 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     ctx.font = "bold 220px Georgia, 'Times New Roman', serif";
-    ctx.fillText("Rokui", W / 2, H * 0.42);
+    ctx.fillText("Gimtadienis", W / 2, H * 0.42);
     const d = new Date();
     ctx.font = "56px Georgia, 'Times New Roman', serif";
     ctx.fillStyle = SUB;

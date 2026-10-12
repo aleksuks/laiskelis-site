@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#17151f">
-<title>Rokui</title>
+<title>Gimtadienis</title>
 <link rel="icon" href="../favicon.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -13,7 +13,7 @@
 <div class="wrap">
 
   <div id="join" hidden>
-    <h1>Rokui</h1>
+    <h1>Gimtadienis</h1>
     <input type="text" id="nameInput" maxlength="30" autocomplete="off" placeholder="Tavo vardas" enterkeyhint="go">
     <div id="joinError" class="error"></div>
     <button id="joinBtn" class="full">Prisijungti</button>
@@ -28,7 +28,7 @@
 <script src="draw.js"></script>
 <script>
 (function () {
-  const TOKEN_KEY = "rokas:token";
+  const TOKEN_KEY = "birthday:token";
 
   const $ = (id) => document.getElementById(id);
   const screenEl = $("screen");
@@ -43,7 +43,7 @@
     try { return localStorage.getItem(key); } catch (e) { return null; }
   }
 
-  let token = load(TOKEN_KEY);
+  let token = load(TOKEN_KEY) || load("rokas:token");  // the folder was rokas/ once
   let shownKey = null;      // which screen is on display
   let task = null;          // the task being worked on, if any
   let deadline = null;      // Date.now() ms at which the round closes
@@ -187,7 +187,7 @@
   function renderTask(key, s) {
     const kind = s.task.kind;
     const prompt = s.task.prompt;
-    const draftKey = "rokas:draft:" + key;
+    const draftKey = "birthday:draft:" + key;
 
     task = { key, round: s.round, kind, sent: false, busy: false, pad: null, input: null, draftKey };
 
