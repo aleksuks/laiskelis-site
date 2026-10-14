@@ -106,6 +106,16 @@ No author/device columns anywhere student-facing.
   student page: name + PIN, mood, the quiz (kvizas player), private 50/70/90%
   pings, result, stats (points, quizzes, speed, best streak, skills with
   per-quiz bars, strongest/weakest, skill detail), new random PIN.
+- **Art, motion, sound (2026-10-15):** painted with the app repo's ui-art
+  engine (`scripts/ui-art/teacher_*.py`, brief `TEACHER-ART.md` there),
+  copied into `teacher/art/` by `teacher_export.py`. `teacher/art.css` is the
+  painted layer over `style.css` (both pages load it). Motion: magnets drop
+  onto the board, an eraser wipes it on class change, full screens roll down
+  like a projector screen, a coin flips up on +1, emblems stamp on a drop,
+  confetti when the wheel lands or a grade is 8+, milestone stickers slap
+  onto the student's phone, mood faces boil. All off under reduced motion.
+  `teacher/sound.js`: synthesized Web Audio (no files), per-device on/off
+  (Garsas). A note (Pastaba) is silent on purpose: the board may be projected.
 - **PINs** are 5 random digits, HMAC'd under a server secret (not bcrypt, so
   system-wide uniqueness is an index). Students can't pick their own: that
   would let them probe which PINs exist.

@@ -9,12 +9,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="art.css">
 </head>
 <body>
 
 <!-- ---------- passcode gate ---------- -->
 <div id="gate" class="center" hidden>
   <form id="gateForm" class="card">
+    <img class="hero" src="art/hero-teacher-login.png" alt="">
     <h1>Mokytojo lenta</h1>
     <p id="gateError" class="msg" hidden></p>
     <label>Slaptažodis
@@ -29,26 +31,24 @@
   <nav class="tray">
     <div class="classes" id="classes"></div>
     <div class="tools" id="tools">
-      <a class="tool" id="drive" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6h6l2 2h10v11H3z"/></svg>Drive</a>
-      <button class="tool dim" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą">keisti</button>
-      <button class="tool" id="wheelBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>Ratas</button>
-      <button class="tool" id="displayBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 4h18v12H3zM9 20h6M12 16v4"/></svg>Ekranas</button>
-      <button class="tool" id="quizBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/></svg>Testas<span class="live-dot" id="liveDot" hidden></span></button>
-      <a class="tool" href="../feedbackas/mokytojui.html" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4z"/></svg>Atsiliepimai</a>
-      <button class="tool dim" id="addStudents" type="button">+ mokiniai</button>
-      <button class="tool dim" id="pinsBtn" type="button">PIN kodai</button>
-      <button class="tool dim" id="logout" type="button">Atsijungti</button>
+      <a class="tool" id="drive" target="_blank" rel="noopener"><img src="art/tool-drive.png" alt="">Drive</a>
+      <button class="tool" id="wheelBtn" type="button"><img src="art/tool-wheel.png" alt="">Ratas</button>
+      <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
+      <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
+      <a class="tool" href="../feedbackas/mokytojui.html" target="_blank" rel="noopener"><img src="art/tool-feedback.png" alt="">Atsiliepimai</a>
+    </div>
+    <div class="tools minor" id="toolsMinor">
+      <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
+      <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
+      <button class="tool small" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą"><img src="art/tool-class-add.png" alt="">Nuoroda</button>
+      <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
+      <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
     </div>
   </nav>
 
   <main class="board" id="board">
     <div class="zone praise" data-kind="praise">
-      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M24 5l5.6 12.2 13.2 1.5-9.8 9 2.7 13L24 34l-11.7 6.7 2.7-13-9.8-9 13.2-1.5z"/></svg>
+      <img class="emblem" src="art/emblem-praise.png" alt="">
       <h2>Pagyrimas</h2>
     </div>
 
@@ -62,11 +62,11 @@
     <div class="notes">
       <h2>Pastaba</h2>
       <div class="zone" data-kind="note_sleep">
-        <h2>Zzz</h2>
+        <img class="emblem" src="art/emblem-sleep.png" alt="">
         <p>nedirba</p>
       </div>
       <div class="zone" data-kind="note_disrupt">
-        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M7 20v8h7l17 9V11L14 20z"/><path d="M37 18c3 2 3 10 0 12M41 13c6 5 6 17 0 22"/></svg>
+        <img class="emblem" src="art/emblem-disrupt.png" alt="">
         <p>trukdo</p>
       </div>
     </div>
@@ -75,6 +75,7 @@
   <main class="board" id="noClass" hidden>
     <div class="empty">
       <div>
+        <img class="hero" src="art/hero-empty-class.png" alt="">
         <p>Sukurk pirmą klasę</p>
         <button class="btn" type="button" id="firstClass">Nauja klasė</button>
       </div>
@@ -142,7 +143,7 @@
   <div class="quiz-pick" id="quizPick"></div>
   <div class="quiz-board" id="quizBoard" hidden>
     <aside class="join">
-      <img src="../mokinys/qr.svg" alt="QR kodas: laiskelis.lt/mokinys">
+      <img id="joinArt" src="../mokinys/qr.svg" alt="QR kodas: laiskelis.lt/mokinys">
       <p>laiskelis.lt/mokinys</p>
       <p class="joined" id="quizJoined"></p>
     </aside>
@@ -166,6 +167,7 @@
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
 <script src="api.js"></script>
+<script src="sound.js"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -228,6 +230,15 @@
 
   el("logout").addEventListener("click", signOut);
 
+  function renderSound() {
+    var on = Sound.enabled();
+    el("soundArt").src = "art/tool-sound-" + (on ? "on" : "off") + ".png";
+    el("soundBtn").setAttribute("aria-pressed", String(on));
+    el("soundLabel").textContent = on ? "Garsas" : "Tyliai";
+  }
+  el("soundBtn").addEventListener("click", function () { Sound.toggle(); renderSound(); Sound.pop(); });
+  renderSound();
+
   /* ---------- classes ---------- */
 
   function boot() {
@@ -266,11 +277,96 @@
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
     el("tools").hidden = !hasClass;
+    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = !hasClass;
+  }
+
+  /* ---------- motion helpers ---------- */
+
+  var REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+  function later(ms) { return new Promise(function (r) { setTimeout(r, REDUCED.matches ? 0 : ms); }); }
+
+  // Switching class: the eraser wipes the board, then the next class's
+  // magnets drop on. Resolves when the board is clean.
+  var wipeEl = null;
+  function wipe() {
+    if (REDUCED.matches) return Promise.resolve();
+    wipeEl = document.createElement("div");
+    wipeEl.className = "wipe";
+    var img = document.createElement("img");
+    img.src = "art/eraser.png";
+    img.alt = "";
+    wipeEl.appendChild(img);
+    document.querySelector(".magnets-area").appendChild(wipeEl);
+    Sound.swish();
+    return later(520);
+  }
+  function unwipe() {
+    if (!wipeEl) return;
+    var w = wipeEl;
+    wipeEl = null;
+    w.classList.add("out");
+    setTimeout(function () { w.remove(); }, 200);
+  }
+
+  // The full screens roll down like a projector screen, and back up.
+  function openFull(node) {
+    node.classList.remove("closing");
+    node.hidden = false;
+    node.classList.add("open");
+    Sound.roll();
+  }
+  function closeFull(node) {
+    if (node.hidden) return;
+    node.classList.remove("open");
+    node.classList.add("closing");
+    later(280).then(function () { node.hidden = true; node.classList.remove("closing"); });
+  }
+
+  function coinAt(node) {
+    if (REDUCED.matches) return;
+    var r = node.getBoundingClientRect();
+    var c = document.createElement("i");
+    c.className = "coin-fly";
+    c.style.left = r.left + r.width / 2 + "px";
+    c.style.top = r.top + 8 + "px";
+    document.body.appendChild(c);
+    setTimeout(function () { c.remove(); }, 950);
+  }
+
+  function stamp(zone) {
+    zone.classList.remove("stamped");
+    void zone.offsetWidth;
+    zone.classList.add("stamped");
+    setTimeout(function () { zone.classList.remove("stamped"); }, 600);
+  }
+
+  function confetti(anchor) {
+    if (REDUCED.matches) return;
+    var r = anchor.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (var i = 0; i < 28; i++) {
+      var c = document.createElement("i");
+      c.className = "confetti";
+      c.style.backgroundImage = "url(art/confetti-" + (i % 12) + ".png)";
+      c.style.left = cx + "px";
+      c.style.top = cy + "px";
+      var a = Math.random() * Math.PI * 2, d = 140 + Math.random() * 280;
+      c.style.setProperty("--dx", Math.cos(a) * d + "px");
+      c.style.setProperty("--dy", Math.sin(a) * d * 0.7 + 160 + "px");
+      c.style.setProperty("--rot", Math.random() * 900 - 450 + "deg");
+      c.style.setProperty("--t", 1.1 + Math.random() * 0.9 + "s");
+      document.body.appendChild(c);
+      setTimeout(c.remove.bind(c), 2200);
+    }
   }
 
   function openClass(id) {
-    return rpc("teacher_class_state", { p_token: token, p_class: id }).then(function (state) {
-      current = state;
+    var switching = current && current.id !== id && !el("board").hidden;
+    return Promise.all([
+      rpc("teacher_class_state", { p_token: token, p_class: id }),
+      switching ? wipe() : null,
+    ]).then(function (res) {
+      current = res[0];
       store(CLASS_KEY, id);
       if (!away[id]) away[id] = new Set();
       clearError();
@@ -278,8 +374,9 @@
       renderTabs();
       renderTools();
       renderLiveDot();
-      renderMagnets();
-    }).catch(fail);
+      renderMagnets(true);
+      unwipe();
+    }).catch(function (err) { unwipe(); fail(err); });
   }
 
   function renderTools() {
@@ -336,10 +433,18 @@
     return current.students.filter(function (s) { return !gone.has(s.id); });
   }
 
-  function renderMagnets() {
+  function renderMagnets(entering) {
     names = shortNames(current.students);
     var frag = document.createDocumentFragment();
-    visibleStudents().forEach(function (s) { frag.appendChild(magnet(s)); });
+    visibleStudents().forEach(function (s, i) {
+      var m = magnet(s);
+      if (entering) {
+        m.classList.add("enter");
+        m.style.setProperty("--i", i);
+        m.addEventListener("animationend", function () { m.classList.remove("enter"); }, { once: true });
+      }
+      frag.appendChild(m);
+    });
     el("magnets").replaceChildren(frag);
     el("hint").hidden = !current.students.length;
     renderAway();
@@ -356,6 +461,8 @@
   function magnet(s) {
     var m = document.createElement("div");
     m.className = "magnet c" + colourOf(s.id);
+    // Nobody sticks a magnet on perfectly straight.
+    m.style.setProperty("--tilt", (colourOf(s.id + "~") * 0.6 - 1.5).toFixed(1) + "deg");
     m.tabIndex = 0;
     m.dataset.id = s.id;
     m.setAttribute("role", "button");
@@ -449,10 +556,26 @@
     var d = drag;
     drag = null;
     if (d.zone) d.zone.classList.remove("over");
-    if (d.ghost) { d.ghost.remove(); d.m.classList.remove("lifted"); }
-    if (!commit) return;
-    if (!d.ghost) log(d.s, "point");
-    else if (d.zone) log(d.s, d.zone.dataset.kind);
+    if (!d.ghost) {
+      if (commit) log(d.s, "point");
+      return;
+    }
+    // Dropped on a zone: the magnet is posted into it and the emblem stamps.
+    // Anywhere else: it slides back home.
+    var g = d.ghost;
+    var target = commit && d.zone ? d.zone : d.m;
+    var r = target.getBoundingClientRect();
+    g.classList.add(target === d.m ? "home" : "posting");
+    g.style.left = r.left + r.width / 2 + "px";
+    g.style.top = r.top + r.height / 2 + "px";
+    if (target === d.m) Sound.clack();
+    else if (d.zone.dataset.kind === "praise") Sound.chime();
+    else Sound.clack();
+    if (target !== d.m) {
+      stamp(d.zone);
+      log(d.s, d.zone.dataset.kind);
+    }
+    later(300).then(function () { g.remove(); d.m.classList.remove("lifted"); });
   }
 
   document.addEventListener("pointerup", function () { drop(true); });
@@ -490,7 +613,7 @@
     var focused = old === document.activeElement;
     old.replaceWith(fresh);
     if (focused) fresh.focus();
-    if (delta > 0) fresh.classList.add("bump");
+    if (delta > 0) { fresh.classList.add("bump"); coinAt(fresh); Sound.coin(); }
   }
 
   var toastTimer = null;
@@ -580,14 +703,14 @@
   el("displayBtn").addEventListener("click", function () {
     el("displayText").value = current.display_text;
     fitDisplay();
-    el("display").hidden = false;
+    openFull(el("display"));
     el("displayText").focus();
   });
 
   el("displayText").addEventListener("input", fitDisplay);
 
   el("displayClose").addEventListener("click", function () {
-    el("display").hidden = true;
+    closeFull(el("display"));
     var text = el("displayText").value;
     if (text === current.display_text) return;
     var classState = current;
@@ -635,6 +758,12 @@
       t.setAttribute("font-size", Math.min(11, Math.max(5, step * 0.45)));
       svg.appendChild(t);
     });
+    var rim = document.createElementNS(SVGNS, "circle");
+    rim.setAttribute("r", 96.5);
+    rim.setAttribute("fill", "none");
+    rim.setAttribute("stroke", "#22272b");
+    rim.setAttribute("stroke-width", "3.5");
+    svg.appendChild(rim);
     var hub = document.createElementNS(SVGNS, "circle");
     hub.setAttribute("r", 8);
     hub.setAttribute("fill", "#f7f8f6");
@@ -655,13 +784,13 @@
     delete el("picked").dataset.next;
     el("spin").textContent = "Sukti";
     drawWheel();
-    el("wheel").hidden = false;
+    openFull(el("wheel"));
     svg.getBoundingClientRect();
     svg.style.transition = "";
     el("spin").focus();
   });
 
-  el("wheelClose").addEventListener("click", function () { el("wheel").hidden = true; });
+  el("wheelClose").addEventListener("click", function () { closeFull(el("wheel")); });
 
   el("spin").addEventListener("click", function () {
     if (!pool.length) return;
@@ -684,7 +813,9 @@
     var step = 360 / pool.length;
     var jitter = (Math.random() - 0.5) * step * 0.6;
     var target = -((i + 0.5) * step + jitter);
+    var from = turn;
     turn = turn + 360 * 5 + (((target - turn) % 360) + 360) % 360;
+    if (!REDUCED.matches) Sound.spinTicks(4.2, pool.length, turn - from, [0.15, 0.7, 0.2, 1]);
     el("picked").textContent = "";
     el("spin").disabled = true;
     svg.style.transform = "rotate(" + turn + "deg)";
@@ -692,6 +823,11 @@
     var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     setTimeout(function () {
       el("picked").textContent = names[pool[i].id];
+      el("picked").classList.remove("pop");
+      void el("picked").offsetWidth;
+      el("picked").classList.add("pop");
+      confetti(el("picked"));
+      Sound.fanfare();
       el("picked").dataset.next = pool[i].id;
       el("wheelLeft").textContent = pool.length > 1 ? "Liko: " + (pool.length - 1) : "Visi išsukti.";
       el("spin").disabled = pool.length <= 1;
@@ -702,6 +838,8 @@
   /* ---------- quiz ---------- */
 
   var POLL_MS = 3000;
+  // The painted face for each mood the database stores (153's CHECK list).
+  var MOOD_ART = { "😀": 1, "🙂": 2, "😐": 3, "😕": 4, "😫": 5 };
   var poll = null;
   var board = null;            // teacher_run_board, or null
   var quizClass = null;        // the class the overlay was opened for
@@ -715,13 +853,13 @@
   function openQuiz() {
     quizClass = current;
     el("quizError").hidden = true;
-    el("quiz").hidden = false;
+    openFull(el("quiz"));
     refreshBoard().then(function () { if (!board) showPick(); });
   }
 
   function closeQuiz() {
     stopPoll();
-    el("quiz").hidden = true;
+    closeFull(el("quiz"));
     renderLiveDot();
   }
 
@@ -734,10 +872,15 @@
     el("quizPick").replaceChildren();
     rpc("teacher_quizzes_for", { p_token: token, p_grade: quizClass.grade }).then(function (list) {
       if (!list.length) {
+        var box = document.createElement("div");
+        box.className = "art-empty";
+        var img = document.createElement("img");
+        img.src = "art/hero-no-quiz.png";
+        img.alt = "";
         var p = document.createElement("p");
-        p.className = "hint";
-        p.textContent = "Šiai klasei testų dar nėra.";
-        el("quizPick").appendChild(p);
+        p.textContent = "Šiai klasei testų dar nėra";
+        box.append(img, p);
+        el("quizPick").appendChild(box);
       }
       list.forEach(function (q) {
         var card = document.createElement("div");
@@ -784,6 +927,10 @@
     el("quizPick").hidden = true;
     el("quizBoard").hidden = false;
     el("quizJoined").textContent = "Prisijungė " + board.students.length + " iš " + quizClass.students.length;
+    // Once it ends nobody needs the QR code: the finished pile takes its place.
+    el("joinArt").src = board.live ? "../mokinys/qr.svg" : "art/hero-quiz-done.png";
+    el("joinArt").alt = board.live ? "QR kodas: laiskelis.lt/mokinys" : "";
+    el("quizBoard").classList.toggle("ended", !board.live);
 
     var rows = board.students.slice().sort(function (a, b) {
       return (short[a.id] || "").localeCompare(short[b.id] || "", "lt");
@@ -808,7 +955,13 @@
       speed.textContent = r.answered ? Math.round(r.avg_ms / 1000) + " s" : "";
       var mood = document.createElement("span");
       mood.className = "mood";
-      mood.textContent = r.mood || "";
+      if (MOOD_ART[r.mood]) {
+        var face = document.createElement("i");
+        face.className = "mood-face m" + MOOD_ART[r.mood];
+        face.setAttribute("role", "img");
+        face.setAttribute("aria-label", r.mood);
+        mood.appendChild(face);
+      }
       row.append(name, track, count, speed, mood);
       frag.appendChild(row);
     });
@@ -864,7 +1017,7 @@
     el("pinsError").hidden = true;
     el("pinsTitle").textContent = "PIN kodai: " + current.name;
     renderPins();
-    el("pins").hidden = false;
+    openFull(el("pins"));
   }
 
   function pinsFail(err) {
@@ -903,7 +1056,7 @@
   }
 
   el("pinsBtn").addEventListener("click", openPins);
-  el("pinsClose").addEventListener("click", function () { shownPins = {}; el("pins").hidden = true; });
+  el("pinsClose").addEventListener("click", function () { shownPins = {}; closeFull(el("pins")); });
   el("pinsPrint").addEventListener("click", function () { window.print(); });
   el("pinsIssue").addEventListener("click", function () {
     el("pinsIssue").disabled = true;

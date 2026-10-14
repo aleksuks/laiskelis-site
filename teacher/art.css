@@ -1,0 +1,365 @@
+/* The painted layer, over style.css: every image and every movement on the
+   dashboard and the student page. The art is painted offline by the app
+   repo's ui-art engine (scripts/ui-art/teacher_*.py, brief in
+   TEACHER-ART.md there) and copied into art/.
+
+   Motion has two kinds. Painted things boil: stepped frames re-rolled each
+   step (mood faces, the coin). Physical things move like objects: a magnet
+   drops onto the board and settles, the eraser wipes, the projector screen
+   rolls down. One orchestrated moment per screen, never ambient fidgeting.
+   Everything here stops under prefers-reduced-motion. */
+
+:root {
+  /* magnet-N.png is 288x108: pill y 12..96, caps 60 px. Drawn at 0.76. */
+  --magnet-slice: 54 60 54 60;
+  --magnet-bw: 41px 46px;
+  --zone-slice: 60;
+  --zone-w: 30px;
+}
+
+/* ================================================================ wall & board */
+
+body { background: #cdd3d5; }
+
+.board {
+  position: relative;
+  background: linear-gradient(rgba(247, 248, 246, 0.55), rgba(247, 248, 246, 0.55)), var(--board) url(art/board-tex.jpg) 0 0 / 512px 512px repeat;
+  border-image: url(art/frame-tex.png) 0 0 0 0 stretch;
+  box-shadow: inset 0 0 0 1px var(--frame-dark), 0 2px 0 var(--frame-dark), 0 18px 40px rgba(34, 39, 43, 0.14);
+}
+
+/* ======================================================================= tray */
+
+.tray {
+  position: relative;
+  z-index: 5;
+  align-items: flex-end;
+  gap: 6px 22px;
+  padding: 10px max(16px, env(safe-area-inset-left, 0px)) 6px;
+  background: url(art/frame-tex.png) 0 0 / 512px 100% repeat-x, var(--frame);
+  border-bottom: 0;
+  box-shadow: 0 3px 0 var(--frame-dark), 0 10px 22px rgba(34, 39, 43, 0.16);
+}
+
+.tools { gap: 0; align-items: flex-end; }
+.tools.minor { margin-left: auto; }
+
+.tool {
+  flex-direction: column;
+  gap: 0;
+  padding: 2px 8px 4px;
+  font-size: 14px;
+  line-height: 1.1;
+  position: relative;
+}
+.tool:hover { background: transparent; }
+.tool img {
+  width: 52px;
+  height: 52px;
+  transition: transform 0.2s cubic-bezier(0.3, 1.7, 0.5, 1);
+  filter: drop-shadow(0 3px 0 rgba(34, 39, 43, 0.18));
+}
+.tool:hover img, .tool:focus-visible img { transform: translateY(-4px) rotate(-5deg); }
+.tool:active img { transform: translateY(1px) scale(0.94); }
+.tool.small { font-size: 12px; font-weight: 700; color: #3d4549; }
+.tool.small img { width: 34px; height: 34px; }
+.tool.dim { opacity: 0.55; }
+
+.live-dot {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 0 0 3px var(--board);
+  animation: live 1.2s steps(2, jump-none) infinite alternate;
+}
+@keyframes live { to { transform: scale(1.35); } }
+
+/* Class tabs: index cards taped to the top of the frame. */
+.classes { gap: 12px; padding-top: 10px; align-items: flex-end; }
+.class-tab {
+  position: relative;
+  background: #fffdf6;
+  border-radius: 2px;
+  padding: 8px 14px 5px;
+  font-family: var(--marker);
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--ink);
+  box-shadow: 0 2px 0 rgba(34, 39, 43, 0.12), 0 6px 10px rgba(34, 39, 43, 0.1);
+  rotate: -1.5deg;
+  transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1), background-color 0.2s;
+}
+.class-tab:nth-child(2n) { rotate: 1.2deg; }
+.class-tab:nth-child(3n) { rotate: -0.4deg; }
+.class-tab::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 40px;
+  height: 18px;
+  translate: -50% 0;
+  background: url(art/tape.png) center / 100% 100% no-repeat;
+  opacity: 0.92;
+}
+.class-tab:hover { transform: translateY(-3px); }
+.class-tab[aria-current="true"] {
+  background: #ffe27a;
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 3px 0 rgba(34, 39, 43, 0.18), 0 10px 16px rgba(34, 39, 43, 0.16);
+}
+.class-tab.add {
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  background: transparent;
+  box-shadow: inset 0 0 0 2px rgba(34, 39, 43, 0.25);
+  color: var(--ink-dim);
+  rotate: 0deg;
+}
+.class-tab.add::before { content: none; }
+
+/* ====================================================================== zones */
+
+.zone {
+  border: var(--zone-w) solid transparent;
+  border-image: url(art/zone-green.png) var(--zone-slice) / var(--zone-w) stretch;
+  border-radius: 0;
+  padding: 0;
+  transform: none;
+}
+.notes .zone { border-image-source: url(art/zone-red.png); transform: none; }
+.praise { transform: none; }
+.zone .emblem {
+  width: 116px;
+  height: 116px;
+  transition: transform 0.22s cubic-bezier(0.3, 1.7, 0.5, 1);
+}
+.notes .zone .emblem { width: 96px; height: 96px; }
+.zone.over .emblem { transform: scale(1.18) rotate(-7deg); }
+.zone.stamped .emblem { animation: stamp 0.55s cubic-bezier(0.3, 1.4, 0.5, 1); }
+@keyframes stamp {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.4) rotate(9deg); }
+  60% { transform: scale(0.9) rotate(-5deg); }
+  100% { transform: scale(1); }
+}
+.zone p { font-weight: 700; font-size: 17px; }
+
+/* ==================================================================== magnets */
+
+.magnet {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  border: 0;
+  border-image-source: url(art/magnet-0.png);
+  border-image-slice: var(--magnet-slice) fill;
+  border-image-width: var(--magnet-bw);
+  border-image-repeat: stretch;
+  min-height: 82px;
+  padding: 6px 46px 6px 30px;
+  font-size: 22px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  rotate: var(--tilt, 0deg);
+}
+.magnet.c1 { border-image-source: url(art/magnet-1.png); }
+.magnet.c2 { border-image-source: url(art/magnet-2.png); }
+.magnet.c3 { border-image-source: url(art/magnet-3.png); }
+.magnet.c4 { border-image-source: url(art/magnet-4.png); }
+.magnet.c5 { border-image-source: url(art/magnet-5.png); }
+
+.magnet .hide { right: 12px; top: calc(50% - 4px); background: rgba(0, 0, 0, 0.22); }
+.magnet .pts {
+  top: -6px;
+  left: 2px;
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 rgba(34, 39, 43, 0.3);
+  text-shadow: none;
+  rotate: -8deg;
+}
+
+/* One orchestrated moment: the class's magnets drop onto the board. */
+.magnet.enter { animation: drop 0.6s cubic-bezier(0.25, 1.5, 0.45, 1) both; animation-delay: calc(var(--i, 0) * 26ms); }
+@keyframes drop {
+  0% { opacity: 0; transform: translateY(-42px) scale(1.1) rotate(-7deg); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+.magnet.bump { animation: bump 0.4s cubic-bezier(0.3, 1.8, 0.5, 1); }
+@keyframes bump { 40% { transform: scale(1.1) rotate(2deg); } }
+
+.ghost {
+  transform: translate(-50%, -50%) rotate(-5deg) scale(1.08);
+  filter: drop-shadow(0 16px 14px rgba(34, 39, 43, 0.28));
+  box-shadow: none;
+}
+.ghost.posting { transition: left 0.28s cubic-bezier(0.5, 0, 0.7, 0.4), top 0.28s cubic-bezier(0.5, 0, 0.7, 0.4), transform 0.28s, opacity 0.28s; transform: translate(-50%, -50%) scale(0.3) rotate(18deg); opacity: 0; }
+.ghost.home { transition: left 0.3s cubic-bezier(0.3, 1.4, 0.5, 1), top 0.3s cubic-bezier(0.3, 1.4, 0.5, 1), transform 0.3s; transform: translate(-50%, -50%); }
+
+/* The +1: a painted coin flips up off the magnet. */
+.coin-fly {
+  position: fixed;
+  z-index: 70;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  pointer-events: none;
+  background: url(art/point-coin-strip.png) 0 0 / 600% 100% no-repeat;
+  animation: coinflip 0.42s steps(6) 2, coinrise 0.9s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+@keyframes coinflip { to { background-position: 120% 0; } }
+@keyframes coinrise {
+  0% { transform: translateY(0) scale(0.5); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translateY(-96px) scale(1.15); opacity: 0; }
+}
+
+/* Switching class: the eraser wipes the magnets off. */
+.magnets-area { position: relative; }
+.wipe {
+  position: absolute;
+  inset: -12px;
+  z-index: 30;
+  pointer-events: none;
+  background: linear-gradient(rgba(247, 248, 246, 0.55), rgba(247, 248, 246, 0.55)), var(--board) url(art/board-tex.jpg) 0 0 / 512px 512px;
+  clip-path: inset(0 100% 0 0);
+  animation: wipe 0.5s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+.wipe img {
+  position: absolute;
+  top: 18%;
+  left: 0;
+  width: 170px;
+  translate: -100% 0;
+  animation: eraser 0.5s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+  filter: drop-shadow(0 10px 10px rgba(34, 39, 43, 0.25));
+}
+.wipe.out { animation: wipeout 0.18s linear forwards; clip-path: inset(0); }
+@keyframes wipe { to { clip-path: inset(0 0 0 0); } }
+@keyframes eraser {
+  0% { left: 0; top: 10%; rotate: -10deg; }
+  30% { top: 52%; rotate: 6deg; }
+  60% { top: 14%; rotate: -6deg; }
+  100% { left: 100%; top: 46%; rotate: 8deg; }
+}
+@keyframes wipeout { to { opacity: 0; } }
+
+/* =============================================================== full screens */
+
+.full {
+  background: linear-gradient(rgba(247, 248, 246, 0.55), rgba(247, 248, 246, 0.55)), var(--board) url(art/board-tex.jpg) 0 0 / 512px 512px;
+  border-image: none;
+}
+.full.open { animation: rolldown 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.full.closing { animation: rollup 0.28s cubic-bezier(0.6, 0, 0.8, 0.4) both; }
+@keyframes rolldown { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes rollup { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 100% 0); } }
+
+/* The wheel: inked rim, a painted pointer, confetti when it lands. */
+.wheel-box svg.wheel { filter: drop-shadow(0 12px 18px rgba(34, 39, 43, 0.2)); }
+.wheel-box .pointer {
+  right: -30px;
+  border-top-width: 22px;
+  border-bottom-width: 22px;
+  border-right: 46px solid var(--ink);
+  filter: drop-shadow(0 4px 0 rgba(34, 39, 43, 0.25));
+}
+.wheel-side .picked.pop { animation: pop 0.6s cubic-bezier(0.25, 1.6, 0.45, 1) both; }
+@keyframes pop {
+  0% { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+.confetti {
+  position: fixed;
+  z-index: 80;
+  width: 26px;
+  height: 36px;
+  pointer-events: none;
+  background-size: contain;
+  background-repeat: no-repeat;
+  animation: confetti var(--t, 1.4s) cubic-bezier(0.15, 0.6, 0.35, 1) forwards;
+}
+@keyframes confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+
+/* Mood faces boil on the live board and the student's picker. */
+.mood-face {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  background: 0 0 / 300% 100% no-repeat;
+  animation: boil 0.75s steps(3) infinite;
+  vertical-align: middle;
+}
+.mood-face.m1 { background-image: url(art/mood-1-strip.png); }
+.mood-face.m2 { background-image: url(art/mood-2-strip.png); }
+.mood-face.m3 { background-image: url(art/mood-3-strip.png); }
+.mood-face.m4 { background-image: url(art/mood-4-strip.png); }
+.mood-face.m5 { background-image: url(art/mood-5-strip.png); }
+@keyframes boil { to { background-position: 150% 0; } }
+
+.runner { grid-template-columns: 9em minmax(60px, 1fr) 3.4em 3em 48px; }
+.runner .mood .mood-face { width: 44px; height: 44px; }
+.runner .track { height: 16px; background: rgba(34, 39, 43, 0.08); border-radius: 8px; }
+.runner .track i { background: var(--blue); border-radius: 8px; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
+.runner.done .track i { background: var(--point); }
+.runner.fresh { animation: drop 0.5s cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+
+.quiz-card { background: rgba(255, 255, 255, 0.7); position: relative; padding-left: 96px; min-height: 140px; }
+.quiz-card::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 18px;
+  width: 66px;
+  height: 66px;
+  background: url(art/tool-quiz.png) center / contain no-repeat;
+  rotate: -6deg;
+}
+.art-empty { display: grid; justify-items: center; gap: 8px; grid-column: 1 / -1; text-align: center; padding: 24px; }
+.art-empty img { width: 240px; height: 240px; }
+.art-empty p { font-family: var(--marker); font-size: 34px; color: var(--blue); margin: 0; }
+
+/* ============================================================== gate & empty */
+
+.card {
+  background: linear-gradient(rgba(247, 248, 246, 0.55), rgba(247, 248, 246, 0.55)), var(--board) url(art/board-tex.jpg) 0 0 / 512px 512px;
+  box-shadow: 0 18px 40px rgba(34, 39, 43, 0.18);
+}
+.card .hero { width: 220px; height: 220px; align-self: center; margin: -96px 0 -6px; animation: drop 0.7s cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+.center { padding-top: 110px; }
+.empty .hero { width: 260px; height: 260px; display: block; margin: 0 auto 4px; }
+
+dialog { background: linear-gradient(rgba(247, 248, 246, 0.55), rgba(247, 248, 246, 0.55)), var(--board) url(art/board-tex.jpg) 0 0 / 512px 512px; }
+dialog[open] { animation: rolldown 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+
+.toast:not([hidden]) { animation: toastin 0.3s cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+@keyframes toastin { from { transform: translate(-50%, 24px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+
+@media (max-width: 860px) {
+  .tool img { width: 40px; height: 40px; }
+  .tool.small img { width: 28px; height: 28px; }
+  .class-tab { font-size: 24px; }
+  .zone .emblem { width: 64px; height: 64px; }
+  .notes .zone .emblem { width: 54px; height: 54px; }
+  :root { --zone-w: 22px; }
+  .magnet { font-size: 18px; min-height: 66px; padding: 4px 40px 4px 24px; }
+  :root { --magnet-bw: 33px 37px; }
+  .runner { grid-template-columns: 6em minmax(40px, 1fr) 3em 2.6em 40px; }
+  .runner .mood .mood-face { width: 36px; height: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* A finished quiz: the pile of handed-in papers instead of the QR code. */
+.quiz-board.ended .join img { image-rendering: auto; animation: drop 0.6s cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+.quiz-board.ended .join p:first-of-type { display: none; }

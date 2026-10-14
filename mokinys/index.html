@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
 <link rel="stylesheet" href="../teacher/style.css">
+<link rel="stylesheet" href="../teacher/art.css">
 <style>
   /* The phone side of the whiteboard. Quiz tiles keep the four colours
      and shapes the class already knows from /kvizas. */
@@ -34,7 +35,9 @@
 
   /* mood */
   .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-  .moods button { font-size: 40px; padding: 12px 0; border: 2px solid var(--frame); border-radius: 14px; background: #fff; }
+  .moods button { padding: 10px 0 6px; border: 2px solid var(--frame); border-radius: 14px; background: #fff; display: grid; place-items: center; transition: transform 0.2s cubic-bezier(0.3, 1.7, 0.5, 1); }
+  .moods button:active { transform: scale(0.92); }
+  .moods .mood-face { width: 56px; height: 56px; }
   .moods button[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 2px var(--blue); }
 
   /* rule */
@@ -55,7 +58,11 @@
 
   /* question */
   .top { display: flex; justify-content: space-between; align-items: center; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
-  .top .mood-btn { border: 0; background: none; font-size: 26px; padding: 0 4px; }
+  .top .mood-btn { border: 0; background: none; padding: 0 4px; line-height: 0; }
+  .top-right { display: flex; align-items: center; gap: 10px; }
+  .sound-btn { border: 0; background: none; padding: 0; line-height: 0; }
+  .sound-btn img { width: 30px; height: 30px; }
+  .top .mood-btn .mood-face { width: 38px; height: 38px; }
   .prompt {
     background: #fff;
     border: 2px solid var(--frame);
@@ -137,13 +144,79 @@
   .runs .g { font-family: var(--marker); font-size: 30px; line-height: 0.8; color: var(--blue); }
 
   .newpin { font-size: 56px; font-weight: 700; letter-spacing: 0.15em; text-align: center; font-variant-numeric: tabular-nums; margin: 0; }
-  .ping { bottom: auto; top: 16px; background: var(--point); color: var(--ink); font-weight: 700; padding: 12px 20px; }
+  /* the painted layer for this page (teacher/art.css has the shared parts) */
+  .screen.enter { animation: screenin 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+  @keyframes screenin { from { opacity: 0; transform: translateY(16px); } }
+  #login .hero { width: 200px; height: 200px; align-self: center; margin-bottom: -10px; }
+  .tile { transition: transform 0.12s; }
+  .tile:active { transform: scale(0.96); }
+  .verdict:not([hidden]) { animation: pop 0.4s cubic-bezier(0.25, 1.6, 0.45, 1) both; }
+
+  /* A milestone is a sticker slapped onto the phone, then peeled away. */
+  .sticker {
+    position: fixed;
+    z-index: 60;
+    top: 18px;
+    left: 50%;
+    translate: -50% 0;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    pointer-events: none;
+    animation: slap 2.6s cubic-bezier(0.25, 1.4, 0.45, 1) both;
+  }
+  .sticker img { width: 128px; height: 128px; filter: drop-shadow(0 8px 10px rgba(34, 39, 43, 0.25)); }
+  .sticker span { background: var(--ink); color: var(--board); font-weight: 700; padding: 6px 14px; border-radius: 10px; }
+  @keyframes slap {
+    0% { opacity: 0; transform: scale(2.4) rotate(-24deg); }
+    14% { opacity: 1; transform: scale(0.92) rotate(-6deg); }
+    22% { transform: scale(1) rotate(-8deg); }
+    85% { opacity: 1; transform: scale(1) rotate(-8deg); }
+    100% { opacity: 0; transform: translateY(-30px) scale(0.9) rotate(-14deg); }
+  }
+
+  /* The grade sits in the middle of a paper rosette. */
+  .rosette {
+    width: 240px;
+    height: 240px;
+    margin: 0 auto;
+    background: url(../teacher/art/grade-rosette.png) center / contain no-repeat;
+    position: relative;
+    animation: drop 0.7s cubic-bezier(0.25, 1.5, 0.45, 1) both;
+  }
+  .rosette .grade {
+    position: absolute;
+    left: 50%;
+    top: 45.8%;
+    translate: -50% -50%;
+    font-size: 104px;
+    line-height: 1;
+  }
+  .fact.points { position: relative; padding-right: 64px; }
+  .fact.points::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    translate: 0 -50%;
+    background: url(../teacher/art/point-coin.png) center / contain no-repeat;
+    rotate: 10deg;
+  }
+  .spark i { transform-origin: bottom; animation: grow 0.5s cubic-bezier(0.25, 1.4, 0.45, 1) both; }
+  .spark i:nth-child(2) { animation-delay: 40ms; }
+  .spark i:nth-child(3) { animation-delay: 80ms; }
+  .spark i:nth-child(n + 4) { animation-delay: 120ms; }
+  @keyframes grow { from { transform: scaleY(0); } }
+  .art-empty .sub { font-size: 16px; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <form id="login" class="screen" hidden>
+    <img class="hero" src="../teacher/art/hero-student-login.png" alt="">
     <h1>Prisijunk</h1>
     <p id="loginError" class="msg" hidden></p>
     <label>Vardas ir pavardė
@@ -168,7 +241,7 @@
   </div>
 
   <div id="question" class="screen" hidden>
-    <div class="top"><span id="qNum"></span><button class="mood-btn" id="moodBtn" type="button" aria-label="Kaip jautiesi?"></button><span id="qScore"></span></div>
+    <div class="top"><span id="qNum"></span><button class="mood-btn" id="moodBtn" type="button" aria-label="Kaip jautiesi?"></button><span class="top-right"><button class="sound-btn" id="soundBtn" type="button"><img id="soundArt" alt=""></button><span id="qScore"></span></span></div>
     <div class="timer" id="timer"><i id="timerBar"></i></div>
     <div class="prompt" id="prompt"></div>
     <div class="tiles" id="tiles"></div>
@@ -177,7 +250,7 @@
   </div>
 
   <div id="result" class="screen" hidden>
-    <div class="score"><div class="grade" id="grade"></div><div class="of" id="of"></div></div>
+    <div class="score"><div class="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div></div>
     <div class="screen" id="mistakes"></div>
     <button class="btn quiet" type="button" id="toStats">Mano statistika</button>
   </div>
@@ -212,9 +285,10 @@
 
 </div>
 
-<div class="toast ping" id="ping" role="status" hidden></div>
+<div class="sticker" id="ping" role="status" hidden><img id="pingArt" alt=""><span id="pingText"></span></div>
 
 <script src="../teacher/api.js"></script>
+<script src="../teacher/sound.js"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -241,10 +315,44 @@
   var timers = [];
   var screen = null;
 
+  // A new screen slides in; the same screen re-rendered (next question) does too.
   function show(name) {
     screen = name;
     SCREENS.forEach(function (s) { el(s).hidden = s !== name; });
+    var node = el(name);
+    node.classList.remove("enter");
+    void node.offsetWidth;
+    node.classList.add("enter");
     window.scrollTo(0, 0);
+  }
+
+  function moodFace(m) {
+    var face = document.createElement("i");
+    face.className = "mood-face m" + (MOODS.indexOf(m) + 1);
+    face.setAttribute("role", "img");
+    face.setAttribute("aria-label", m);
+    return face;
+  }
+
+  var REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+  function confetti(anchor) {
+    if (REDUCED.matches) return;
+    var r = anchor.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (var i = 0; i < 24; i++) {
+      var c = document.createElement("i");
+      c.className = "confetti";
+      c.style.backgroundImage = "url(../teacher/art/confetti-" + (i % 12) + ".png)";
+      c.style.left = cx + "px";
+      c.style.top = cy + "px";
+      var a = Math.random() * Math.PI * 2, d = 90 + Math.random() * 180;
+      c.style.setProperty("--dx", Math.cos(a) * d + "px");
+      c.style.setProperty("--dy", Math.sin(a) * d * 0.7 + 140 + "px");
+      c.style.setProperty("--rot", Math.random() * 900 - 450 + "deg");
+      c.style.setProperty("--t", 1.1 + Math.random() * 0.9 + "s");
+      document.body.appendChild(c);
+      setTimeout(c.remove.bind(c), 2200);
+    }
   }
 
   function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
@@ -343,9 +451,13 @@
     MOODS.forEach(function (m) {
       var b = document.createElement("button");
       b.type = "button";
-      b.textContent = m;
+      b.setAttribute("aria-label", m);
+      var face = document.createElement("i");
+      face.className = "mood-face m" + (MOODS.indexOf(m) + 1);
+      b.appendChild(face);
       b.setAttribute("aria-pressed", String(run.mood === m));
       b.addEventListener("click", function () {
+        Sound.pop();
         var was = run.mood;
         run.mood = m;
         rpc("teacher_student_mood", { p_token: token, p_run: run.id, p_mood: m }).catch(function (err) {
@@ -436,7 +548,7 @@
 
     el("qNum").textContent = (i + 1) + " / " + total();
     el("qScore").textContent = "✓ " + score();
-    el("moodBtn").textContent = run.mood;
+    el("moodBtn").replaceChildren(moodFace(run.mood));
     el("verdict").hidden = true;
     el("qError").hidden = true;
     renderPrompt(q);
@@ -504,6 +616,7 @@
 
       var v = el("verdict");
       v.className = "verdict " + (res.right ? "ok" : "bad");
+      if (res.right) Sound.right(); else Sound.wrong();
       v.textContent = res.right ? "Teisingai" : (choice === -1 ? "Laikas baigėsi" : "Neteisingai");
       v.hidden = false;
       el("qScore").textContent = "✓ " + score();
@@ -526,10 +639,15 @@
     var n = total();
     MILESTONES.forEach(function (m) {
       if (before < m * n && after >= m * n) {
-        el("ping").textContent = "Jau " + Math.round(m * 100) + "% teisingai!";
+        var pct = Math.round(m * 100);
+        el("pingArt").src = "../teacher/art/milestone-" + pct + ".png";
+        el("pingText").textContent = "Jau " + pct + "% teisingai!";
+        Sound.sparkle();
+        el("ping").hidden = true;
+        void el("ping").offsetWidth;
         el("ping").hidden = false;
         clearTimeout(pingTimer);
-        pingTimer = setTimeout(function () { el("ping").hidden = true; }, 2500);
+        pingTimer = setTimeout(function () { el("ping").hidden = true; }, 2600);
       }
     });
   }
@@ -569,6 +687,7 @@
       list.appendChild(row);
     });
     show("result");
+    if (gradeFor(s, n) >= 8) setTimeout(function () { confetti(el("grade")); Sound.fanfare(); }, 350);
   }
 
   el("toStats").addEventListener("click", openStats);
@@ -643,10 +762,18 @@
 
     var frag = document.createDocumentFragment();
     if (!skills.length) {
+      var box = document.createElement("div");
+      box.className = "art-empty";
+      var img = document.createElement("img");
+      img.src = "../teacher/art/hero-stats-empty.png";
+      img.alt = "";
       var p = document.createElement("p");
-      p.className = "sub";
-      p.textContent = "Kai atliksi pirmą testą, čia matysi, kaip sekasi.";
-      frag.appendChild(p);
+      p.textContent = "Čia augs tavo statistika";
+      var sub = document.createElement("span");
+      sub.className = "sub";
+      sub.textContent = "Kai atliksi pirmą testą, matysi, kaip sekasi.";
+      box.append(img, p, sub);
+      frag.appendChild(box);
     } else {
       var h = document.createElement("h2");
       h.className = "mark";
@@ -747,6 +874,16 @@
   });
 
   el("pinDone").addEventListener("click", openStats);
+
+  /* ---------- sound ---------- */
+
+  function renderSound() {
+    var on = Sound.enabled();
+    el("soundArt").src = "../teacher/art/tool-sound-" + (on ? "on" : "off") + ".png";
+    el("soundBtn").setAttribute("aria-label", on ? "Išjungti garsą" : "Įjungti garsą");
+  }
+  el("soundBtn").addEventListener("click", function () { Sound.toggle(); renderSound(); Sound.pop(); });
+  renderSound();
 
   /* ---------- boot ---------- */
 

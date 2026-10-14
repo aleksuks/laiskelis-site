@@ -336,7 +336,7 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
   border-right: 34px solid var(--ink);
 }
 .wheel-side { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
-.picked { font-family: var(--marker); font-weight: 700; font-size: clamp(56px, 9vw, 150px); line-height: 1; color: var(--blue); min-height: 1em; }
+.wheel-side .picked { font-family: var(--marker); font-weight: 700; font-size: clamp(56px, 9vw, 150px); line-height: 1; color: var(--blue); min-height: 1em; }
 .left { color: var(--ink-dim); margin: 0; }
 
 .full .bar { align-items: center; flex-wrap: wrap; }
