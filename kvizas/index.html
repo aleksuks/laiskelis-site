@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Būtasis laikas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Rubik:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div id="join" class="stack" hidden>
+    <div>
+      <h1 id="joinTitle">Būtasis laikas</h1>
+      <p class="sub">Прошедшее время</p>
+    </div>
+    <div id="joinError" class="msg" hidden></div>
+    <input type="text" id="name" maxlength="30" autocomplete="off" placeholder="Vardas ir pavardė">
+    <button id="joinBtn">Prisijungti</button>
+  </div>
+
+  <div id="lobby" class="stack waiting" hidden>
+    <div class="name" id="lobbyName"></div>
+    <p>Palauk, kol prasidės.</p>
+  </div>
+
+  <div id="rule" class="stack" hidden>
+    <div id="ruleBody" class="rule"></div>
+    <div class="countdown">
+      <div class="bar"><i id="ruleBar"></i></div>
+      <span id="ruleLeft"></span>
+    </div>
+    <button id="ruleBtn" disabled>Supratau</button>
+  </div>
+
+  <div id="question" class="stack" hidden>
+    <div class="top"><span id="qNum"></span><span id="qScore"></span></div>
+    <div class="timer" id="timer"><i id="timerBar"></i></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="tiles" id="tiles"></div>
+    <div id="verdict" class="verdict" hidden></div>
+    <div id="qError" class="msg" hidden></div>
+  </div>
+
+  <div id="result" class="stack" hidden>
+    <div class="score">
+      <div class="grade" id="grade"></div>
+      <div class="of" id="of"></div>
+    </div>
+    <p id="closedNote" class="waiting" hidden>Testas baigtas.</p>
+    <div class="mistakes" id="mistakes"></div>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var SCREENS = ["join", "lobby", "rule", "question", "result"];
+
+  var QUESTION_SECONDS = 30;   // per question; a timeout counts as wrong
+  var VERDICT_MS = 1600;
+  var LOBBY_POLL_MS = 3000;
+
+  var SHAPES = [
+    '<svg viewBox="0 0 24 24"><path d="M12 3 22 21H2z"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 1 23 12 12 23 1 12z"/></svg>',
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>'
+  ];
+
+  var token = null;
+  var data = null;           // quiz_state()
+  var current = -1;          // question on screen
+  var seenRule = {};
+  var timers = [];
+  var poll = null;
+
+  function show(name) {
+    SCREENS.forEach(function (s) { el(s).hidden = s !== name; });
+    window.scrollTo(0, 0);
+  }
+
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function readToken() {
+    try { return localStorage.getItem("kvizas.token"); } catch (e) { return null; }
+  }
+  function saveToken(t) {
+    try { localStorage.setItem("kvizas.token", t); } catch (e) {}
+  }
+  function forgetToken() {
+    try { localStorage.removeItem("kvizas.token"); } catch (e) {}
+  }
+
+  function total() { return data.content.questions.length; }
+  function score() {
+    var s = 0;
+    data.answers.forEach(function (a, i) {
+      if (a !== null && a === data.correct[i]) s++;
+    });
+    return s;
+  }
+  function firstOpen() {
+    for (var i = 0; i < data.answers.length; i++) if (data.answers[i] === null) return i;
+    return -1;
+  }
+  function partStartingAt(i) {
+    var parts = data.content.parts;
+    for (var k = 0; k < parts.length; k++) if (parts[k].from === i) return parts[k];
+    return null;
+  }
+
+  /* ---------- join ---------- */
+
+  function showJoin(message) {
+    stopPoll();
+    el("joinError").hidden = !message;
+    el("joinError").textContent = message || "";
+    show("join");
+    el("name").focus();
+  }
+
+  el("joinBtn").addEventListener("click", function () {
+    var name = el("name").value.trim();
+    if (!name) { showJoin(ERRORS.quiz_name_empty); return; }
+    el("joinBtn").disabled = true;
+    rpc("quiz_join", { p_name: name }).then(function (res) {
+      token = res.token;
+      saveToken(token);
+      return load();
+    }).catch(function (err) {
+      showJoin(err.message);
+    }).then(function () {
+      el("joinBtn").disabled = false;
+    });
+  });
+
+  el("name").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") el("joinBtn").click();
+  });
+
+  /* ---------- state ---------- */
+
+  function load() {
+    return rpc("quiz_state", { p_token: token }).then(function (res) {
+      data = res;
+      route();
+    }).catch(function (err) {
+      if (err.code === "quiz_gone") {
+        forgetToken();
+        token = null;
+        showJoin();
+        return;
+      }
+      if (!data) showJoin(err.message);
+    });
+  }
+
+  function route() {
+    if (data.phase === "lobby") {
+      el("lobbyName").textContent = data.name;
+      show("lobby");
+      startPoll();
+      return;
+    }
+    stopPoll();
+
+    var next = firstOpen();
+    if (data.phase === "closed" || next === -1) { showResult(); return; }
+
+    var part = partStartingAt(next);
+    if (part && !seenRule[next]) { showRule(part, next); return; }
+    showQuestion(next);
+  }
+
+  function startPoll() {
+    if (poll) return;
+    poll = setInterval(function () {
+      rpc("quiz_state", { p_token: token }).then(function (res) {
+        if (res.phase !== "lobby") { data = res; route(); }
+      }).catch(function (err) {
+        if (err.code === "quiz_gone") { forgetToken(); token = null; showJoin(); }
+      });
+    }, LOBBY_POLL_MS);
+  }
+
+  function stopPoll() {
+    if (poll) { clearInterval(poll); poll = null; }
+  }
+
+  /* ---------- rule ---------- */
+
+  function showRule(part, at) {
+    clearTimers();
+    el("ruleBody").innerHTML = part.rule_html;   // authored in the migration
+    el("ruleBtn").disabled = true;
+    show("rule");
+
+    var bar = el("ruleBar");
+    bar.style.transition = "none";
+    bar.style.transform = "scaleX(1)";
+    void bar.offsetWidth;
+    bar.style.transition = "transform " + part.seconds + "s linear";
+    bar.style.transform = "scaleX(0)";
+
+    var left = part.seconds;
+    el("ruleLeft").textContent = left;
+    var tick = setInterval(function () {
+      left--;
+      el("ruleLeft").textContent = Math.max(0, left);
+      if (part.seconds - left >= part.min_seconds) el("ruleBtn").disabled = false;
+      if (left <= 0) done();
+    }, 1000);
+
+    function done() {
+      clearInterval(tick);
+      el("ruleBtn").onclick = null;
+      seenRule[at] = true;
+      route();
+    }
+    el("ruleBtn").onclick = done;
+  }
+
+  /* ---------- question ---------- */
+
+  function renderPrompt(q) {
+    var box = el("prompt");
+    box.replaceChildren();
+    if (q.kind === "translate") {
+      var k = document.createElement("div");
+      k.className = "kind";
+      k.textContent = "Išversk";
+      box.appendChild(k);
+      var t = document.createElement("div");
+      t.textContent = q.text;
+      box.appendChild(t);
+      return;
+    }
+    var line = document.createElement("div");
+    var bits = q.text.split("___");
+    line.appendChild(document.createTextNode(bits[0]));
+    var blank = document.createElement("span");
+    blank.className = "blank";
+    blank.id = "blank";
+    blank.innerHTML = "&nbsp;";
+    line.appendChild(blank);
+    line.appendChild(document.createTextNode(bits[1] || ""));
+    box.appendChild(line);
+    var v = document.createElement("div");
+    v.className = "verb";
+    v.textContent = "(" + q.verb + ")";
+    box.appendChild(v);
+  }
+
+  function showQuestion(i) {
+    clearTimers();
+    current = i;
+    var q = data.content.questions[i];
+
+    el("qNum").textContent = (i + 1) + " / " + total();
+    el("qScore").textContent = "✓ " + score();
+    el("verdict").hidden = true;
+    el("qError").hidden = true;
+    renderPrompt(q);
+
+    var tiles = el("tiles");
+    tiles.className = "tiles" + (q.kind === "translate" ? " translate" : "");
+    tiles.replaceChildren();
+    q.options.forEach(function (opt, c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tile t" + c;
+      b.innerHTML = SHAPES[c];
+      var span = document.createElement("span");
+      span.textContent = opt;
+      b.appendChild(span);
+      b.addEventListener("click", function () { answer(i, c); });
+      tiles.appendChild(b);
+    });
+
+    show("question");
+
+    var bar = el("timerBar");
+    el("timer").classList.remove("low");
+    bar.style.transition = "none";
+    bar.style.transform = "scaleX(1)";
+    void bar.offsetWidth;
+    bar.style.transition = "transform " + QUESTION_SECONDS + "s linear";
+    bar.style.transform = "scaleX(0)";
+    later(function () { el("timer").classList.add("low"); }, (QUESTION_SECONDS - 7) * 1000);
+    later(function () { answer(i, -1); }, QUESTION_SECONDS * 1000);
+  }
+
+  function freezeTimer() {
+    var bar = el("timerBar");
+    var now = getComputedStyle(bar).transform;
+    bar.style.transition = "none";
+    bar.style.transform = now;
+  }
+
+  var sending = false;
+
+  function answer(i, choice) {
+    if (sending || i !== current) return;
+    sending = true;
+    clearTimers();
+    freezeTimer();
+
+    var buttons = Array.prototype.slice.call(el("tiles").children);
+    buttons.forEach(function (b) { b.disabled = true; });
+
+    rpc("quiz_answer", { p_token: token, p_q: i, p_choice: choice }).then(function (res) {
+      sending = false;
+      data.answers[i] = choice;
+      data.correct[i] = res.correct;
+
+      el("tiles").classList.add("done");
+      buttons.forEach(function (b, c) {
+        if (c === res.correct) b.classList.add("right");
+        if (c === choice) b.classList.add("picked");
+      });
+
+      var q = data.content.questions[i];
+      if (q.kind !== "translate") el("blank").textContent = q.options[res.correct];
+
+      var v = el("verdict");
+      v.className = "verdict " + (res.right ? "ok" : "bad");
+      v.textContent = res.right ? "Teisingai" : (choice === -1 ? "Laikas baigėsi" : "Neteisingai");
+      v.hidden = false;
+      el("qScore").textContent = "✓ " + score();
+
+      later(route, VERDICT_MS);
+    }).catch(function (err) {
+      sending = false;
+      if (err.code === "quiz_closed" || err.code === "quiz_gone") { load(); return; }
+      buttons.forEach(function (b) { b.disabled = false; });
+      el("qError").textContent = err.message;
+      el("qError").hidden = false;
+    });
+  }
+
+  /* ---------- result ---------- */
+
+  function showResult() {
+    clearTimers();
+    var s = score();
+    var n = total();
+    el("grade").textContent = gradeFor(s, n);
+    el("of").textContent = s + " / " + n;
+    el("closedNote").hidden = firstOpen() === -1;
+
+    var list = el("mistakes");
+    list.replaceChildren();
+    var wrong = [];
+    data.answers.forEach(function (a, i) {
+      if (a !== null && a !== data.correct[i]) wrong.push(i);
+    });
+
+    if (wrong.length) {
+      var h = document.createElement("h2");
+      h.textContent = "Klaidos";
+      list.appendChild(h);
+    }
+
+    wrong.forEach(function (i) {
+      var q = data.content.questions[i];
+      var a = data.answers[i];
+      var right = q.options[data.correct[i]];
+      var row = document.createElement("div");
+      row.className = "mistake";
+
+      var fix = document.createElement("span");
+      fix.className = "fix";
+      fix.textContent = right;
+
+      if (q.kind === "translate") {
+        row.appendChild(document.createTextNode(q.text + " → "));
+        row.appendChild(fix);
+      } else {
+        var bits = q.text.split("___");
+        row.appendChild(document.createTextNode(bits[0]));
+        row.appendChild(fix);
+        row.appendChild(document.createTextNode(bits[1] || ""));
+      }
+
+      if (a >= 0) {
+        var was = document.createElement("div");
+        var del = document.createElement("del");
+        del.textContent = q.options[a];
+        was.appendChild(del);
+        row.appendChild(was);
+      }
+      list.appendChild(row);
+    });
+
+    show("result");
+  }
+
+  /* ---------- boot ---------- */
+
+  token = readToken();
+  if (token) load(); else showJoin();
+})();
+</script>
+</body>
+</html>

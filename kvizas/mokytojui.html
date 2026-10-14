@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Būtasis laikas · mokytojui</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Rubik:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
+  .pill { font-size: 14px; padding: 4px 12px; border-radius: 99px; background: var(--board-deep); color: var(--chalk-dim); }
+  .pill.live { background: var(--ok); color: #fff; }
+
+  .lobby { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 40px; align-items: start; }
+  .qr { background: #fff; border-radius: var(--radius); padding: 18px; }
+  .qr img { display: block; width: 100%; image-rendering: pixelated; }
+  .url { font-family: var(--hand); font-size: 44px; text-align: center; margin-top: 8px; }
+  .count { font-size: 64px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { background: var(--chalk); color: #1d2622; font-weight: 600; padding: 8px 14px; border-radius: 99px; box-shadow: none; font-size: 18px; }
+  .chip:hover { background: #f0c5c0; text-decoration: line-through; }
+
+  .board { display: grid; grid-template-columns: 1fr 180px; gap: 24px; align-items: start; }
+  .mini { background: #fff; border-radius: 10px; padding: 8px; }
+  .mini img { display: block; width: 100%; image-rendering: pixelated; }
+  .mini p { margin: 4px 0 0; text-align: center; color: #1d2622; font-size: 13px; font-weight: 600; }
+
+  .tablewrap { overflow-x: auto; }
+  table.players { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  .players th { text-align: left; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--chalk-dim); font-weight: 600; padding: 6px 8px; }
+  .players td { padding: 7px 8px; border-top: 1px solid var(--board-line); white-space: nowrap; }
+  .players td.name { font-weight: 600; font-size: 18px; }
+  .players td.num { text-align: right; }
+  .players .grade { font-family: var(--hand); font-size: 32px; line-height: 0.8; color: var(--yellow); }
+  .players tfoot td { color: var(--chalk-dim); font-size: 12px; }
+  .cells { display: flex; gap: 3px; }
+  .cells i { width: 14px; height: 18px; border-radius: 3px; background: var(--board-deep); box-shadow: inset 0 0 0 1px var(--board-line); }
+  .cells i.done { background: var(--chalk-dim); box-shadow: none; }
+  .cells i.r { background: var(--ok); box-shadow: none; }
+  .cells i.w { background: var(--bad); box-shadow: none; }
+  .cells i.gap { margin-left: 8px; }
+  .pct { display: flex; gap: 3px; }
+  .pct span { width: 14px; text-align: center; font-size: 10px; }
+  .pct span.gap { margin-left: 8px; }
+  .kick { padding: 4px 10px; font-size: 14px; }
+
+  @media (max-width: 800px) {
+    .lobby, .board { grid-template-columns: 1fr; }
+    .mini { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap wide stack">
+
+  <!-- The key lives in the URL fragment, never sent to a server; it reaches
+       Supabase only in RPC bodies. Same as feedbackas/mokytojui.html. -->
+  <div id="unlock" class="stack" hidden style="max-width: 520px">
+    <h1>Mokytojo raktas</h1>
+    <div id="unlockError" class="msg" hidden></div>
+    <input type="text" id="keyInput" autocomplete="off" spellcheck="false" placeholder="Raktas">
+    <button id="unlockBtn">Atrakinti</button>
+  </div>
+
+  <div id="main" class="stack" hidden>
+    <div class="head">
+      <div class="row">
+        <h1>Būtasis laikas</h1>
+        <span class="pill" id="phase"></span>
+      </div>
+      <div class="row">
+        <button id="start" hidden>Pradėti</button>
+        <button id="end" class="ghost" hidden>Baigti</button>
+        <button id="reveal" class="ghost" hidden>Rodyti rezultatus</button>
+        <button id="csv" class="ghost" hidden>CSV</button>
+        <button id="open" class="ghost">Naujas testas</button>
+      </div>
+    </div>
+
+    <div id="error" class="msg" hidden></div>
+
+    <div id="lobby" class="lobby" hidden>
+      <div>
+        <div class="qr"><img src="qr.svg" alt="QR kodas: laiskelis.lt/kvizas"></div>
+        <div class="url">laiskelis.lt/kvizas</div>
+      </div>
+      <div class="stack">
+        <div class="count" id="count">0</div>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+
+    <div id="board" class="board" hidden>
+      <div class="tablewrap">
+        <table class="players">
+          <thead><tr><th></th><th>Vardas</th><th></th><th class="num res">Teisingi</th><th class="num res">Pažymys</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+          <tfoot id="foot"></tfoot>
+        </table>
+      </div>
+      <div class="mini"><img src="qr.svg" alt="QR kodas"><p>laiskelis.lt/kvizas</p></div>
+    </div>
+
+    <p id="empty" class="sub" hidden>Atidaryk naują testą.</p>
+  </div>
+
+</div>
+
+<script src="api.js"></script>
+<script>
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+
+  var POLL_MS = 3000;
+  var SET = "butasis-8";
+  var key = null;
+  var board = null;
+  var timer = null;
+  var reveal = false;     // scores and grades are off the projector until asked for
+  var removed = new Set();
+
+  var PHASES = { lobby: "Laukiama", playing: "Vyksta", closed: "Baigta" };
+
+  /* ---------- key ---------- */
+
+  function readKey() {
+    var fromHash = (location.hash || "").replace(/^#/, "").trim();
+    if (fromHash) {
+      try { localStorage.setItem("kvizas.key", fromHash); } catch (e) {}
+      return fromHash;
+    }
+    try { return localStorage.getItem("kvizas.key") || null; } catch (e) { return null; }
+  }
+
+  function forgetKey() {
+    try { localStorage.removeItem("kvizas.key"); } catch (e) {}
+  }
+
+  /* ---------- rendering ---------- */
+
+  function showError(text) { el("error").textContent = text; el("error").hidden = false; }
+  function clearError() { el("error").hidden = true; }
+
+  // Indices where a new part begins, for a gap in the cell strip.
+  function partBreaks() { return (board && board.breaks) || []; }
+
+  function players() {
+    return (board ? board.players : []).filter(function (p) { return !removed.has(p.id); });
+  }
+
+  function render() {
+    var phase = board ? board.phase : null;
+    el("phase").textContent = phase ? PHASES[phase] : "";
+    el("phase").className = "pill" + (phase === "playing" ? " live" : "");
+    el("phase").hidden = !phase;
+    el("start").hidden = phase !== "lobby";
+    el("end").hidden = phase !== "playing";
+    el("reveal").hidden = !phase || phase === "lobby";
+    el("reveal").textContent = reveal ? "Slėpti rezultatus" : "Rodyti rezultatus";
+    el("csv").hidden = !phase || phase === "lobby";
+    el("empty").hidden = !!phase;
+    el("lobby").hidden = phase !== "lobby";
+    el("board").hidden = !phase || phase === "lobby";
+
+    if (phase === "lobby") renderLobby();
+    else if (phase) renderBoard();
+  }
+
+  function renderLobby() {
+    var list = players();
+    el("count").textContent = list.length;
+    var frag = document.createDocumentFragment();
+    list.forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = p.name;
+      b.title = "Pašalinti";
+      b.addEventListener("click", function () { kick(p); });
+      frag.appendChild(b);
+    });
+    el("chips").replaceChildren(frag);
+  }
+
+  function renderBoard() {
+    var n = board.answer_key.length;
+    var breaks = partBreaks();
+    var list = players().slice();
+    if (reveal) list.sort(function (a, b) { return b.score - a.score; });
+
+    document.querySelectorAll(".players .res").forEach(function (th) { th.hidden = !reveal; });
+
+    var rows = document.createDocumentFragment();
+    list.forEach(function (p, idx) {
+      var tr = document.createElement("tr");
+
+      var no = document.createElement("td");
+      no.className = "num";
+      no.textContent = idx + 1;
+      tr.appendChild(no);
+
+      var name = document.createElement("td");
+      name.className = "name";
+      name.textContent = p.name;
+      tr.appendChild(name);
+
+      var cellsTd = document.createElement("td");
+      var cells = document.createElement("div");
+      cells.className = "cells";
+      for (var i = 0; i < n; i++) {
+        var c = document.createElement("i");
+        var m = p.marks.charAt(i);
+        if (m !== "-") c.className = reveal ? (m === "1" ? "r" : "w") : "done";
+        if (breaks.indexOf(i) !== -1) c.classList.add("gap");
+        cells.appendChild(c);
+      }
+      cellsTd.appendChild(cells);
+      tr.appendChild(cellsTd);
+
+      var sc = document.createElement("td");
+      sc.className = "num";
+      sc.hidden = !reveal;
+      sc.textContent = p.score + " / " + n;
+      tr.appendChild(sc);
+
+      var gr = document.createElement("td");
+      gr.className = "num";
+      gr.hidden = !reveal;
+      if (p.finished || board.phase === "closed") {
+        var g = document.createElement("span");
+        g.className = "grade";
+        g.textContent = gradeFor(p.score, n);
+        gr.appendChild(g);
+      }
+      tr.appendChild(gr);
+
+      var x = document.createElement("td");
+      var kb = document.createElement("button");
+      kb.type = "button";
+      kb.className = "ghost kick";
+      kb.textContent = "×";
+      kb.title = "Pašalinti";
+      kb.addEventListener("click", function () { kick(p); });
+      x.appendChild(kb);
+      tr.appendChild(x);
+
+      rows.appendChild(tr);
+    });
+    el("rows").replaceChildren(rows);
+
+    // Per-question share of right answers, once results are shown.
+    var foot = document.createDocumentFragment();
+    if (reveal && list.length) {
+      var tr = document.createElement("tr");
+      tr.appendChild(document.createElement("td"));
+      var label = document.createElement("td");
+      label.textContent = "% teisingai";
+      tr.appendChild(label);
+      var td = document.createElement("td");
+      var strip = document.createElement("div");
+      strip.className = "pct";
+      for (var i = 0; i < n; i++) {
+        var answered = 0, right = 0;
+        list.forEach(function (p) {
+          var m = p.marks.charAt(i);
+          if (m !== "-") answered++;
+          if (m === "1") right++;
+        });
+        var s = document.createElement("span");
+        s.textContent = answered ? Math.round((right / answered) * 100) : "";
+        s.title = (i + 1) + ". " + board.questions[i].text;
+        if (breaks.indexOf(i) !== -1) s.className = "gap";
+        strip.appendChild(s);
+      }
+      td.appendChild(strip);
+      tr.appendChild(td);
+      tr.appendChild(document.createElement("td"));
+      tr.appendChild(document.createElement("td"));
+      tr.appendChild(document.createElement("td"));
+      foot.appendChild(tr);
+    }
+    el("foot").replaceChildren(foot);
+  }
+
+  /* ---------- polling ---------- */
+
+  function refresh() {
+    return rpc("quiz_board", { p_key: key }).then(function (res) {
+      board = res;
+      render();
+      clearError();
+    }).catch(function (err) {
+      if (err.code === "quiz_denied") {
+        stopPolling();
+        forgetKey();
+        el("main").hidden = true;
+        el("unlock").hidden = false;
+        el("unlockError").textContent = err.message;
+        el("unlockError").hidden = false;
+        return;
+      }
+      showError(err.message);
+    });
+  }
+
+  function startPolling() {
+    stopPolling();
+    refresh();
+    timer = setInterval(refresh, POLL_MS);
+  }
+
+  function stopPolling() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopPolling();
+    else if (key) startPolling();
+  });
+
+  /* ---------- actions ---------- */
+
+  function act(name, body, btn) {
+    if (btn) btn.disabled = true;
+    return rpc(name, Object.assign({ p_key: key }, body || {}))
+      .then(refresh)
+      .catch(function (err) { showError(err.message); })
+      .then(function () { if (btn) btn.disabled = false; });
+  }
+
+  function kick(p) {
+    if (board.phase !== "lobby" && !confirm("Pašalinti " + p.name + "? Atsakymai bus ištrinti.")) return;
+    removed.add(p.id);
+    render();
+    rpc("quiz_kick", { p_key: key, p_player: p.id })
+      .catch(function (err) { removed.delete(p.id); showError(err.message); })
+      .then(refresh);
+  }
+
+  el("open").addEventListener("click", function () {
+    if (board && board.phase !== "closed" && !confirm("Uždaryti dabartinį testą ir pradėti naują?")) return;
+    reveal = false;
+    removed.clear();
+    act("quiz_open", { p_set: SET }, el("open"));
+  });
+
+  el("start").addEventListener("click", function () {
+    act("quiz_set_phase", { p_phase: "playing" }, el("start"));
+  });
+
+  el("end").addEventListener("click", function () {
+    if (!confirm("Baigti testą? Neatsakyti klausimai bus įskaityti kaip klaidos.")) return;
+    act("quiz_set_phase", { p_phase: "closed" }, el("end"));
+  });
+
+  el("reveal").addEventListener("click", function () {
+    reveal = !reveal;
+    render();
+  });
+
+  el("csv").addEventListener("click", function () {
+    var n = board.answer_key.length;
+    var head = ["Vardas", "Teisingi", "Iš", "Pažymys"];
+    for (var i = 1; i <= n; i++) head.push(String(i));
+    var lines = [head.join(";")];
+    players().forEach(function (p) {
+      var row = ['"' + p.name.replace(/"/g, '""') + '"', p.score, n, gradeFor(p.score, n)];
+      for (var i = 0; i < n; i++) {
+        var m = p.marks.charAt(i);
+        row.push(m === "1" ? 1 : m === "0" ? 0 : "");
+      }
+      lines.push(row.join(";"));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "butasis-laikas-" + board.created_at.slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  el("unlockBtn").addEventListener("click", function () {
+    var v = el("keyInput").value.trim();
+    if (!v) return;
+    try { localStorage.setItem("kvizas.key", v); } catch (e) {}
+    location.reload();
+  });
+
+  el("keyInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") el("unlockBtn").click();
+  });
+
+  /* ---------- boot ---------- */
+
+  key = readKey();
+  if (!key) {
+    el("unlock").hidden = false;
+  } else {
+    // Keep the key off the projector once it is stored.
+    if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+    el("main").hidden = false;
+    startPolling();
+  }
+})();
+</script>
+</body>
+</html>

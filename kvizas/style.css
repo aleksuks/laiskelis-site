@@ -1,0 +1,210 @@
+/* The quiz is a chalkboard, on phones and on the projector alike. One
+   look on purpose: it is used in a classroom, not read at night, and the
+   four answer colours have to stay the same on every screen. */
+
+:root {
+  color-scheme: dark;
+  --board: #1e3a33;
+  --board-deep: #172e28;
+  --board-line: #2f5047;
+  --chalk: #f3efe4;
+  --chalk-dim: #a9bbb3;
+  --yellow: #f2cb57;
+  --t0: #d0473f;
+  --t1: #2f68c4;
+  --t2: #c98a12;
+  --t3: #2c8f5c;
+  --ok: #2c8f5c;
+  --bad: #d0473f;
+  --radius: 14px;
+  --font: "Rubik", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --hand: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--board);
+  background-image: radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.05), transparent 60%);
+  color: var(--chalk);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.wrap.wide { max-width: 1280px; }
+
+h1 {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 56px;
+  line-height: 1;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sub { color: var(--chalk-dim); margin: 4px 0 0; }
+
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+input[type="text"] {
+  width: 100%;
+  font: inherit;
+  font-size: 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--board-line);
+  background: var(--board-deep);
+  color: var(--chalk);
+}
+
+input[type="text"]:focus { outline: none; border-color: var(--yellow); }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  background: var(--yellow);
+  color: #1b1a14;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible { outline: 3px solid var(--chalk); outline-offset: 2px; }
+
+button.ghost {
+  background: transparent;
+  color: var(--chalk);
+  box-shadow: inset 0 0 0 2px var(--board-line);
+}
+
+.msg { padding: 10px 14px; border-radius: 10px; background: rgba(208, 71, 63, 0.18); color: #ffd9d4; }
+
+/* ---------- rule card ---------- */
+
+.rule {
+  background: var(--chalk);
+  color: #1d2622;
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.rule p { margin: 0 0 10px; }
+.rule p:last-child { margin-bottom: 0; }
+.rule .steps { font-weight: 700; font-size: 1.1em; }
+.rule s { color: var(--bad); }
+.rule b { color: #8a2f1c; }
+
+.rule table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 0.95em; }
+.rule th { text-align: left; font-weight: 600; color: #5b6862; padding: 4px 6px; border-bottom: 2px solid #cfc8b6; }
+.rule td { padding: 7px 6px; border-bottom: 1px solid #e0dacb; }
+.rule td:nth-child(2), .rule td:nth-child(3) { font-weight: 600; }
+
+.countdown { display: flex; align-items: center; gap: 12px; color: var(--chalk-dim); }
+.countdown .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--board-line); overflow: hidden; }
+.countdown .bar i { display: block; height: 100%; background: var(--yellow); transform-origin: left; }
+
+/* ---------- question ---------- */
+
+.top { display: flex; justify-content: space-between; align-items: center; color: var(--chalk-dim); font-variant-numeric: tabular-nums; }
+.timer { height: 8px; border-radius: 4px; background: var(--board-line); overflow: hidden; }
+.timer i { display: block; height: 100%; width: 100%; background: var(--chalk); transform-origin: left; }
+.timer.low i { background: var(--bad); }
+
+.prompt {
+  background: var(--chalk);
+  color: #1d2622;
+  border-radius: var(--radius);
+  padding: 22px 20px;
+  font-size: 22px;
+  line-height: 1.4;
+  text-align: center;
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.prompt .kind { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: #6d7a73; }
+.prompt .blank { display: inline-block; min-width: 3.5em; border-bottom: 3px solid #1d2622; }
+.prompt .verb { color: #8a2f1c; font-weight: 600; }
+
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 19px;
+  color: #fff;
+  border-radius: var(--radius);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22);
+  transition: transform 0.08s, opacity 0.2s;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tile:active { transform: translateY(2px); }
+.tile svg { flex: 0 0 22px; width: 22px; height: 22px; fill: #fff; }
+.tile.t0 { background: var(--t0); }
+.tile.t1 { background: var(--t1); }
+.tile.t2 { background: var(--t2); }
+.tile.t3 { background: var(--t3); }
+.tile:disabled { opacity: 1; cursor: default; }
+.tiles.done .tile { opacity: 0.3; }
+.tiles.done .tile.right { opacity: 1; box-shadow: inset 0 0 0 4px #fff; }
+.tiles.done .tile.picked:not(.right) { opacity: 0.75; }
+
+.tiles.translate { grid-template-columns: 1fr; }
+.tiles.translate .tile { min-height: 60px; font-size: 18px; }
+
+.verdict {
+  text-align: center;
+  font-weight: 700;
+  font-size: 22px;
+  padding: 10px;
+  border-radius: var(--radius);
+}
+
+.verdict.ok { background: var(--ok); }
+.verdict.bad { background: var(--bad); }
+
+/* ---------- result ---------- */
+
+.score { text-align: center; }
+.score .grade { font-family: var(--hand); font-size: 140px; line-height: 1; color: var(--yellow); }
+.score .of { font-size: 22px; color: var(--chalk-dim); font-variant-numeric: tabular-nums; }
+
+.mistakes { display: flex; flex-direction: column; gap: 8px; }
+.mistakes h2 { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chalk-dim); margin: 8px 0 0; font-weight: 600; }
+.mistake { background: var(--board-deep); border-radius: 10px; padding: 10px 14px; }
+.mistake .fix { color: var(--yellow); font-weight: 600; }
+.mistake del { color: #f0a59e; }
+
+.waiting { text-align: center; color: var(--chalk-dim); }
+.waiting .name { font-family: var(--hand); font-size: 54px; color: var(--chalk); line-height: 1.1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile, .timer i, .countdown .bar i { transition: none !important; }
+}
