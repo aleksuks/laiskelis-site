@@ -11,8 +11,9 @@
 <link rel="stylesheet" href="style.css">
 <style>
   .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
-  .pill { font-size: 14px; padding: 4px 12px; border-radius: 99px; background: var(--board-deep); color: var(--chalk-dim); }
-  .pill.live { background: var(--ok); color: #fff; }
+  .pill { font-size: 15px; color: var(--chalk-dim); }
+  .pill.live { color: #7fd6a6; }
+  .pill.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
 
   .lobby { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 40px; align-items: start; }
   .qr { background: #fff; border-radius: var(--radius); padding: 18px; }
@@ -152,6 +153,8 @@
 
   function render() {
     var phase = board ? board.phase : null;
+    // A closed game nobody played (or one already cleared) is the same as none.
+    if (phase === "closed" && !players().length) phase = null;
     el("phase").textContent = phase ? PHASES[phase] : "";
     el("phase").className = "pill" + (phase === "playing" ? " live" : "");
     el("phase").hidden = !phase;
