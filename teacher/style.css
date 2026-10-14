@@ -1,0 +1,379 @@
+/* The dashboard is the classroom whiteboard: a white board in an aluminium
+   frame, marker-drawn zones, and every student a magnet. One look on
+   purpose, like the quiz's chalkboard: it is projected, so it is built
+   for the back row, not for night reading. Red and green belong to the
+   zones, so no magnet is ever red or green. */
+
+:root {
+  color-scheme: light;
+  --wall: #d9dedf;
+  --frame: #aab2b6;
+  --frame-dark: #7f898e;
+  --board: #f7f8f6;
+  --ink: #22272b;
+  --ink-dim: #5f686d;
+  --green: #1c844b;
+  --red: #c4313a;
+  --blue: #1f4fb5;
+  --point: #f2c014;
+  --font: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --marker: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 18px;
+  line-height: 1.4;
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+button { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, .magnet:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ---------- buttons: marker on board, or plain on the tray ---------- */
+
+.btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  background: var(--ink);
+  color: var(--board);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--frame); }
+
+/* ---------- tray: the aluminium ledge where the markers live ---------- */
+
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(#c3cacd, var(--frame));
+  border-bottom: 1px solid var(--frame-dark);
+}
+
+.classes { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 auto; min-width: 0; }
+
+.class-tab {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.45);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.class-tab[aria-current="true"] { background: var(--board); box-shadow: 0 2px 0 var(--ink); }
+.class-tab.add { font-weight: 400; color: var(--ink-dim); }
+
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.tool {
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tool:hover { background: rgba(255, 255, 255, 0.45); }
+.tool svg { width: 20px; height: 20px; flex: none; }
+.tool.dim { color: var(--ink-dim); font-weight: 400; }
+
+/* ---------- the board ---------- */
+
+.board {
+  margin: 16px;
+  min-height: calc(100vh - 110px);
+  background: var(--board);
+  border: 10px solid var(--frame);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--frame-dark), inset 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 200px;
+  grid-template-areas: "praise magnets notes";
+  gap: 20px;
+}
+
+/* Zones are drawn in marker: heavy uneven outlines, never a neat box. */
+.zone {
+  border: 3px solid currentColor;
+  border-radius: 22px 34px 26px 30px / 30px 22px 34px 24px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  transition: background-color 0.12s;
+  min-height: 140px;
+}
+.zone h2 { font-family: var(--marker); font-weight: 700; font-size: 40px; line-height: 1; margin: 0; }
+.zone p { margin: 0; font-size: 15px; }
+.zone svg { width: 54px; height: 54px; }
+.zone.over { background: color-mix(in srgb, currentColor 12%, transparent); }
+
+.praise { grid-area: praise; color: var(--green); transform: rotate(-0.6deg); }
+.notes { grid-area: notes; display: flex; flex-direction: column; gap: 14px; }
+.notes > h2 { font-family: var(--marker); font-weight: 700; font-size: 40px; line-height: 1; margin: 0; color: var(--red); text-align: center; }
+.notes .zone { color: var(--red); flex: 1; }
+.notes .zone:nth-child(3) { transform: rotate(0.8deg); }
+
+.magnets-area { grid-area: magnets; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+.magnets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px 14px;
+  align-content: start;
+  padding: 6px;
+}
+
+/* ---------- the magnets: the one loud thing on the page ---------- */
+
+.magnet {
+  --m: #2a5fc7;
+  position: relative;
+  min-height: 64px;
+  padding: 10px 30px 10px 16px;
+  border-radius: 999px;
+  background: var(--m);
+  background-image: radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.35), transparent 45%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 21px;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25), 0 6px 10px rgba(0, 0, 0, 0.12);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  overflow-wrap: anywhere;
+}
+.magnet.c1 { --m: #6a43b5; }
+.magnet.c2 { --m: #117c87; }
+.magnet.c3 { --m: #b2367a; }
+.magnet.c4 { --m: #45596b; }
+.magnet.c5 { --m: #a35612; }
+
+.magnet.lifted { opacity: 0.3; }
+.magnet.bump { animation: bump 0.25s ease-out; }
+@keyframes bump { 50% { transform: scale(1.08); } }
+
+.magnet .hide {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+.magnet .hide:hover { background: rgba(0, 0, 0, 0.4); }
+
+/* Today's points, as a small yellow magnet stuck on the name. */
+.magnet .pts {
+  position: absolute;
+  top: -10px;
+  left: -6px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 15px;
+  background: var(--point);
+  color: var(--ink);
+  font-size: 17px;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.ghost {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-3deg);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+  cursor: grabbing;
+}
+
+.away { color: var(--ink-dim); font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.away button { border: 0; background: none; padding: 2px 6px; border-radius: 6px; text-decoration: underline; color: var(--ink-dim); }
+.away button:hover { background: rgba(0, 0, 0, 0.06); }
+
+.hint { color: var(--ink-dim); font-size: 15px; margin: 0; }
+
+/* ---------- gate and empty board ---------- */
+
+.center { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+
+.card {
+  width: min(440px, 100%);
+  background: var(--board);
+  border: 10px solid var(--frame);
+  border-radius: 6px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.card h1 { font-family: var(--marker); font-size: 52px; line-height: 1; margin: 0; color: var(--blue); }
+
+input[type="text"], input[type="password"], select, textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--frame);
+  background: #fff;
+}
+textarea { resize: vertical; min-height: 220px; line-height: 1.35; }
+
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 16px; }
+
+.msg { padding: 10px 14px; border-radius: 10px; background: #fbe3e3; color: #7d1a20; margin: 0; }
+
+.empty { grid-column: 1 / -1; display: grid; place-items: center; text-align: center; }
+.empty p { font-family: var(--marker); font-size: 40px; color: var(--blue); margin: 0 0 16px; }
+
+/* ---------- dialogs ---------- */
+
+dialog {
+  border: 10px solid var(--frame);
+  border-radius: 6px;
+  background: var(--board);
+  padding: 24px;
+  width: min(520px, calc(100vw - 32px));
+}
+dialog::backdrop { background: rgba(34, 39, 43, 0.5); }
+dialog h2 { font-family: var(--marker); font-size: 40px; line-height: 1; margin: 0 0 14px; color: var(--blue); }
+dialog form { display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.row > label { flex: 1; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- full screen: display and wheel ---------- */
+
+.full {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--board);
+  border: 14px solid var(--frame);
+  display: flex;
+  flex-direction: column;
+}
+.full .bar { display: flex; justify-content: flex-end; gap: 10px; padding: 12px; }
+
+.display-text {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  resize: none;
+  padding: 2vh 5vw 6vh;
+  font-weight: 600;
+  font-size: var(--fs, 6vw);
+  line-height: 1.2;
+  color: var(--ink);
+}
+.display-text:focus-visible { outline: none; }
+
+.wheel-stage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 4vw;
+  padding: 0 5vw 5vh;
+  min-height: 0;
+}
+.wheel-box { position: relative; width: min(100%, 72vh); aspect-ratio: 1; justify-self: center; }
+.wheel-box svg.wheel { width: 100%; height: 100%; transition: transform 4.2s cubic-bezier(0.15, 0.7, 0.2, 1); }
+.wheel-box .pointer {
+  position: absolute;
+  top: 50%;
+  right: -18px;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+  border-top: 18px solid transparent;
+  border-bottom: 18px solid transparent;
+  border-right: 34px solid var(--ink);
+}
+.wheel-side { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
+.picked { font-family: var(--marker); font-weight: 700; font-size: clamp(56px, 9vw, 150px); line-height: 1; color: var(--blue); min-height: 1em; }
+.left { color: var(--ink-dim); margin: 0; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--ink);
+  color: var(--board);
+  border-radius: 12px;
+  padding: 10px 10px 10px 18px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  max-width: calc(100vw - 32px);
+}
+.toast button { border: 0; background: rgba(255, 255, 255, 0.15); color: var(--board); border-radius: 8px; padding: 6px 12px; font-weight: 600; }
+
+@media (max-width: 860px) {
+  .board {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "praise notes" "magnets magnets";
+    margin: 8px;
+    padding: 12px;
+    border-width: 6px;
+  }
+  .zone { min-height: 100px; }
+  .zone svg { width: 36px; height: 36px; }
+  .magnets { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .magnet { font-size: 18px; min-height: 54px; }
+  .wheel-stage { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-box svg.wheel { transition: none !important; }
+  .magnet.bump { animation: none; }
+  .zone { transition: none; }
+}

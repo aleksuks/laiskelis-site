@@ -93,6 +93,24 @@ Backend is the shared Supabase project; migrations live in the app repo
 (class drive link, display text), `teacher_auth` (passcode hash, lockout).
 No author/device columns anywhere student-facing.
 
+## Progress
+- **Slice 1 (migration 152, `teacher/`):** passcode login, classes by
+  pasted names, tray (Drive, Ratas, Ekranas, Atsiliepimai), magnets: tap =
+  +1 point, drag to Pagyrimas / Pastaba (Zzz = nedirba, garsiakalbis =
+  trukdo), × = not here this visit. Keyboard on a focused magnet: Enter +1,
+  P pagyrimas, M nedirba, T trukdo, Delete nėra.
+- **Next:** quizzes (grade list, start/stop, live board, seed the grade-8
+  set), then `/mokinys/` with PINs and stats.
+
+## Mokytojui: slaptažodis
+Supabase → SQL Editor:
+
+    SELECT teacher_set_passcode('naujas-slaptažodis');
+
+Mažiausiai 8 simboliai. Tas pats ir slaptažodžiui pakeisti: visi
+prisijungę įrenginiai atjungiami. Po 10 neteisingų bandymų prisijungimas
+užrakinamas 15 minučių.
+
 ## Done means
 Migrations pushed and verified via PostgREST (`42501` = exists and locked
 down), pages deployed to `main`, a short Lithuanian note for the teacher on
