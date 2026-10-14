@@ -11,9 +11,6 @@
 <link rel="stylesheet" href="style.css">
 <style>
   .head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
-  .pill { font-size: 15px; color: var(--chalk-dim); }
-  .pill.live { color: #7fd6a6; }
-  .pill.live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; }
 
   .lobby { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 40px; align-items: start; }
   .qr { background: #fff; border-radius: var(--radius); padding: 18px; }
@@ -67,10 +64,7 @@
 
   <div id="main" class="stack" hidden>
     <div class="head">
-      <div class="row">
-        <h1>Būtasis laikas</h1>
-        <span class="pill" id="phase"></span>
-      </div>
+      <h1>Būtasis laikas</h1>
       <div class="row">
         <button id="start" hidden>Pradėti</button>
         <button id="end" class="ghost" hidden>Baigti</button>
@@ -122,8 +116,6 @@
   var reveal = false;     // scores and grades are off the projector until asked for
   var removed = new Set();
 
-  var PHASES = { lobby: "Laukiama", playing: "Vyksta", closed: "Baigta" };
-
   /* ---------- key ---------- */
 
   function readKey() {
@@ -155,9 +147,6 @@
     var phase = board ? board.phase : null;
     // A closed game nobody played (or one already cleared) is the same as none.
     if (phase === "closed" && !players().length) phase = null;
-    el("phase").textContent = phase ? PHASES[phase] : "";
-    el("phase").className = "pill" + (phase === "playing" ? " live" : "");
-    el("phase").hidden = !phase;
     el("start").hidden = phase !== "lobby";
     el("end").hidden = phase !== "playing";
     el("reveal").hidden = !phase || phase === "lobby";
