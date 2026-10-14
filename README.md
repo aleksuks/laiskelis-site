@@ -15,7 +15,7 @@ This repo is the whole of **laiskelis.lt**, and it now has two jobs.
    is expected to be a bigger, continuous project than any of them.
 
 Plain static HTML. No build step, no dependencies, nothing to install.
-Deployed by Netlify from the root of `main`.
+Served by GitHub Pages from the root of `main`.
 
 ## The teacher's dashboard
 
@@ -36,19 +36,20 @@ a domain, a repo and a Supabase project. The rules in the app repo's
   moderation, and the app's keyword gate does not run on it.
 - No link to it from the public pages; `noindex` on every dashboard page.
 
-**Students are children, and their names are personal data.** Until decided
-otherwise: keep rosters and the good list on the teacher's device
-(`localStorage`) rather than in Supabase, collect nothing from students
-themselves, and no analytics. Anything that does go to the server needs an
-entry in `decisions.md` in the app repo first. (Open question: whether
-cross-device sync is worth putting class lists in a database at all.)
+**Students are children, and their names are personal data.** None of it goes
+in this repo: GitHub Pages is public. It lives in the shared Supabase project
+in `teacher_*` tables behind row-level security, readable by the teacher and,
+for their own rows, by each student. Students log in at `/mokinys/` with full
+name and a personal PIN; no email, no analytics. The build brief is
+`TEACHER-DASHBOARD.md`.
 
-**Access.** Teacher-only. The existing pattern is a key in the URL fragment
-(see `feedbackas/mokytojui.html`), which stays out of server logs and
-referrers. Reuse it rather than invent accounts.
+**Access.** One teacher passcode, hashed in the backend and never written to
+the repo; reset by hand in the backend. The URL-fragment key of
+`feedbackas/mokytojui.html` is not used here, because the school PC and the
+laptop are not reliable about remembering it.
 
-**Layout.** Everything for the dashboard goes under `/teacher/` (to be
-created); the existing `/feedbackas` stays where it is because printed QR
+**Layout.** Everything for the dashboard goes under `/teacher/` and
+`/mokinys/` (to be created); the existing `/feedbackas` stays where it is because printed QR
 codes point at it. Same rules as the rest of the repo: plain static HTML, no
 build step, no dependencies without a reason written down here.
 
