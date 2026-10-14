@@ -32,7 +32,6 @@
   table.players { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
   .players th { text-align: left; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--chalk-dim); font-weight: 600; padding: 6px 8px; }
   .players td { padding: 7px 8px; border-top: 1px solid var(--board-line); white-space: nowrap; }
-  .players td.name { font-weight: 600; font-size: 18px; }
   .players td.num { text-align: right; }
   .players .grade { font-family: var(--hand); font-size: 32px; line-height: 0.8; color: var(--yellow); }
   .players tfoot td { color: var(--chalk-dim); font-size: 12px; }
@@ -45,7 +44,7 @@
   .pct { display: flex; gap: 3px; }
   .pct span { width: 14px; text-align: center; font-size: 10px; }
   .pct span.gap { margin-left: 8px; }
-  .kick { padding: 4px 10px; font-size: 14px; }
+  .players .chip { font-size: 16px; padding: 5px 12px; }
 
   @media (max-width: 800px) {
     .lobby, .board { grid-template-columns: 1fr; }
@@ -96,7 +95,7 @@
     <div id="board" class="board" hidden>
       <div class="tablewrap">
         <table class="players">
-          <thead><tr><th></th><th>Vardas</th><th></th><th class="num res">Teisingi</th><th class="num res">Pažymys</th><th></th></tr></thead>
+          <thead><tr><th></th><th>Vardas</th><th></th><th class="num res">Teisingi</th><th class="num res">Pažymys</th></tr></thead>
           <tbody id="rows"></tbody>
           <tfoot id="foot"></tfoot>
         </table>
@@ -173,16 +172,19 @@
     var list = players();
     el("count").textContent = list.length;
     var frag = document.createDocumentFragment();
-    list.forEach(function (p) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "chip";
-      b.textContent = p.name;
-      b.title = "Pašalinti";
-      b.addEventListener("click", function () { kick(p); });
-      frag.appendChild(b);
-    });
+    list.forEach(function (p) { frag.appendChild(chip(p)); });
     el("chips").replaceChildren(frag);
+  }
+
+  // One tap on a name removes that student, in the lobby and mid-game.
+  function chip(p) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = p.name;
+    b.title = "Pašalinti";
+    b.addEventListener("click", function () { kick(p); });
+    return b;
   }
 
   function renderBoard() {
@@ -203,8 +205,7 @@
       tr.appendChild(no);
 
       var name = document.createElement("td");
-      name.className = "name";
-      name.textContent = p.name;
+      name.appendChild(chip(p));
       tr.appendChild(name);
 
       var cellsTd = document.createElement("td");
@@ -237,16 +238,6 @@
       }
       tr.appendChild(gr);
 
-      var x = document.createElement("td");
-      var kb = document.createElement("button");
-      kb.type = "button";
-      kb.className = "ghost kick";
-      kb.textContent = "×";
-      kb.title = "Pašalinti";
-      kb.addEventListener("click", function () { kick(p); });
-      x.appendChild(kb);
-      tr.appendChild(x);
-
       rows.appendChild(tr);
     });
     el("rows").replaceChildren(rows);
@@ -277,7 +268,6 @@
       }
       td.appendChild(strip);
       tr.appendChild(td);
-      tr.appendChild(document.createElement("td"));
       tr.appendChild(document.createElement("td"));
       tr.appendChild(document.createElement("td"));
       foot.appendChild(tr);
@@ -332,7 +322,6 @@
   }
 
   function kick(p) {
-    if (board.phase !== "lobby" && !confirm("Pašalinti " + p.name + "? Atsakymai bus ištrinti.")) return;
     removed.add(p.id);
     render();
     rpc("quiz_kick", { p_key: key, p_player: p.id })
