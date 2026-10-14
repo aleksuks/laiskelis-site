@@ -99,8 +99,18 @@ No author/device columns anywhere student-facing.
   +1 point, drag to Pagyrimas / Pastaba (Zzz = nedirba, garsiakalbis =
   trukdo), × = not here this visit. Keyboard on a focused magnet: Enter +1,
   P pagyrimas, M nedirba, T trukdo, Delete nėra.
-- **Next:** quizzes (grade list, start/stop, live board, seed the grade-8
-  set), then `/mokinys/` with PINs and stats.
+- **Slice 2 (migration 153, `teacher/` + `mokinys/`):** Testas (quizzes
+  for the class's grade, start/stop, live board with name, progress,
+  seconds per question and mood, never scores; CSV with grades after it
+  ends), PIN kodai (issue missing, reset one, print; shown only when made),
+  student page: name + PIN, mood, the quiz (kvizas player), private 50/70/90%
+  pings, result, stats (points, quizzes, speed, best streak, skills with
+  per-quiz bars, strongest/weakest, skill detail), new random PIN.
+- **PINs** are 5 random digits, HMAC'd under a server secret (not bcrypt, so
+  system-wide uniqueness is an index). Students can't pick their own: that
+  would let them probe which PINs exist.
+- **Next:** authoring quizzes (today: by migration), removing/renaming
+  students, a teacher view of one student's history.
 
 ## Mokytojui: slaptažodis
 Supabase → SQL Editor:

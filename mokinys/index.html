@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Mokinys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
+<link rel="stylesheet" href="../teacher/style.css">
+<style>
+  /* The phone side of the whiteboard. Quiz tiles keep the four colours
+     and shapes the class already knows from /kvizas. */
+  body { background: var(--board); }
+  .wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding-block: 20px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .screen { display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-family: var(--marker); font-size: 52px; line-height: 1; margin: 0; color: var(--blue); }
+  h2.mark { font-family: var(--marker); font-size: 36px; line-height: 1; margin: 8px 0 0; color: var(--blue); }
+  .sub { color: var(--ink-dim); margin: 0; }
+  input[type="text"], input[inputmode] { font-size: 20px; }
+  .btn { justify-content: center; padding: 14px 20px; font-size: 18px; }
+  .links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .links button { border: 0; background: none; padding: 4px 0; color: var(--ink-dim); text-decoration: underline; }
+
+  /* mood */
+  .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .moods button { font-size: 40px; padding: 12px 0; border: 2px solid var(--frame); border-radius: 14px; background: #fff; }
+  .moods button[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 2px var(--blue); }
+
+  /* rule */
+  .rule { background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 18px; }
+  .rule p { margin: 0 0 10px; }
+  .rule p:last-child { margin-bottom: 0; }
+  .rule .steps { font-weight: 700; font-size: 1.1em; }
+  .rule s { color: var(--red); }
+  .rule b { color: var(--blue); }
+  .rule table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 0.95em; }
+  .rule th { text-align: left; font-weight: 600; color: var(--ink-dim); padding: 4px 6px; border-bottom: 2px solid var(--frame); }
+  .rule td { padding: 7px 6px; border-bottom: 1px solid #e3e6e4; }
+  .rule td:nth-child(2), .rule td:nth-child(3) { font-weight: 600; }
+  .countdown { display: flex; align-items: center; gap: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .countdown .bar, .timer { flex: 1; height: 8px; border-radius: 4px; background: #e3e6e4; overflow: hidden; }
+  .countdown .bar i, .timer i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; }
+  .timer.low i { background: var(--red); }
+
+  /* question */
+  .top { display: flex; justify-content: space-between; align-items: center; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .top .mood-btn { border: 0; background: none; font-size: 26px; padding: 0 4px; }
+  .prompt {
+    background: #fff;
+    border: 2px solid var(--frame);
+    border-radius: 14px;
+    padding: 22px 20px;
+    font-size: 22px;
+    text-align: center;
+    min-height: 130px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  .prompt .kind { font-size: 15px; color: var(--ink-dim); }
+  .prompt .blank { display: inline-block; min-width: 3.5em; border-bottom: 3px solid var(--ink); }
+  .prompt .verb { color: var(--blue); font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile {
+    display: flex; align-items: center; gap: 12px;
+    min-height: 84px; padding: 12px 14px; text-align: left;
+    font-size: 19px; font-weight: 600; color: #fff; border: 0; border-radius: 14px;
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22);
+    min-width: 0; overflow-wrap: anywhere;
+  }
+  .tile svg { flex: 0 0 22px; width: 22px; height: 22px; fill: #fff; }
+  .tile.t0 { background: #d0473f; }
+  .tile.t1 { background: #2f68c4; }
+  .tile.t2 { background: #b67a0c; }
+  .tile.t3 { background: #2c8f5c; }
+  .tile:disabled { cursor: default; }
+  .tiles.done .tile { opacity: 0.3; }
+  .tiles.done .tile.right { opacity: 1; box-shadow: inset 0 0 0 4px var(--ink); }
+  .tiles.done .tile.picked:not(.right) { opacity: 0.75; }
+  .tiles.translate { grid-template-columns: 1fr; }
+  .tiles.translate .tile { min-height: 60px; font-size: 18px; }
+  .verdict { text-align: center; font-weight: 700; font-size: 22px; padding: 10px; border-radius: 14px; color: #fff; }
+  .verdict.ok { background: var(--green); }
+  .verdict.bad { background: var(--red); }
+
+  /* result */
+  .score { text-align: center; }
+  .score .grade { font-family: var(--marker); font-size: 140px; line-height: 1; color: var(--blue); }
+  .score .of { font-size: 22px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .mistake { background: #fff; border: 1px solid #e3e6e4; border-radius: 10px; padding: 10px 14px; }
+  .mistake .fix { color: var(--green); font-weight: 700; }
+  .mistake del { color: var(--red); }
+
+  /* stats */
+  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fact { background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 12px 14px; }
+  .fact b { display: block; font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .fact span { color: var(--ink-dim); font-size: 15px; }
+  .fact.points b { color: #8a6a00; }
+  .fact.points { border-color: var(--point); }
+
+  .skill {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 6px 12px;
+    align-items: end;
+    text-align: left;
+    background: #fff;
+    border: 2px solid var(--frame);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .skill .name { font-weight: 700; }
+  .skill .pct { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; grid-row: span 2; align-self: center; }
+  .skill .tag { font-size: 14px; color: var(--ink-dim); font-weight: 400; }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; border-bottom: 1px solid var(--frame); }
+  .spark i { flex: 0 1 14px; min-width: 4px; background: var(--blue); border-radius: 3px 3px 0 0; }
+
+  table.runs { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .runs th { text-align: left; font-weight: 600; color: var(--ink-dim); font-size: 14px; padding: 4px 6px; border-bottom: 2px solid var(--frame); }
+  .runs td { padding: 8px 6px; border-bottom: 1px solid #e3e6e4; }
+  .runs td.n { text-align: right; }
+  .runs .g { font-family: var(--marker); font-size: 30px; line-height: 0.8; color: var(--blue); }
+
+  .newpin { font-size: 56px; font-weight: 700; letter-spacing: 0.15em; text-align: center; font-variant-numeric: tabular-nums; margin: 0; }
+  .ping { bottom: auto; top: 16px; background: var(--point); color: var(--ink); font-weight: 700; padding: 12px 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <form id="login" class="screen" hidden>
+    <h1>Prisijunk</h1>
+    <p id="loginError" class="msg" hidden></p>
+    <label>Vardas ir pavardė
+      <input type="text" id="name" autocomplete="name" spellcheck="false" required>
+    </label>
+    <label>PIN
+      <input type="text" id="pin" inputmode="numeric" autocomplete="off" maxlength="5" required>
+    </label>
+    <button class="btn" id="loginBtn">Prisijungti</button>
+  </form>
+
+  <div id="mood" class="screen" hidden>
+    <h1>Kaip jautiesi?</h1>
+    <p class="sub">Tai matys visa klasė.</p>
+    <div class="moods" id="moods"></div>
+  </div>
+
+  <div id="rule" class="screen" hidden>
+    <div id="ruleBody" class="rule"></div>
+    <div class="countdown"><div class="bar"><i id="ruleBar"></i></div><span id="ruleLeft"></span></div>
+    <button class="btn" id="ruleBtn" disabled>Supratau</button>
+  </div>
+
+  <div id="question" class="screen" hidden>
+    <div class="top"><span id="qNum"></span><button class="mood-btn" id="moodBtn" type="button" aria-label="Kaip jautiesi?"></button><span id="qScore"></span></div>
+    <div class="timer" id="timer"><i id="timerBar"></i></div>
+    <div class="prompt" id="prompt"></div>
+    <div class="tiles" id="tiles"></div>
+    <div id="verdict" class="verdict" hidden></div>
+    <p id="qError" class="msg" hidden></p>
+  </div>
+
+  <div id="result" class="screen" hidden>
+    <div class="score"><div class="grade" id="grade"></div><div class="of" id="of"></div></div>
+    <div class="screen" id="mistakes"></div>
+    <button class="btn quiet" type="button" id="toStats">Mano statistika</button>
+  </div>
+
+  <div id="stats" class="screen" hidden>
+    <h1 id="statsName"></h1>
+    <p id="statsError" class="msg" hidden></p>
+    <button class="btn" type="button" id="checkQuiz">Ar prasidėjo testas?</button>
+    <div class="facts" id="facts"></div>
+    <div class="screen" id="skills"></div>
+    <div class="links">
+      <button type="button" id="newPinBtn">Naujas PIN</button>
+      <button type="button" id="logout">Atsijungti</button>
+    </div>
+  </div>
+
+  <div id="skillView" class="screen" hidden>
+    <h1 id="skillName"></h1>
+    <table class="runs">
+      <thead><tr><th>Data</th><th>Testas</th><th class="n">Teisingi</th><th class="n">Greitis</th><th class="n">Pažymys</th></tr></thead>
+      <tbody id="skillRuns"></tbody>
+    </table>
+    <button class="btn quiet" type="button" id="skillBack">Atgal</button>
+  </div>
+
+  <div id="pinView" class="screen" hidden>
+    <h1>Tavo naujas PIN</h1>
+    <p class="newpin" id="newPin"></p>
+    <p class="sub">Užsirašyk. Senas PIN nebeveikia, ir kitą kartą jungsiesi su šiuo.</p>
+    <button class="btn" type="button" id="pinDone">Užsirašiau</button>
+  </div>
+
+</div>
+
+<div class="toast ping" id="ping" role="status" hidden></div>
+
+<script src="../teacher/api.js"></script>
+<script>
+(function () {
+  var el = function (id) { return document.getElementById(id); };
+  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "skillView", "pinView"];
+  var TOKEN_KEY = "mokinys.token";
+
+  var QUESTION_SECONDS = 30;   // per question; a timeout counts as wrong
+  var VERDICT_MS = 1600;
+  var MOODS = ["😀", "🙂", "😐", "😕", "😫"];
+  var MILESTONES = [0.5, 0.7, 0.9];
+
+  var SHAPES = [
+    '<svg viewBox="0 0 24 24"><path d="M12 3 22 21H2z"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 1 23 12 12 23 1 12z"/></svg>',
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>'
+  ];
+
+  var token = null;
+  var run = null;              // teacher_student_state().run
+  var stats = null;
+  var current = -1;
+  var seenRule = {};
+  var timers = [];
+  var screen = null;
+
+  function show(name) {
+    screen = name;
+    SCREENS.forEach(function (s) { el(s).hidden = s !== name; });
+    window.scrollTo(0, 0);
+  }
+
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function store(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function load() { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
+
+  /* ---------- login ---------- */
+
+  var LOGIN_ERRORS = {
+    denied: "Neteisingas vardas arba PIN. Vardą ir pavardę rašyk taip, kaip dienyne.",
+    locked: "Per daug bandymų. Palauk 15 minučių.",
+  };
+
+  function showLogin(message) {
+    clearTimers();
+    el("loginError").textContent = message || "";
+    el("loginError").hidden = !message;
+    show("login");
+  }
+
+  function signedOut(err) {
+    if (err && err.code === "teacher_student_denied") {
+      token = null;
+      store(null);
+      showLogin();
+      return true;
+    }
+    return false;
+  }
+
+  el("login").addEventListener("submit", function (e) {
+    e.preventDefault();
+    el("loginBtn").disabled = true;
+    rpc("teacher_student_login", { p_name: el("name").value, p_pin: el("pin").value }).then(function (res) {
+      if (res.error) throw new Error(LOGIN_ERRORS[res.error] || GENERIC_ERROR);
+      token = res.token;
+      store(token);
+      el("pin").value = "";
+      return refresh();
+    }).catch(function (err) {
+      showLogin(err.message);
+    }).then(function () { el("loginBtn").disabled = false; });
+  });
+
+  el("logout").addEventListener("click", function () {
+    rpc("teacher_student_logout", { p_token: token }).catch(function () {});
+    token = null;
+    store(null);
+    showLogin();
+  });
+
+  /* ---------- state: a live quiz, or the stats ---------- */
+
+  function refresh() {
+    return rpc("teacher_student_state", { p_token: token }).then(function (res) {
+      run = res.run;
+      if (run) route(); else openStats();
+    }).catch(function (err) {
+      if (signedOut(err)) return;
+      if (screen === "stats") statsError(err.message); else showLogin(err.message);
+    });
+  }
+
+  function total() { return run.content.questions.length; }
+  function score() {
+    var s = 0;
+    run.answers.forEach(function (a, i) { if (a !== null && a === run.correct[i]) s++; });
+    return s;
+  }
+  function firstOpen() {
+    for (var i = 0; i < run.answers.length; i++) if (run.answers[i] === null) return i;
+    return -1;
+  }
+  function partStartingAt(i) {
+    var parts = run.content.parts || [];
+    for (var k = 0; k < parts.length; k++) if (parts[k].from === i) return parts[k];
+    return null;
+  }
+
+  function route() {
+    if (!run.mood) { showMood(); return; }
+    var next = firstOpen();
+    if (next === -1) { showResult(); return; }
+    var part = partStartingAt(next);
+    if (part && !seenRule[next]) { showRule(part, next); return; }
+    showQuestion(next);
+  }
+
+  /* ---------- mood ---------- */
+
+  function showMood() {
+    clearTimers();
+    var frag = document.createDocumentFragment();
+    MOODS.forEach(function (m) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = m;
+      b.setAttribute("aria-pressed", String(run.mood === m));
+      b.addEventListener("click", function () {
+        var was = run.mood;
+        run.mood = m;
+        rpc("teacher_student_mood", { p_token: token, p_run: run.id, p_mood: m }).catch(function (err) {
+          if (!signedOut(err)) run.mood = was;
+        });
+        // Back into the quiz; an open question restarts with a full timer.
+        current = -1;
+        route();
+      });
+      frag.appendChild(b);
+    });
+    el("moods").replaceChildren(frag);
+    show("mood");
+  }
+
+  el("moodBtn").addEventListener("click", function () { if (!sending) showMood(); });
+
+  /* ---------- rule ---------- */
+
+  function showRule(part, at) {
+    clearTimers();
+    el("ruleBody").innerHTML = part.rule_html;   // authored in a migration, never by a student
+    el("ruleBtn").disabled = true;
+    show("rule");
+
+    var bar = el("ruleBar");
+    bar.style.transition = "none";
+    bar.style.transform = "scaleX(1)";
+    void bar.offsetWidth;
+    bar.style.transition = "transform " + part.seconds + "s linear";
+    bar.style.transform = "scaleX(0)";
+
+    var left = part.seconds;
+    el("ruleLeft").textContent = left;
+    var tick = setInterval(function () {
+      left--;
+      el("ruleLeft").textContent = Math.max(0, left);
+      if (part.seconds - left >= part.min_seconds) el("ruleBtn").disabled = false;
+      if (left <= 0) done();
+    }, 1000);
+    timers.push(tick);
+
+    function done() {
+      clearInterval(tick);
+      el("ruleBtn").onclick = null;
+      seenRule[at] = true;
+      route();
+    }
+    el("ruleBtn").onclick = done;
+  }
+
+  /* ---------- question ---------- */
+
+  function renderPrompt(q) {
+    var box = el("prompt");
+    box.replaceChildren();
+    if (q.kind === "translate") {
+      var k = document.createElement("div");
+      k.className = "kind";
+      k.textContent = "Išversk";
+      var t = document.createElement("div");
+      t.textContent = q.text;
+      box.append(k, t);
+      return;
+    }
+    var line = document.createElement("div");
+    var bits = q.text.split("___");
+    line.appendChild(document.createTextNode(bits[0]));
+    var blank = document.createElement("span");
+    blank.className = "blank";
+    blank.id = "blank";
+    blank.innerHTML = "&nbsp;";
+    line.appendChild(blank);
+    line.appendChild(document.createTextNode(bits[1] || ""));
+    box.appendChild(line);
+    if (q.verb) {
+      var v = document.createElement("div");
+      v.className = "verb";
+      v.textContent = "(" + q.verb + ")";
+      box.appendChild(v);
+    }
+  }
+
+  function showQuestion(i) {
+    clearTimers();
+    current = i;
+    var q = run.content.questions[i];
+
+    el("qNum").textContent = (i + 1) + " / " + total();
+    el("qScore").textContent = "✓ " + score();
+    el("moodBtn").textContent = run.mood;
+    el("verdict").hidden = true;
+    el("qError").hidden = true;
+    renderPrompt(q);
+
+    var tiles = el("tiles");
+    tiles.className = "tiles" + (q.kind === "translate" ? " translate" : "");
+    tiles.replaceChildren();
+    q.options.forEach(function (opt, c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tile t" + c;
+      b.innerHTML = SHAPES[c];
+      var span = document.createElement("span");
+      span.textContent = opt;
+      b.appendChild(span);
+      b.addEventListener("click", function () { answer(i, c); });
+      tiles.appendChild(b);
+    });
+
+    show("question");
+
+    var bar = el("timerBar");
+    el("timer").classList.remove("low");
+    bar.style.transition = "none";
+    bar.style.transform = "scaleX(1)";
+    void bar.offsetWidth;
+    bar.style.transition = "transform " + QUESTION_SECONDS + "s linear";
+    bar.style.transform = "scaleX(0)";
+    later(function () { el("timer").classList.add("low"); }, (QUESTION_SECONDS - 7) * 1000);
+    later(function () { answer(i, -1); }, QUESTION_SECONDS * 1000);
+  }
+
+  function freezeTimer() {
+    var bar = el("timerBar");
+    var now = getComputedStyle(bar).transform;
+    bar.style.transition = "none";
+    bar.style.transform = now;
+  }
+
+  var sending = false;
+
+  function answer(i, choice) {
+    if (sending || i !== current) return;
+    sending = true;
+    clearTimers();
+    freezeTimer();
+
+    var buttons = Array.prototype.slice.call(el("tiles").children);
+    buttons.forEach(function (b) { b.disabled = true; });
+    var before = score();
+
+    rpc("teacher_student_answer", { p_token: token, p_run: run.id, p_q: i, p_choice: choice }).then(function (res) {
+      sending = false;
+      run.answers[i] = choice;
+      run.correct[i] = res.correct;
+
+      el("tiles").classList.add("done");
+      buttons.forEach(function (b, c) {
+        if (c === res.correct) b.classList.add("right");
+        if (c === choice) b.classList.add("picked");
+      });
+
+      var q = run.content.questions[i];
+      if (q.kind !== "translate") el("blank").textContent = q.options[res.correct];
+
+      var v = el("verdict");
+      v.className = "verdict " + (res.right ? "ok" : "bad");
+      v.textContent = res.right ? "Teisingai" : (choice === -1 ? "Laikas baigėsi" : "Neteisingai");
+      v.hidden = false;
+      el("qScore").textContent = "✓ " + score();
+      milestone(before, score());
+
+      later(route, VERDICT_MS);
+    }).catch(function (err) {
+      sending = false;
+      if (signedOut(err)) return;
+      if (err.code === "teacher_quiz_closed" || err.code === "teacher_bad") { refresh(); return; }
+      buttons.forEach(function (b) { b.disabled = false; });
+      el("qError").textContent = err.message;
+      el("qError").hidden = false;
+    });
+  }
+
+  // Private to this phone: a ping when the running result passes a mark.
+  var pingTimer = null;
+  function milestone(before, after) {
+    var n = total();
+    MILESTONES.forEach(function (m) {
+      if (before < m * n && after >= m * n) {
+        el("ping").textContent = "Jau " + Math.round(m * 100) + "% teisingai!";
+        el("ping").hidden = false;
+        clearTimeout(pingTimer);
+        pingTimer = setTimeout(function () { el("ping").hidden = true; }, 2500);
+      }
+    });
+  }
+
+  /* ---------- result ---------- */
+
+  function showResult() {
+    clearTimers();
+    var s = score();
+    var n = total();
+    el("grade").textContent = gradeFor(s, n);
+    el("of").textContent = s + " / " + n;
+
+    var list = el("mistakes");
+    list.replaceChildren();
+    run.answers.forEach(function (a, i) {
+      if (a === null || a === run.correct[i]) return;
+      var q = run.content.questions[i];
+      var row = document.createElement("div");
+      row.className = "mistake";
+      var fix = document.createElement("span");
+      fix.className = "fix";
+      fix.textContent = q.options[run.correct[i]];
+      if (q.kind === "translate") {
+        row.append(q.text + " → ", fix);
+      } else {
+        var bits = q.text.split("___");
+        row.append(bits[0], fix, bits[1] || "");
+      }
+      if (a >= 0) {
+        var was = document.createElement("div");
+        var del = document.createElement("del");
+        del.textContent = q.options[a];
+        was.appendChild(del);
+        row.appendChild(was);
+      }
+      list.appendChild(row);
+    });
+    show("result");
+  }
+
+  el("toStats").addEventListener("click", openStats);
+
+  /* ---------- stats ---------- */
+
+  function statsError(text) {
+    el("statsError").textContent = text;
+    el("statsError").hidden = false;
+  }
+
+  function openStats() {
+    clearTimers();
+    el("statsError").hidden = true;
+    return rpc("teacher_student_stats", { p_token: token }).then(function (res) {
+      stats = res;
+      renderStats();
+      show("stats");
+    }).catch(function (err) {
+      if (signedOut(err)) return;
+      show("stats");
+      statsError(err.message);
+    });
+  }
+
+  function pct(c, n) { return n ? Math.round(100 * c / n) : 0; }
+
+  function bestStreak(runs) {
+    var best = 0;
+    runs.forEach(function (r) {
+      (r.marks.match(/1+/g) || []).forEach(function (m) { best = Math.max(best, m.length); });
+    });
+    return best;
+  }
+
+  function fact(value, label, cls) {
+    var d = document.createElement("div");
+    d.className = "fact" + (cls ? " " + cls : "");
+    var b = document.createElement("b");
+    b.textContent = value;
+    var s = document.createElement("span");
+    s.textContent = label;
+    d.append(b, s);
+    return d;
+  }
+
+  function renderStats() {
+    el("statsName").textContent = stats.name.split(" ")[0];
+    var runs = stats.runs;
+
+    var speedRuns = runs.filter(function (r) { return r.avg_ms; });
+    var avgS = speedRuns.length
+      ? Math.round(speedRuns.reduce(function (t, r) { return t + r.avg_ms; }, 0) / speedRuns.length / 1000)
+      : null;
+
+    el("facts").replaceChildren(
+      fact(stats.points_week, "taškų šią savaitę (iš viso " + stats.points_total + ")", "points"),
+      fact(runs.length, "testų atlikta"),
+      fact(avgS === null ? "–" : avgS + " s", "vidutiniškai klausimui"),
+      fact(bestStreak(runs), "teisingų iš eilės")
+    );
+
+    // Skills, oldest run first inside each.
+    var bySkill = {};
+    runs.forEach(function (r) { (bySkill[r.skill] = bySkill[r.skill] || []).push(r); });
+    var skills = Object.keys(bySkill).map(function (k) {
+      var list = bySkill[k];
+      var c = list.reduce(function (t, r) { return t + r.correct; }, 0);
+      var n = list.reduce(function (t, r) { return t + r.n; }, 0);
+      return { name: k, runs: list, pct: pct(c, n) };
+    }).sort(function (a, b) { return b.pct - a.pct; });
+
+    var frag = document.createDocumentFragment();
+    if (!skills.length) {
+      var p = document.createElement("p");
+      p.className = "sub";
+      p.textContent = "Kai atliksi pirmą testą, čia matysi, kaip sekasi.";
+      frag.appendChild(p);
+    } else {
+      var h = document.createElement("h2");
+      h.className = "mark";
+      h.textContent = "Temos";
+      frag.appendChild(h);
+    }
+    skills.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "skill";
+      var name = document.createElement("span");
+      name.className = "name";
+      name.textContent = s.name + " ";
+      if (skills.length > 1 && (i === 0 || i === skills.length - 1)) {
+        var tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = i === 0 ? "stipriausia" : "verta pakartoti";
+        name.appendChild(tag);
+      }
+      var big = document.createElement("span");
+      big.className = "pct";
+      big.textContent = s.pct + "%";
+      var spark = document.createElement("span");
+      spark.className = "spark";
+      spark.setAttribute("aria-label", s.runs.map(function (r) { return pct(r.correct, r.n) + "%"; }).join(", "));
+      s.runs.slice(-20).forEach(function (r) {
+        var bar = document.createElement("i");
+        bar.style.height = Math.max(4, pct(r.correct, r.n)) + "%";
+        bar.title = r.at.slice(0, 10) + ": " + pct(r.correct, r.n) + "%";
+        spark.appendChild(bar);
+      });
+      b.append(name, big, spark);
+      b.addEventListener("click", function () { openSkill(s); });
+      frag.appendChild(b);
+    });
+    el("skills").replaceChildren(frag);
+  }
+
+  function openSkill(s) {
+    el("skillName").textContent = s.name;
+    var frag = document.createDocumentFragment();
+    s.runs.slice().reverse().forEach(function (r) {
+      var tr = document.createElement("tr");
+      var cells = [
+        r.at.slice(5, 10).replace("-", "."),
+        r.title,
+        r.correct + "/" + r.n,
+        r.avg_ms ? Math.round(r.avg_ms / 1000) + " s" : "–",
+      ];
+      cells.forEach(function (c, i) {
+        var td = document.createElement("td");
+        td.textContent = c;
+        if (i > 1) td.className = "n";
+        tr.appendChild(td);
+      });
+      var g = document.createElement("td");
+      g.className = "n";
+      var gs = document.createElement("span");
+      gs.className = "g";
+      gs.textContent = gradeFor(r.correct, r.n);
+      g.appendChild(gs);
+      tr.appendChild(g);
+      frag.appendChild(tr);
+    });
+    el("skillRuns").replaceChildren(frag);
+    show("skillView");
+  }
+
+  el("skillBack").addEventListener("click", function () { show("stats"); });
+
+  el("checkQuiz").addEventListener("click", function () {
+    el("checkQuiz").disabled = true;
+    refresh().then(function () {
+      el("checkQuiz").disabled = false;
+      if (screen === "stats") statsError("Testas dar neprasidėjo.");
+    });
+  });
+
+  // Coming back to the tab is the moment a quiz may have started.
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && token && screen === "stats") refresh();
+  });
+
+  /* ---------- new PIN ---------- */
+
+  el("newPinBtn").addEventListener("click", function () {
+    if (!confirm("Gauti naują PIN? Senas nebeveiks.")) return;
+    rpc("teacher_student_new_pin", { p_token: token }).then(function (pin) {
+      // A new PIN signs every phone out, this one too: log back in quietly.
+      el("newPin").textContent = pin;
+      show("pinView");
+      return rpc("teacher_student_login", { p_name: stats.name, p_pin: pin }).then(function (res) {
+        if (res.token) { token = res.token; store(token); }
+      });
+    }).catch(function (err) {
+      if (!signedOut(err)) statsError(err.message);
+    });
+  });
+
+  el("pinDone").addEventListener("click", openStats);
+
+  /* ---------- boot ---------- */
+
+  token = load();
+  if (token) refresh(); else showLogin();
+})();
+</script>
+</body>
+</html>

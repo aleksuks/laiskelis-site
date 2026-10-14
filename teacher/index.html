@@ -36,9 +36,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>Ratas</button>
       <button class="tool" id="displayBtn" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 4h18v12H3zM9 20h6M12 16v4"/></svg>Ekranas</button>
+      <button class="tool" id="quizBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M5 3h14v18H5zM9 8h6M9 12h6M9 16h3"/></svg>Testas<span class="live-dot" id="liveDot" hidden></span></button>
       <a class="tool" href="../feedbackas/mokytojui.html" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4z"/></svg>Atsiliepimai</a>
       <button class="tool dim" id="addStudents" type="button">+ mokiniai</button>
+      <button class="tool dim" id="pinsBtn" type="button">PIN kodai</button>
       <button class="tool dim" id="logout" type="button">Atsijungti</button>
     </div>
   </nav>
@@ -124,6 +127,40 @@
       <p class="left" id="wheelLeft"></p>
     </div>
   </div>
+</div>
+
+<!-- ---------- quiz: pick one, then the live board (no scores on it) ---------- -->
+<div class="full" id="quiz" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="quizTitle"></h2>
+    <button class="btn" type="button" id="quizStop" hidden>Baigti testą</button>
+    <button class="btn quiet" type="button" id="quizCsv" hidden>CSV</button>
+    <button class="btn quiet" type="button" id="quizNew" hidden>Kitas testas</button>
+    <button class="btn quiet" type="button" id="quizClose">Uždaryti</button>
+  </div>
+  <p id="quizError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="quiz-pick" id="quizPick"></div>
+  <div class="quiz-board" id="quizBoard" hidden>
+    <aside class="join">
+      <img src="../mokinys/qr.svg" alt="QR kodas: laiskelis.lt/mokinys">
+      <p>laiskelis.lt/mokinys</p>
+      <p class="joined" id="quizJoined"></p>
+    </aside>
+    <div class="runners" id="runners"></div>
+  </div>
+</div>
+
+<!-- ---------- PINs: shown once, when issued ---------- -->
+<div class="full" id="pins" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="pinsTitle">PIN kodai</h2>
+    <button class="btn" type="button" id="pinsIssue">Sukurti trūkstamus</button>
+    <button class="btn quiet" type="button" id="pinsPrint">Spausdinti</button>
+    <button class="btn quiet" type="button" id="pinsClose">Uždaryti</button>
+  </div>
+  <p class="pins-note">PIN matosi tik sukūrimo metu. Pamestą PIN pakeisk nauju. Mokiniai jungiasi laiskelis.lt/mokinys</p>
+  <p id="pinsError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="pin-list" id="pinList"></div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
@@ -240,6 +277,7 @@
       showBoard(true);
       renderTabs();
       renderTools();
+      renderLiveDot();
       renderMagnets();
     }).catch(fail);
   }
@@ -661,8 +699,225 @@
     }, reduced ? 0 : 4300);
   });
 
+  /* ---------- quiz ---------- */
+
+  var POLL_MS = 3000;
+  var poll = null;
+  var board = null;            // teacher_run_board, or null
+  var quizClass = null;        // the class the overlay was opened for
+
+  function quizFail(err) {
+    if (err && err.code === "teacher_denied") { closeQuiz(); return signOut(); }
+    el("quizError").textContent = err.message;
+    el("quizError").hidden = false;
+  }
+
+  function openQuiz() {
+    quizClass = current;
+    el("quizError").hidden = true;
+    el("quiz").hidden = false;
+    refreshBoard().then(function () { if (!board) showPick(); });
+  }
+
+  function closeQuiz() {
+    stopPoll();
+    el("quiz").hidden = true;
+    renderLiveDot();
+  }
+
+  function showPick() {
+    stopPoll();
+    el("quizTitle").textContent = "Testai: " + quizClass.grade + " klasė";
+    el("quizStop").hidden = el("quizCsv").hidden = el("quizNew").hidden = true;
+    el("quizBoard").hidden = true;
+    el("quizPick").hidden = false;
+    el("quizPick").replaceChildren();
+    rpc("teacher_quizzes_for", { p_token: token, p_grade: quizClass.grade }).then(function (list) {
+      if (!list.length) {
+        var p = document.createElement("p");
+        p.className = "hint";
+        p.textContent = "Šiai klasei testų dar nėra.";
+        el("quizPick").appendChild(p);
+      }
+      list.forEach(function (q) {
+        var card = document.createElement("div");
+        card.className = "quiz-card";
+        var h = document.createElement("h3");
+        h.textContent = q.title;
+        var meta = document.createElement("p");
+        meta.className = "skill";
+        meta.textContent = q.skill + ", " + q.n + " klaus.";
+        var d = document.createElement("p");
+        d.textContent = q.description;
+        var b = document.createElement("button");
+        b.className = "btn";
+        b.type = "button";
+        b.textContent = "Pradėti";
+        b.addEventListener("click", function () {
+          b.disabled = true;
+          rpc("teacher_run_start", { p_token: token, p_class: quizClass.id, p_quiz: q.id })
+            .then(refreshBoard)
+            .catch(quizFail)
+            .then(function () { b.disabled = false; });
+        });
+        card.append(h, meta, d, b);
+        el("quizPick").appendChild(card);
+      });
+    }).catch(quizFail);
+  }
+
+  function refreshBoard() {
+    return rpc("teacher_run_board", { p_token: token, p_class: quizClass.id }).then(function (res) {
+      board = res;
+      quizClass.live_run = board && board.live ? board.id : null;
+      if (board) renderBoard();
+      if (board && board.live) startPoll(); else stopPoll();
+    }).catch(quizFail);
+  }
+
+  function renderBoard() {
+    var n = board.n;
+    var short = shortNames(quizClass.students);
+    el("quizTitle").textContent = board.title + (board.live ? "" : ": baigta");
+    el("quizStop").hidden = !board.live;
+    el("quizCsv").hidden = el("quizNew").hidden = board.live;
+    el("quizPick").hidden = true;
+    el("quizBoard").hidden = false;
+    el("quizJoined").textContent = "Prisijungė " + board.students.length + " iš " + quizClass.students.length;
+
+    var rows = board.students.slice().sort(function (a, b) {
+      return (short[a.id] || "").localeCompare(short[b.id] || "", "lt");
+    });
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "runner" + (r.answered >= n ? " done" : "");
+      var name = document.createElement("span");
+      name.className = "who";
+      name.textContent = short[r.id] || "?";
+      var track = document.createElement("span");
+      track.className = "track";
+      var fill = document.createElement("i");
+      fill.style.width = (100 * r.answered / n) + "%";
+      track.appendChild(fill);
+      var count = document.createElement("span");
+      count.className = "count";
+      count.textContent = r.answered + "/" + n;
+      var speed = document.createElement("span");
+      speed.className = "speed";
+      speed.textContent = r.answered ? Math.round(r.avg_ms / 1000) + " s" : "";
+      var mood = document.createElement("span");
+      mood.className = "mood";
+      mood.textContent = r.mood || "";
+      row.append(name, track, count, speed, mood);
+      frag.appendChild(row);
+    });
+    el("runners").replaceChildren(frag);
+  }
+
+  function startPoll() {
+    if (poll || document.hidden) return;
+    poll = setInterval(refreshBoard, POLL_MS);
+  }
+  function stopPoll() { if (poll) { clearInterval(poll); poll = null; } }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) stopPoll();
+    else if (!el("quiz").hidden && board && board.live) refreshBoard();
+  });
+
+  function renderLiveDot() { el("liveDot").hidden = !(current && current.live_run); }
+
+  el("quizBtn").addEventListener("click", openQuiz);
+  el("quizClose").addEventListener("click", closeQuiz);
+  el("quizNew").addEventListener("click", showPick);
+
+  el("quizStop").addEventListener("click", function () {
+    if (!confirm("Baigti testą? Neatsakyti klausimai liks neatsakyti.")) return;
+    rpc("teacher_run_stop", { p_token: token, p_run: board.id }).then(refreshBoard).catch(quizFail);
+  });
+
+  el("quizCsv").addEventListener("click", function () {
+    var full = {};
+    quizClass.students.forEach(function (s) { full[s.id] = s.full_name; });
+    var lines = [["Mokinys", "Teisingi", "Iš", "Pažymys", "Atsakyta", "Vid. s"].join(";")];
+    board.students.forEach(function (r) {
+      lines.push(['"' + (full[r.id] || "").replace(/"/g, '""') + '"', r.correct, board.n,
+        gradeFor(r.correct, board.n), r.answered, r.answered ? Math.round(r.avg_ms / 1000) : ""].join(";"));
+    });
+    var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = quizClass.name + "-" + board.title + "-" + board.started_at.slice(0, 10) + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  });
+
+  /* ---------- PINs ---------- */
+
+  var shownPins = {};          // student id -> PIN, only while the sheet is open
+
+  function openPins() {
+    shownPins = {};
+    el("pinsError").hidden = true;
+    el("pinsTitle").textContent = "PIN kodai: " + current.name;
+    renderPins();
+    el("pins").hidden = false;
+  }
+
+  function pinsFail(err) {
+    if (err && err.code === "teacher_denied") { el("pins").hidden = true; return signOut(); }
+    el("pinsError").textContent = err.message;
+    el("pinsError").hidden = false;
+  }
+
+  function renderPins() {
+    el("pinsIssue").hidden = current.students.every(function (s) { return s.has_pin; });
+    var frag = document.createDocumentFragment();
+    current.students.forEach(function (s) {
+      var row = document.createElement("div");
+      row.className = "pin-row" + (shownPins[s.id] ? " fresh" : "");
+      var name = document.createElement("span");
+      name.textContent = s.full_name;
+      var pin = document.createElement("span");
+      pin.className = "pin";
+      pin.textContent = shownPins[s.id] || (s.has_pin ? "•••••" : "nėra");
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tool dim";
+      b.textContent = s.has_pin ? "Naujas" : "Sukurti";
+      b.addEventListener("click", function () {
+        if (s.has_pin && !confirm(s.full_name + ": senas PIN nebeveiks. Tęsti?")) return;
+        rpc("teacher_pin_reset", { p_token: token, p_student: s.id }).then(function (p) {
+          shownPins[s.id] = p;
+          s.has_pin = true;
+          renderPins();
+        }).catch(pinsFail);
+      });
+      row.append(name, pin, b);
+      frag.appendChild(row);
+    });
+    el("pinList").replaceChildren(frag);
+  }
+
+  el("pinsBtn").addEventListener("click", openPins);
+  el("pinsClose").addEventListener("click", function () { shownPins = {}; el("pins").hidden = true; });
+  el("pinsPrint").addEventListener("click", function () { window.print(); });
+  el("pinsIssue").addEventListener("click", function () {
+    el("pinsIssue").disabled = true;
+    rpc("teacher_pins_issue", { p_token: token, p_class: current.id }).then(function (list) {
+      list.forEach(function (p) { shownPins[p.id] = p.pin; });
+      current.students.forEach(function (s) { if (shownPins[s.id]) s.has_pin = true; });
+      renderPins();
+    }).catch(pinsFail).then(function () { el("pinsIssue").disabled = false; });
+  });
+
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
+    if (!el("quiz").hidden) return closeQuiz();
+    if (!el("pins").hidden) return el("pinsClose").click();
     if (!el("display").hidden) el("displayClose").click();
     else if (!el("wheel").hidden) el("wheelClose").click();
   });

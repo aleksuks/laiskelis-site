@@ -16,7 +16,20 @@ const ERRORS = {
   teacher_bad: "Kažkas ne taip su duomenimis. Perkrauk puslapį.",
   teacher_bad_url: "Nuoroda turi prasidėti https://",
   teacher_too_many: "Per daug įrašų.",
+  teacher_student_denied: "Prisijunk iš naujo.",
+  teacher_quiz_closed: "Testas baigtas.",
 };
+
+// The 10-point scale, by share of correct answers (same as kvizas/). Tuning knob.
+const GRADE_STEPS = [0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25, 0.15];
+
+function gradeFor(score, total) {
+  const share = total ? score / total : 0;
+  for (let i = 0; i < GRADE_STEPS.length; i++) {
+    if (share >= GRADE_STEPS[i]) return 10 - i;
+  }
+  return 1;
+}
 
 const GENERIC_ERROR = "Nepavyko susisiekti. Patikrink internetą ir bandyk dar kartą.";
 

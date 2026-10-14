@@ -339,6 +339,104 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .picked { font-family: var(--marker); font-weight: 700; font-size: clamp(56px, 9vw, 150px); line-height: 1; color: var(--blue); min-height: 1em; }
 .left { color: var(--ink-dim); margin: 0; }
 
+.full .bar { align-items: center; flex-wrap: wrap; }
+.full-title { font-family: var(--marker); font-size: 44px; line-height: 1; margin: 0 auto 0 8px; color: var(--blue); }
+
+.live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
+
+/* ---------- quiz ---------- */
+
+.quiz-pick {
+  padding: 8px 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.quiz-card {
+  border: 3px solid var(--blue);
+  border-radius: 22px 30px 24px 28px / 28px 22px 30px 24px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.quiz-card h3 { margin: 0; font-size: 24px; }
+.quiz-card p { margin: 0; }
+.quiz-card .skill { color: var(--ink-dim); font-size: 15px; }
+.quiz-card .btn { margin-top: 8px; }
+
+.quiz-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+  padding: 8px 24px 24px;
+}
+
+.join img { display: block; width: 100%; image-rendering: pixelated; border-radius: 8px; }
+.join p { margin: 6px 0 0; text-align: center; font-weight: 700; }
+.join .joined { color: var(--ink-dim); font-weight: 400; margin-top: 18px; }
+
+.runners {
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 6px 28px;
+  align-content: start;
+}
+
+.runner {
+  display: grid;
+  grid-template-columns: 9em minmax(60px, 1fr) 3.4em 3em 1.6em;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e3e6e4;
+  font-variant-numeric: tabular-nums;
+}
+.runner .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runner .track { height: 14px; border-radius: 7px; background: #e3e6e4; overflow: hidden; }
+.runner .track i { display: block; height: 100%; background: var(--blue); border-radius: 7px; transition: width 0.4s; }
+.runner.done .track i { background: var(--ink); }
+.runner .count, .runner .speed { color: var(--ink-dim); font-size: 17px; text-align: right; }
+.runner .mood { font-size: 26px; text-align: center; }
+
+/* ---------- PIN sheet ---------- */
+
+.pins-note { margin: 0 20px 8px; color: var(--ink-dim); font-size: 15px; }
+
+.pin-list {
+  overflow-y: auto;
+  padding: 0 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 0 32px;
+  align-content: start;
+}
+.pin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5em auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--frame);
+}
+.pin-row .pin { font-weight: 700; font-size: 22px; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+.pin-row.fresh .pin { color: var(--ink); }
+
+@media print {
+  body:has(#pins:not([hidden])) > :not(#pins) { display: none !important; }
+  #pins { position: static; border: 0; }
+  #pins .bar button, #pins .pin-row button, .pins-note { display: none; }
+  .pin-list { overflow: visible; }
+}
+
 .toast {
   position: fixed;
   left: 50%;
@@ -370,6 +468,11 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
   .magnets { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .magnet { font-size: 18px; min-height: 54px; }
   .wheel-stage { grid-template-columns: 1fr; }
+  .quiz-board { grid-template-columns: 1fr; }
+  .join { display: none; }
+  .runners { grid-template-columns: 1fr; }
+  .runner { grid-template-columns: 6em minmax(40px, 1fr) 3em 2.6em 1.4em; font-size: 17px; gap: 8px; }
+  .full-title { font-size: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
