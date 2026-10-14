@@ -1,13 +1,60 @@
 # laiskelis.lt
 
-The public website for **„Laiškelis“** — the landing page, the legal pages
-(privacy, terms, support, CSAE standards, account deletion), the two pages
-the app deep-links to from auth emails (`verified.html`,
-`reset-password.html`), the project story, and the classroom feedback board
-at `/feedbackas`.
+This repo is the whole of **laiskelis.lt**, and it now has two jobs.
+
+1. **The public site for „Laiškelis“** — the landing page, the legal pages
+   (privacy, terms, support, CSAE standards, account deletion), the two pages
+   the app deep-links to from auth emails (`verified.html`,
+   `reset-password.html`) and the project story. On the surface this is all a
+   visitor sees.
+2. **The teacher's dashboard** — the founder's everyday classroom workspace
+   (the founder is also a teacher): reference docs, in-class tools, quizzes and
+   classroom management, living under one teacher-only area of the same
+   domain. It grew out of the small classroom tenants that already ship from
+   here (the feedback board at `/feedbackas`, the quiz, the party game) and
+   is expected to be a bigger, continuous project than any of them.
 
 Plain static HTML. No build step, no dependencies, nothing to install.
 Deployed by Netlify from the root of `main`.
+
+## The teacher's dashboard
+
+**Purpose.** One place to open at the start of a lesson and leave open all
+day: the docs I keep reaching for, tools to run in front of the class, quizzes
+to launch, and classroom management at the side (add a student to the good
+list, spin a wheel to pick someone at random, and so on).
+
+**Not Laiškelis.** The dashboard is a separate product that happens to share
+a domain, a repo and a Supabase project. The rules in the app repo's
+`CLAUDE.md` ("Tenants") apply to it in full:
+
+- Nothing in it reads or writes the letters schema, and nothing in the letters
+  schema knows it exists. Its tables (if any) carry their own prefix, have no
+  foreign keys or triggers across the line, and can be dropped in one
+  statement.
+- It never appears in the app, in the app's stats, pushes, leaderboard or
+  moderation, and the app's keyword gate does not run on it.
+- No link to it from the public pages; `noindex` on every dashboard page.
+
+**Students are children, and their names are personal data.** Until decided
+otherwise: keep rosters and the good list on the teacher's device
+(`localStorage`) rather than in Supabase, collect nothing from students
+themselves, and no analytics. Anything that does go to the server needs an
+entry in `decisions.md` in the app repo first. (Open question: whether
+cross-device sync is worth putting class lists in a database at all.)
+
+**Access.** Teacher-only. The existing pattern is a key in the URL fragment
+(see `feedbackas/mokytojui.html`), which stays out of server logs and
+referrers. Reuse it rather than invent accounts.
+
+**Layout.** Everything for the dashboard goes under `/teacher/` (to be
+created); the existing `/feedbackas` stays where it is because printed QR
+codes point at it. Same rules as the rest of the repo: plain static HTML, no
+build step, no dependencies without a reason written down here.
+
+**Where decisions live.** Product decisions go in `decisions.md` in the app
+repo, as for everything else on this domain; this README records only what a
+person working in this repo needs.
 
 ## Why this is its own repo
 
@@ -46,7 +93,7 @@ needed to move again in a hurry.
 
 ## The feedback board
 
-`/feedbackas` is a separate, much smaller product that shares this domain
+`/feedbackas` is the first of the classroom tenants, and now part of the dashboard's family. It is a separate, much smaller product that shares this domain
 and the app's Supabase project without touching any of its data. Its schema
 lives in the app repo (`supabase/migrations/086_feedbackas.sql`) and the
 rules that keep it disconnected are written down there. The Supabase anon
