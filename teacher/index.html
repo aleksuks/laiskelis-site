@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610151345">
-<link rel="stylesheet" href="art.css?v=202610151345">
+<link rel="stylesheet" href="style.css?v=202610151415">
+<link rel="stylesheet" href="art.css?v=202610151415">
 </head>
 <body>
 
@@ -219,9 +219,9 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610151345"></script>
-<script src="sound.js?v=202610151345"></script>
-<script src="insights.js?v=202610151345"></script>
+<script src="api.js?v=202610151415"></script>
+<script src="sound.js?v=202610151415"></script>
+<script src="insights.js?v=202610151415"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1155,13 +1155,13 @@
             return [full[r.id] || "?", r.points, CAMP_NAME[r.camp] || ""];
           })));
         }
-        // Only the current lesson can be deleted, so the button lives in it.
-        if (isNow) {
+        // Each lesson deletes itself (170); quiz results stay.
+        if (l.students.length) {
           var wipe = document.createElement("button");
           wipe.type = "button";
           wipe.className = "btn quiet wipe";
           wipe.textContent = "Ištrinti šią pamoką";
-          wipe.addEventListener("click", wipeLesson);
+          wipe.addEventListener("click", function () { deleteLesson(l, sum.textContent, isNow); });
           d.appendChild(wipe);
         }
         // Each quiz of the lesson; Loreta's students (162) by their own name.
@@ -1255,11 +1255,10 @@
 
   var CAMP_NAME = { good: "ЛУЧШИЕ", sleep: "Спят", disrupt: "Шумят" };
 
-  function wipeLesson() {
-    if (!confirm("Ištrinti dabartinės pamokos (pažymėtos „dabar“) taškus, pagyrimus ir pastabas? To atšaukti negalima.")) return;
-    rpc("teacher_lesson_wipe", { p_token: token, p_class: current.id }).then(function () {
-      closeFull(el("lessons"));
-      return openClass(current.id);
+  function deleteLesson(l, label, isNow) {
+    if (!confirm("Ištrinti pamoką " + label + "? Dings taškai, pagyrimai ir pastabos; testų rezultatai liks. To atšaukti negalima.")) return;
+    rpc("teacher_lesson_delete", { p_token: token, p_class: current.id, p_start: l.start }).then(function () {
+      return isNow ? openClass(current.id).then(loadHistory) : loadHistory();
     }).catch(lessonsFail);
   }
 
