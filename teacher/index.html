@@ -222,7 +222,7 @@
 
 <script src="api.js?v=202610151200"></script>
 <script src="sound.js?v=202610151200"></script>
-<script src="insights.js?v=202610151200"></script>
+<script src="insights.js?v=202610151400"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1306,7 +1306,7 @@
         h.textContent = q.title;
         var meta = document.createElement("p");
         meta.className = "skill";
-        meta.textContent = q.skill + ", " + q.n + " klaus.";
+        meta.textContent = "Taisyklė: " + q.skill + " · Tema: " + q.topic + " · " + q.n + " klaus.";
         var d = document.createElement("p");
         d.textContent = q.description;
         var b = document.createElement("button");

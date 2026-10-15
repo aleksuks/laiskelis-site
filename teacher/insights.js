@@ -79,7 +79,7 @@ function progressRecap(stats, now) {
   if (best && best.share >= 0.5) lines.push({ kind: "good", text: "Stiprioji vieta: " + named(best) + "." });
   var weak = worst && worst !== best && worst.share < MASTERY ? worst : null;
   if (weak) lines.push({ kind: "work", text: "Daugiausia klaidų: " + named(weak) + "." });
-  else if (sections.length) lines.push({ kind: "good", text: "Visos temos – bent " + MASTERY * 100 + " % teisingai." });
+  else if (sections.length) lines.push({ kind: "good", text: "Visos dalys – bent " + MASTERY * 100 + " % teisingai." });
 
   // 3. Questions left to the timer in the latest runs.
   var last = runs.slice(-3);

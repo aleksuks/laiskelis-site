@@ -227,7 +227,7 @@
     <label id="pinLabel">PIN
       <input type="text" id="pin" inputmode="numeric" autocomplete="off" maxlength="5" required>
     </label>
-    <label class="check"><input type="checkbox" id="guest"> Esu Loretos mokinys</label>
+    <label class="check" id="guestLabel" hidden><input type="checkbox" id="guest"> Esu Loretos mokinys</label>
     <button class="btn" id="loginBtn">Prisijungti</button>
   </form>
 
@@ -382,18 +382,29 @@
   var GUEST_KEY = "mokinys.guest";   // Loreta's student: any name, no PIN
 
   // Loreta's students join the live grade-9/10 quiz with any name (162).
-  el("guest").addEventListener("change", function () {
+  // The login screen can't know the grade, so the box shows only while a
+  // grade-9/10 quiz is open to guests (168).
+  function checkGuestOpen() {
+    rpc("teacher_guest_open", {}).then(function (open) {
+      el("guestLabel").hidden = !open;
+      if (!open && el("guest").checked) { el("guest").checked = false; guestChanged(); }
+    }).catch(function () {});
+  }
+
+  el("guest").addEventListener("change", guestChanged);
+  function guestChanged() {
     var on = el("guest").checked;
     el("pinLabel").hidden = on;
     el("pin").required = !on;
     el("name").autocomplete = on ? "off" : "name";
-  });
+  }
 
   function showLogin(message) {
     clearTimers();
     el("loginError").textContent = message || "";
     el("loginError").hidden = !message;
     show("login");
+    checkGuestOpen();
   }
 
   function signedOut(err) {
@@ -809,7 +820,7 @@
     } else {
       var h = document.createElement("h2");
       h.className = "mark";
-      h.textContent = "Temos";
+      h.textContent = "Taisyklės";
       frag.appendChild(h);
     }
     skills.forEach(function (s, i) {
@@ -887,6 +898,7 @@
   // Coming back to the tab is the moment a quiz may have started.
   document.addEventListener("visibilitychange", function () {
     if (!document.hidden && token && screen === "stats") refresh();
+    if (!document.hidden && screen === "login") checkGuestOpen();
   });
 
   /* ---------- new PIN ---------- */
