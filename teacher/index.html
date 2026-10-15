@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150855">
-<link rel="stylesheet" href="art.css?v=202610150855">
+<link rel="stylesheet" href="style.css?v=202610151200">
+<link rel="stylesheet" href="art.css?v=202610151200">
 </head>
 <body>
 
@@ -199,6 +199,7 @@
 <div class="full" id="lessons" hidden>
   <div class="bar">
     <h2 class="full-title" id="lessonsTitle">Pamokos</h2>
+    <button class="btn quiet" type="button" id="progressBtn">Pažanga</button>
     <button class="btn" type="button" id="lessonNew">Baigti pamoką</button>
     <button class="btn quiet" type="button" id="lessonWipe">Ištrinti šią pamoką</button>
     <button class="btn quiet" type="button" id="lessonsClose">Uždaryti</button>
@@ -207,10 +208,21 @@
   <div class="history" id="history"></div>
 </div>
 
+<!-- ---------- progress: the students' recap (166), as they see it, plus the class ---------- -->
+<div class="full" id="progress" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="progressTitle">Pažanga</h2>
+    <button class="btn quiet" type="button" id="progressClose">Atgal</button>
+  </div>
+  <p id="progressError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="history" id="progressList"></div>
+</div>
+
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150855"></script>
-<script src="sound.js?v=202610150855"></script>
+<script src="api.js?v=202610151200"></script>
+<script src="sound.js?v=202610151200"></script>
+<script src="insights.js?v=202610151200"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1084,6 +1096,7 @@
   /* ---------- lessons ---------- */
 
   var DATE_FMT = new Intl.DateTimeFormat("lt-LT", { weekday: "short", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vilnius" });
+  var DAY_FMT = new Intl.DateTimeFormat("lt-LT", { month: "long", day: "numeric", timeZone: "Europe/Vilnius" });
   var TIME_FMT = new Intl.DateTimeFormat("lt-LT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vilnius" });
 
   function lessonsFail(err) {
@@ -1100,8 +1113,8 @@
     loadHistory();
   }
 
-  // rows: [name, ...values], sorted by name; empty counts stay blank.
-  function historyTable(heads, rows) {
+  // rows: [name, ...values], sorted by name unless keepOrder; empty counts stay blank.
+  function historyTable(heads, rows, keepOrder) {
     var t = document.createElement("table");
     var head = t.insertRow();
     heads.forEach(function (h) {
@@ -1109,7 +1122,8 @@
       th.textContent = h;
       head.appendChild(th);
     });
-    rows.sort(function (a, b) { return a[0].localeCompare(b[0], "lt"); }).forEach(function (r) {
+    if (!keepOrder) rows.sort(function (a, b) { return a[0].localeCompare(b[0], "lt"); });
+    rows.forEach(function (r) {
       var row = t.insertRow();
       r.forEach(function (v, k) { row.insertCell().textContent = k && !v ? "" : v; });
     });
@@ -1159,6 +1173,67 @@
   }
 
   el("lessonsBtn").addEventListener("click", openLessons);
+
+  /* ---------- progress: each student's recap, the class's on top ---------- */
+
+  function openProgress() {
+    var c = current;
+    el("progressError").hidden = true;
+    el("progressTitle").textContent = "Pažanga: " + c.name;
+    el("progressList").replaceChildren();
+    openFull(el("progress"));
+    rpc("teacher_class_progress", { p_token: token, p_class: c.id }).then(function (res) {
+      var frag = document.createDocumentFragment();
+      var done = [], none = [];
+      res.students.forEach(function (st) {
+        st.quizzes = res.quizzes;
+        (st.runs.length ? done : none).push({ name: st.name, stats: st, recap: progressRecap(st) });
+      });
+
+      var cls = classRecap(done);
+      if (cls.lines.length) {
+        var top = document.createElement("div");
+        top.className = "lesson";
+        var h = document.createElement("h3");
+        h.textContent = "Klasė";
+        h.style.marginTop = "0";
+        top.append(h, recapList(cls, false));
+        frag.appendChild(top);
+      }
+
+      var ARROW = { up: "↑", down: "↓", same: "→" };
+      done.forEach(function (x) {
+        var d = document.createElement("details");
+        d.className = "lesson";
+        var sum = document.createElement("summary");
+        sum.textContent = x.name;
+        var t = document.createElement("span");
+        t.className = "trend";
+        t.textContent = x.stats.runs.length + " " + ltPlural(x.stats.runs.length, "testas", "testai", "testų") + " · " + x.recap.recent + " % " + ARROW[x.recap.trend];
+        sum.appendChild(t);
+        d.append(sum, recapList(x.recap, false));
+        d.appendChild(historyTable(["", "Teisingi", "Pažymys"], x.stats.runs.slice().reverse().map(function (r) {
+          return [DAY_FMT.format(new Date(r.at)) + " · " + r.title, r.correct + "/" + r.n, gradeFor(r.correct, r.n)];
+        }), true));
+        frag.appendChild(d);
+      });
+
+      if (none.length) {
+        var p = document.createElement("p");
+        p.className = "pins-note";
+        p.textContent = "Dar nedarė testų: " + none.map(function (x) { return x.name; }).join(", ") + ".";
+        frag.appendChild(p);
+      }
+      el("progressList").replaceChildren(frag);
+    }).catch(function (err) {
+      if (err && err.code === "teacher_denied") { el("progress").hidden = true; el("lessons").hidden = true; return signOut(); }
+      el("progressError").textContent = err.message;
+      el("progressError").hidden = false;
+    });
+  }
+
+  el("progressBtn").addEventListener("click", openProgress);
+  el("progressClose").addEventListener("click", function () { closeFull(el("progress")); });
   el("lessonsClose").addEventListener("click", function () { closeFull(el("lessons")); });
 
   el("lessonNew").addEventListener("click", function () {

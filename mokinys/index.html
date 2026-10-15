@@ -262,6 +262,7 @@
     <h1 id="statsName"></h1>
     <p id="statsError" class="msg" hidden></p>
     <button class="btn" type="button" id="checkQuiz">Ar prasidėjo testas?</button>
+    <div id="recap" hidden></div>
     <div class="facts" id="facts"></div>
     <div class="screen" id="skills"></div>
     <div class="links">
@@ -292,6 +293,7 @@
 
 <script src="../teacher/api.js"></script>
 <script src="../teacher/sound.js"></script>
+<script src="../teacher/insights.js"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -774,6 +776,11 @@
       fact(avgS === null ? "–" : avgS + " s", "vidutiniškai klausimui"),
       fact(bestStreak(runs), "teisingų iš eilės")
     );
+
+    // The recap first: how it's going, where it's strong, what to repeat (166).
+    var recap = progressRecap(stats);
+    el("recap").hidden = !recap.lines.length;
+    el("recap").replaceChildren(recapList(recap, true));
 
     // Skills, oldest run first inside each.
     var bySkill = {};

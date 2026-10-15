@@ -503,3 +503,20 @@ body.tray-min .abc {
 @media (max-width: 860px) {
   .quiz-board .runner { grid-template-columns: minmax(5em, 9em) minmax(40px, 1fr) 3em 2.6em 1.4em; }
 }
+
+/* ---------- progress recap (insights.js): /mokinys and Pamokos → Pažanga ---------- */
+.recap { list-style: none; margin: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; background: #fff; border: 2px solid var(--frame); border-radius: 14px; }
+.recap li { position: relative; padding-left: 28px; }
+.recap li::before { position: absolute; left: 0; width: 22px; text-align: center; font-weight: 700; }
+.recap .up::before { content: "↑"; color: var(--green); }
+.recap .down::before { content: "↓"; color: var(--red); }
+.recap .same::before { content: "→"; color: var(--ink-dim); }
+.recap .good::before { content: "✓"; color: var(--green); }
+.recap .work::before { content: "✎"; color: var(--blue); }
+.recap .time::before { content: "⏱"; }
+.recap .stale::before { content: "↻"; color: var(--blue); }
+.recap details { margin-top: 6px; }
+.recap summary { cursor: pointer; color: var(--blue); font-weight: 600; }
+.recap .rule { margin-top: 8px; }
+.lesson .recap { margin-top: 8px; border-width: 0; padding: 4px 0; background: none; }
+.lesson summary .trend { float: right; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
