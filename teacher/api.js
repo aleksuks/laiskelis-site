@@ -18,6 +18,7 @@ const ERRORS = {
   teacher_too_many: "Per daug įrašų.",
   teacher_student_denied: "Prisijunk iš naujo.",
   teacher_quiz_closed: "Testas baigtas.",
+  teacher_quiz_live: "Dabar vyksta testas.",
 };
 
 // The 10-point scale, by share of correct answers (same as kvizas/). Tuning knob.

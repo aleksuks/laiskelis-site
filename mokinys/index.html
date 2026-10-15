@@ -145,6 +145,9 @@
   .runs td.n { text-align: right; }
   .runs .g { font-family: var(--marker); font-size: 30px; line-height: 0.8; color: var(--blue); }
 
+  .practice-note { text-align: center; }
+  .practice-btn { width: 100%; display: flex; justify-content: space-between; gap: 12px; text-align: left; background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 12px 14px; font-weight: 700; }
+  .practice-btn span { color: var(--blue); white-space: nowrap; }
   .newpin { font-size: 56px; font-weight: 700; letter-spacing: 0.15em; text-align: center; font-variant-numeric: tabular-nums; margin: 0; }
   /* the painted layer for this page (teacher/art.css has the shared parts) */
   .screen.enter { animation: screenin 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
@@ -254,6 +257,7 @@
 
   <div id="result" class="screen" hidden>
     <div class="score"><div class="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div></div>
+    <p class="sub practice-note" id="practiceNote" hidden>Pasikartojimas: rezultatas niekur neįrašomas.</p>
     <div class="screen" id="mistakes"></div>
     <button class="btn quiet" type="button" id="toStats">Mano statistika</button>
   </div>
@@ -265,6 +269,7 @@
     <div id="recap" hidden></div>
     <div class="facts" id="facts"></div>
     <div class="screen" id="skills"></div>
+    <div class="screen" id="practice"></div>
     <div class="links">
       <button type="button" id="newPinBtn">Naujas PIN</button>
       <button type="button" id="logout">Atsijungti</button>
@@ -473,7 +478,7 @@
   }
 
   function route() {
-    if (!run.mood) { showMood(); return; }
+    if (!run.mood && !run.practice) { showMood(); return; }
     var next = firstOpen();
     if (next === -1) { showResult(); return; }
     var part = partStartingAt(next);
@@ -510,6 +515,19 @@
     el("moods").replaceChildren(frag);
     show("mood");
   }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (screen === "question") {
+      var c = "1234".indexOf(e.key);
+      if (c < 0) c = "abcd".indexOf(e.key.toLowerCase());
+      var tile = c >= 0 && el("tiles").children[c];
+      if (tile && !tile.disabled) { e.preventDefault(); tile.click(); }
+    } else if (screen === "rule" && e.key === "Enter" && !el("ruleBtn").disabled) {
+      e.preventDefault();
+      el("ruleBtn").click();
+    }
+  });
 
   el("moodBtn").addEventListener("click", function () { if (!sending) showMood(); });
 
@@ -586,7 +604,8 @@
 
     el("qNum").textContent = (i + 1) + " / " + total();
     el("qScore").textContent = "✓ " + score();
-    el("moodBtn").replaceChildren(moodFace(run.mood));
+    el("moodBtn").hidden = !!run.practice;
+    if (!run.practice) el("moodBtn").replaceChildren(moodFace(run.mood));
     el("verdict").hidden = true;
     el("qError").hidden = true;
     renderPrompt(q);
@@ -638,7 +657,10 @@
     buttons.forEach(function (b) { b.disabled = true; });
     var before = score();
 
-    rpc("teacher_student_answer", { p_token: token, p_run: run.id, p_q: i, p_choice: choice }).then(function (res) {
+    var call = run.practice
+      ? Promise.resolve({ right: choice === run.key[i], correct: run.key[i] })
+      : rpc("teacher_student_answer", { p_token: token, p_run: run.id, p_q: i, p_choice: choice });
+    call.then(function (res) {
       sending = false;
       run.answers[i] = choice;
       run.correct[i] = res.correct;
@@ -724,6 +746,7 @@
       }
       list.appendChild(row);
     });
+    el("practiceNote").hidden = !run.practice;
     show("result");
     if (gradeFor(s, n) >= 8) setTimeout(function () { confetti(el("grade")); Sound.fanfare(); }, 350);
   }
@@ -739,6 +762,7 @@
 
   function openStats() {
     clearTimers();
+    if (run && run.practice) { run = null; seenRule = {}; }
     el("statsError").hidden = true;
     return rpc("teacher_student_stats", { p_token: token }).then(function (res) {
       stats = res;
@@ -853,6 +877,7 @@
       frag.appendChild(b);
     });
     el("skills").replaceChildren(frag);
+    renderPractice();
   }
 
   function openSkill(s) {
@@ -886,6 +911,51 @@
   }
 
   el("skillBack").addEventListener("click", function () { show("stats"); });
+
+  /* ---------- practice: any quiz taken before, checked on the phone (172) ---------- */
+
+  function renderPractice() {
+    var seen = {}, quizzes = [];
+    stats.runs.slice().reverse().forEach(function (r) {
+      if (!seen[r.quiz]) { seen[r.quiz] = true; quizzes.push(r); }
+    });
+    var frag = document.createDocumentFragment();
+    if (quizzes.length) {
+      var h = document.createElement("h2");
+      h.className = "mark";
+      h.textContent = "Pasikartok";
+      frag.appendChild(h);
+    }
+    quizzes.forEach(function (r) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "practice-btn";
+      b.append(r.title);
+      var go = document.createElement("span");
+      go.textContent = "Bandyti →";
+      b.appendChild(go);
+      b.addEventListener("click", function () { startPractice(r.quiz, b); });
+      frag.appendChild(b);
+    });
+    el("practice").replaceChildren(frag);
+  }
+
+  function startPractice(quiz, btn) {
+    btn.disabled = true;
+    el("statsError").hidden = true;
+    rpc("teacher_student_practice", { p_token: token, p_quiz: quiz }).then(function (res) {
+      var n = res.content.questions.length;
+      run = { practice: true, content: res.content, key: res.key,
+              answers: new Array(n).fill(null), correct: new Array(n).fill(null) };
+      seenRule = {};
+      current = -1;
+      route();
+    }).catch(function (err) {
+      if (signedOut(err)) return;
+      if (err.code === "teacher_quiz_live") { refresh(); return; }
+      statsError(err.message);
+    }).then(function () { btn.disabled = false; });
+  }
 
   el("checkQuiz").addEventListener("click", function () {
     el("checkQuiz").disabled = true;
