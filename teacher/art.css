@@ -12,11 +12,10 @@
 :root {
   /* magnet-N.png is 288x108: pill y 12..96, caps 60 px. Drawn at 0.76. */
   --magnet-slice: 54 60 54 60;
-  --ms: 1;
-  /* Whole pixels: fractional slices leave a white seam through the pill. */
-  --magnet-bw: round(calc(41px * var(--ms)), 1px) round(calc(46px * var(--ms)), 1px);
+  --msr: 0.75;
+  --ms: var(--msr);
   --zone-slice: 60;
-  --zone-w: 30px;
+  --zone-w: 20px;
 }
 
 /* ================================================================ wall & board */
@@ -133,8 +132,11 @@ body { background: #cdd3d5; }
   padding: 0;
 }
 .camp.bad { border-image-source: url(art/zone-red.png); }
-.camp .emblem { width: 72px; height: 72px; flex: none; }
-.note-zones .zone .emblem { width: 110px; height: 110px; }
+.camp .emblem { width: calc(52px * var(--msr)); height: calc(52px * var(--msr)); flex: none; }
+/* Camps are narrow: their magnets are a size smaller than the middle's. */
+.camp { --ms: calc(var(--msr) * 0.85); }
+.note-zones .zone .emblem { width: calc(52px * var(--msr)); height: calc(52px * var(--msr)); }
+.magnet .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .emblem { transition: transform 0.22s cubic-bezier(0.3, 1.7, 0.5, 1); }
 .zone.over .emblem { transform: scale(1.18) rotate(-7deg); }
 .zone.stamped .emblem { animation: stamp 0.55s cubic-bezier(0.3, 1.4, 0.5, 1); }
@@ -154,11 +156,12 @@ body { background: #cdd3d5; }
   border: 0;
   border-image-source: url(art/magnet-0.png);
   border-image-slice: var(--magnet-slice) fill;
-  border-image-width: var(--magnet-bw);
+  /* Whole pixels: fractional slices leave a white seam through the pill. */
+  border-image-width: round(calc(41px * var(--ms)), 1px) round(calc(46px * var(--ms)), 1px);
   border-image-repeat: stretch;
   min-height: calc(2 * round(calc(41px * var(--ms)), 1px));
   padding: calc(6px * var(--ms)) calc(46px * var(--ms)) calc(6px * var(--ms)) calc(30px * var(--ms));
-  font-size: calc(22px * var(--ms));
+  font-size: calc(22px * var(--ms) * var(--nf, 1));
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
   rotate: var(--tilt, 0deg);
 }
@@ -349,7 +352,6 @@ dialog[open] { animation: rolldown 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
   .tool.small img { width: 28px; height: 28px; }
   .class-tab { font-size: 24px; }
   :root { --zone-w: 22px; }
-  .note-zones .zone .emblem { width: 64px; height: 64px; }
   .runner { grid-template-columns: 6em minmax(40px, 1fr) 3em 2.6em 40px; }
   .runner .mood .mood-face { width: 36px; height: 36px; }
 }

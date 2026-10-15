@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="art.css">
+<link rel="stylesheet" href="style.css?v=202610150706">
+<link rel="stylesheet" href="art.css?v=202610150706">
 </head>
 <body>
 
@@ -185,8 +185,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js"></script>
-<script src="sound.js"></script>
+<script src="api.js?v=202610150706"></script>
+<script src="sound.js?v=202610150706"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -504,7 +504,13 @@
     m.dataset.id = s.id;
     m.setAttribute("role", "button");
     m.setAttribute("aria-label", s.full_name + ", taškų: " + s.points_today);
-    m.appendChild(document.createTextNode(names[s.id]));
+    var nm = document.createElement("span");
+    nm.className = "name";
+    nm.textContent = names[s.id];
+    m.appendChild(nm);
+    // Long names get a smaller font, not a wider magnet.
+    var len = names[s.id].length;
+    if (len > 7) m.style.setProperty("--nf", Math.max(0.55, 7 / len).toFixed(2));
 
     // The yellow count is also the way to take a point back.
     if (s.points_today > 0) {
@@ -564,25 +570,33 @@
   var NARROW = matchMedia("(max-width: 860px)");
   function fit() {
     var root = document.documentElement.style;
-    if (NARROW.matches || el("board").hidden) { root.setProperty("--ms", NARROW.matches ? "0.8" : "1"); return; }
-    var boxes = [el("board").querySelector(".camp.good"), el("board").querySelector(".mid"), el("board").querySelector(".camp.bad")];
-    var over = function () { return boxes.some(function (b) { return b.scrollHeight > b.clientHeight + 1; }); };
+    if (NARROW.matches || el("board").hidden) { root.setProperty("--msr", "0.7"); sizeTask(); return; }
+    // The strip of camps gets at most this share of the board; the task gets the rest.
+    var cap = el("board").clientHeight * STRIP_SHARE;
+    var strip = el("board").querySelector(".mid");
     // ponytail: linear search, each step forces a layout; fine for a class of 30.
-    for (var ms = 1; ms >= 0.5; ms -= 0.05) {
-      root.setProperty("--ms", ms.toFixed(2));
-      if (!over()) return;
+    // Big boards start bigger: 0.75 at a 1300 px wide board.
+    var start = Math.min(1.05, Math.max(0.75, 0.75 * el("board").clientWidth / 1300));
+    for (var ms = start; ms >= 0.35; ms -= 0.05) {
+      root.setProperty("--msr", ms.toFixed(2));
+      if (strip.offsetHeight <= cap) break;
     }
+    sizeTask();
   }
+  var STRIP_SHARE = 0.3;
   new ResizeObserver(function () { fit(); }).observe(el("board"));
 
   /* ---------- the task, written straight on the board ---------- */
 
   var taskTimer = null, taskSave = null;
 
+  // As big as the text allows: shrinks until it fits its box without scrolling.
   function sizeTask() {
     var t = el("task");
-    t.style.height = "auto";
-    t.style.height = Math.min(t.scrollHeight + 2, innerHeight * 0.3) + "px";
+    for (var vw = 6; vw > 1.4; vw -= 0.2) {
+      t.style.fontSize = vw.toFixed(1) + "vw";
+      if (t.scrollHeight <= t.clientHeight + 1) return;
+    }
   }
 
   // Saved a moment after typing stops; the projector screen reads the same text.
@@ -598,7 +612,7 @@
   }
   function flushTask() { if (taskSave) { clearTimeout(taskTimer); taskSave(); } }
 
-  el("task").addEventListener("input", function () { sizeTask(); saveTask(el("task").value); fit(); });
+  el("task").addEventListener("input", function () { sizeTask(); saveTask(el("task").value); });
   el("task").addEventListener("blur", flushTask);
   addEventListener("pagehide", flushTask);
 
