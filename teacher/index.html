@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150756">
-<link rel="stylesheet" href="art.css?v=202610150756">
+<link rel="stylesheet" href="style.css?v=202610150802">
+<link rel="stylesheet" href="art.css?v=202610150802">
 </head>
 <body>
 
@@ -163,6 +163,25 @@
   </div>
 </div>
 
+<!-- ---------- a quiz together on the big screen, no phones ---------- -->
+<div class="full" id="live" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="liveTitle"></h2>
+    <span class="live-count" id="liveCount"></span>
+    <button class="btn quiet" type="button" id="liveBack" aria-label="Atgal">←</button>
+    <button class="btn" type="button" id="liveNext">Toliau</button>
+    <button class="btn quiet" type="button" id="liveClose">Uždaryti</button>
+  </div>
+  <div class="live-stage">
+    <div class="live-rule" id="liveRule" hidden></div>
+    <div class="live-q" id="liveQ" hidden>
+      <div class="live-prompt" id="livePrompt"></div>
+      <div class="live-tiles" id="liveTiles"></div>
+    </div>
+    <div class="live-end" id="liveEnd" hidden></div>
+  </div>
+</div>
+
 <!-- ---------- PINs: shown once, when issued ---------- -->
 <div class="full" id="pins" hidden>
   <div class="bar">
@@ -190,8 +209,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150756"></script>
-<script src="sound.js?v=202610150756"></script>
+<script src="api.js?v=202610150802"></script>
+<script src="sound.js?v=202610150802"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1203,7 +1222,18 @@
         var b = document.createElement("button");
         b.className = "btn";
         b.type = "button";
-        b.textContent = "Pradėti";
+        b.textContent = "Telefonais";
+        var together = document.createElement("button");
+        together.className = "btn";
+        together.type = "button";
+        together.textContent = "Kartu ekrane";
+        together.addEventListener("click", function () {
+          together.disabled = true;
+          openLive(q).then(function () { together.disabled = false; });
+        });
+        var row = document.createElement("div");
+        row.className = "quiz-go";
+        row.append(together, b);
         b.addEventListener("click", function () {
           b.disabled = true;
           rpc("teacher_run_start", { p_token: token, p_class: quizClass.id, p_quiz: q.id })
@@ -1211,7 +1241,7 @@
             .catch(quizFail)
             .then(function () { b.disabled = false; });
         });
-        card.append(h, meta, d, b);
+        card.append(h, meta, d, row);
         el("quizPick").appendChild(card);
       });
     }).catch(quizFail);
@@ -1316,6 +1346,144 @@
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   });
 
+  /* ---------- a quiz together on the big screen ---------- */
+
+  // Steps through the quiz: each part's rule card, then its questions. The
+  // class answers aloud; a click on a tile (or 1-4) is the class's answer and
+  // reveals the right one, Toliau (or Space) reveals without a pick. Nothing
+  // is stored.
+  var SHAPES = [
+    '<svg viewBox="0 0 24 24"><path d="M12 3 22 21H2z"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 1 23 12 12 23 1 12z"/></svg>',
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>'
+  ];
+  var live = null;   // { quiz, steps, at, picks, revealed }
+
+  function openLive(q) {
+    return rpc("teacher_quiz_full", { p_token: token, p_quiz: q.id }).then(function (quiz) {
+      var steps = [];
+      quiz.questions.forEach(function (_, i) {
+        (quiz.parts || []).forEach(function (p) { if (p.from === i) steps.push({ rule: p }); });
+        steps.push({ q: i });
+      });
+      steps.push({ end: true });
+      live = { quiz: quiz, steps: steps, at: 0, picks: {}, revealed: null };
+      el("liveTitle").textContent = quiz.title;
+      stopPoll();
+      el("quiz").hidden = true;
+      openFull(el("live"));
+      renderLive();
+    }).catch(quizFail);
+  }
+
+  function renderLive() {
+    var step = live.steps[live.at];
+    var n = live.quiz.questions.length;
+    el("liveRule").hidden = !step.rule;
+    el("liveQ").hidden = step.q === undefined;
+    el("liveEnd").hidden = !step.end;
+    el("liveBack").disabled = live.at === 0;
+    el("liveNext").hidden = !!step.end;
+    el("liveCount").textContent = step.q !== undefined ? (step.q + 1) + " / " + n : "";
+    if (step.rule) el("liveRule").innerHTML = step.rule.rule_html;   // authored in a migration
+    if (step.q !== undefined) renderLiveQ(step.q);
+    if (step.end) renderLiveEnd();
+  }
+
+  function renderLiveEnd() {
+    var asked = Object.keys(live.picks);
+    var right = asked.filter(function (i) { return live.picks[i] === live.quiz.answer_key[i]; }).length;
+    var big = document.createElement("p");
+    big.className = "live-score";
+    big.textContent = asked.length ? right + " / " + asked.length : "Pabaiga";
+    var again = document.createElement("button");
+    again.className = "btn";
+    again.type = "button";
+    again.textContent = "Iš naujo";
+    again.addEventListener("click", function () { live.at = 0; live.picks = {}; live.revealed = null; renderLive(); });
+    el("liveEnd").replaceChildren(big, again);
+    if (asked.length && right / asked.length >= 0.8) { confetti(big); Sound.fanfare(); }
+  }
+
+  function renderLiveQ(i) {
+    var q = live.quiz.questions[i];
+    var right = live.quiz.answer_key[i];
+    var revealed = i in live.picks || live.revealed === i;
+    var box = el("livePrompt");
+    box.replaceChildren();
+    if (q.kind === "translate") {
+      var k = document.createElement("div");
+      k.className = "kind";
+      k.textContent = "Išversk";
+      var t = document.createElement("div");
+      t.textContent = q.text;
+      box.append(k, t);
+    } else {
+      var line = document.createElement("div");
+      var bits = q.text.split("___");
+      var blank = document.createElement("span");
+      blank.className = "blank";
+      blank.textContent = revealed ? q.options[right] : " ";
+      line.append(bits[0], blank, bits[1] || "");
+      box.appendChild(line);
+      if (q.verb) {
+        var v = document.createElement("div");
+        v.className = "verb";
+        v.textContent = "(" + q.verb + ")";
+        box.appendChild(v);
+      }
+    }
+    var tiles = el("liveTiles");
+    tiles.className = "live-tiles" + (revealed ? " done" : "");
+    tiles.replaceChildren();
+    q.options.forEach(function (opt, c) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tile t" + c + (revealed && c === right ? " right" : "") + (live.picks[i] === c ? " picked" : "");
+      b.innerHTML = SHAPES[c];
+      var s = document.createElement("span");
+      s.textContent = opt;
+      b.appendChild(s);
+      b.addEventListener("click", function () { pickLive(i, c); });
+      tiles.appendChild(b);
+    });
+  }
+
+  function pickLive(i, c) {
+    if (i in live.picks || live.revealed === i) return;
+    live.picks[i] = c;
+    if (c === live.quiz.answer_key[i]) Sound.right(); else Sound.wrong();
+    renderLive();
+  }
+
+  // Toliau: an unrevealed question reveals first, then moves on.
+  function liveNext() {
+    var step = live.steps[live.at];
+    if (step.q !== undefined && !(step.q in live.picks) && live.revealed !== step.q) {
+      live.revealed = step.q;
+      renderLive();
+      return;
+    }
+    live.revealed = null;
+    if (live.at < live.steps.length - 1) live.at++;
+    renderLive();
+  }
+
+  el("liveNext").addEventListener("click", liveNext);
+  el("liveBack").addEventListener("click", function () {
+    if (live.at > 0) { live.at--; live.revealed = null; renderLive(); }
+  });
+  el("liveClose").addEventListener("click", function () { live = null; closeFull(el("live")); });
+
+  document.addEventListener("keydown", function (e) {
+    if (!live || el("live").hidden || e.target.closest("textarea, input")) return;
+    var step = live.steps[live.at];
+    if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); liveNext(); }
+    else if (e.key === "ArrowLeft") el("liveBack").click();
+    else if (step.q !== undefined && /^[1-4]$/.test(e.key)) pickLive(step.q, Number(e.key) - 1);
+  });
+
   /* ---------- PINs ---------- */
 
   var shownPins = {};          // student id -> PIN, only while the sheet is open
@@ -1344,7 +1512,7 @@
       name.textContent = s.full_name;
       var pin = document.createElement("span");
       pin.className = "pin";
-      pin.textContent = shownPins[s.id] || (s.has_pin ? "•••••" : "nėra");
+      pin.textContent = shownPins[s.id] || (s.has_pin ? "••••" : "nėra");
       var b = document.createElement("button");
       b.type = "button";
       b.className = "tool dim";
@@ -1378,6 +1546,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
     if (!el("quiz").hidden) return closeQuiz();
+    if (!el("live").hidden) return el("liveClose").click();
     if (!el("pins").hidden) return el("pinsClose").click();
     if (!el("lessons").hidden) return el("lessonsClose").click();
     if (!el("display").hidden) el("displayClose").click();

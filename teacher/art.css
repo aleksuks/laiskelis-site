@@ -417,7 +417,8 @@ body.tray-min .board { margin-top: 8px; }
    copybook hand, each pair over its Lithuanian sound. Propisi is only
    ever upper + lower pairs, never a word in capitals. */
 .abc { display: none; }
-body.tray-min .classes { flex: none; }
+/* Folded, the strip gets the whole bar; unfold to switch class. */
+body.tray-min .classes { display: none; }
 body.tray-min .abc {
   display: flex;
   flex: 1;
@@ -428,5 +429,51 @@ body.tray-min .abc {
   overflow: hidden;
 }
 .abc span { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.abc b { font-family: "Propisi", var(--marker); font-weight: 400; font-size: clamp(20px, 1.75vw, 50px); color: var(--ink); }
-.abc i { font-style: normal; font-weight: 700; font-size: clamp(11px, 0.8vw, 20px); color: var(--ink-dim); margin-top: 2px; }
+.abc b { font-family: "Propisi", var(--marker); font-weight: 400; font-size: clamp(24px, 2.3vw, 66px); color: var(--ink); }
+.abc i { font-style: normal; font-weight: 700; font-size: clamp(13px, 1.05vw, 30px); color: var(--ink); text-transform: uppercase; margin-top: 3px; }
+
+/* ================================================= quiz together on screen */
+
+.quiz-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.quiz-go .btn { margin-top: 0; }
+.live-count { font-weight: 700; font-size: 22px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+.live-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 1vh 5vw 4vh; display: flex; flex-direction: column; justify-content: center; }
+.live-rule { width: 100%; max-width: 1500px; margin: 0 auto; background: #fff; border: 2px solid var(--frame); border-radius: 18px; padding: 1.2em 1.5em; font-size: clamp(20px, 2vw, 46px); }
+.live-rule p { margin: 0 0 0.5em; }
+.live-rule .steps { font-weight: 700; }
+.live-rule b { color: var(--blue); }
+.live-rule s { color: var(--red); }
+.live-rule table { width: 100%; border-collapse: collapse; margin: 0.2em 0 0.7em; }
+.live-rule th { text-align: left; color: var(--ink-dim); font-weight: 600; padding: 0.2em 0.4em; border-bottom: 2px solid var(--frame); }
+.live-rule td { padding: 0.25em 0.4em; border-bottom: 1px solid #e3e6e4; }
+.live-prompt { text-align: center; font-weight: 700; font-size: clamp(32px, 4.2vw, 110px); line-height: 1.2; margin-bottom: 4vh; }
+.live-prompt .kind { font-size: 0.4em; font-weight: 600; color: var(--ink-dim); }
+.live-prompt .verb { font-size: 0.5em; font-weight: 600; color: var(--blue); }
+.live-prompt .blank { display: inline-block; min-width: 2.5em; border-bottom: 0.08em solid var(--ink); color: var(--blue); }
+.live-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; }
+.live-tiles .tile {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  min-height: 12vh;
+  padding: 0.5em 0.8em;
+  border: 0;
+  border-radius: 18px;
+  font-size: clamp(22px, 2.6vw, 72px);
+  font-weight: 700;
+  color: #fff;
+  text-align: left;
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.22);
+  overflow-wrap: anywhere;
+  transition: opacity 0.2s;
+}
+.live-tiles .tile svg { flex: none; width: 0.8em; height: 0.8em; fill: #fff; }
+.live-tiles .t0 { background: #d0473f; }
+.live-tiles .t1 { background: #2f68c4; }
+.live-tiles .t2 { background: #b67a0c; }
+.live-tiles .t3 { background: #2c8f5c; }
+.live-tiles.done .tile { opacity: 0.25; cursor: default; }
+.live-tiles.done .tile.right { opacity: 1; box-shadow: inset 0 0 0 0.12em var(--ink); }
+.live-tiles.done .tile.picked:not(.right) { opacity: 0.6; }
+.live-end { display: grid; justify-items: center; gap: 24px; }
+.live-score { font-family: var(--marker); font-size: clamp(90px, 12vw, 300px); line-height: 1; color: var(--blue); margin: 0; }
