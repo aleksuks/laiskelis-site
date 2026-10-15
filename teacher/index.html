@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610151200">
-<link rel="stylesheet" href="art.css?v=202610151200">
+<link rel="stylesheet" href="style.css?v=202610151345">
+<link rel="stylesheet" href="art.css?v=202610151345">
 </head>
 <body>
 
@@ -201,7 +201,6 @@
     <h2 class="full-title" id="lessonsTitle">Pamokos</h2>
     <button class="btn quiet" type="button" id="progressBtn">Pažanga</button>
     <button class="btn" type="button" id="lessonNew">Baigti pamoką</button>
-    <button class="btn quiet" type="button" id="lessonWipe">Ištrinti šią pamoką</button>
     <button class="btn quiet" type="button" id="lessonsClose">Uždaryti</button>
   </div>
   <p id="lessonsError" class="msg" hidden style="margin: 0 20px"></p>
@@ -220,9 +219,9 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610151200"></script>
-<script src="sound.js?v=202610151200"></script>
-<script src="insights.js?v=202610151400"></script>
+<script src="api.js?v=202610151345"></script>
+<script src="sound.js?v=202610151345"></script>
+<script src="insights.js?v=202610151345"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1150,10 +1149,20 @@
         var isNow = new Date(l.start) >= new Date(c.lesson_start);
         sum.textContent = DATE_FMT.format(new Date(l.start)) + "–" + TIME_FMT.format(new Date(l.end)) + (isNow ? " · dabar" : "");
         d.appendChild(sum);
+        // The camp each magnet ended the lesson in (169), not every drop.
         if (l.students.length) {
-          d.appendChild(historyTable(["", "Taškai", "ЛУЧШИЕ", "Спят", "Шумят"], l.students.map(function (r) {
-            return [full[r.id] || "?", r.points, r.praise, r.note_sleep, r.note_disrupt];
+          d.appendChild(historyTable(["", "Taškai", "Liko"], l.students.map(function (r) {
+            return [full[r.id] || "?", r.points, CAMP_NAME[r.camp] || ""];
           })));
+        }
+        // Only the current lesson can be deleted, so the button lives in it.
+        if (isNow) {
+          var wipe = document.createElement("button");
+          wipe.type = "button";
+          wipe.className = "btn quiet wipe";
+          wipe.textContent = "Ištrinti šią pamoką";
+          wipe.addEventListener("click", wipeLesson);
+          d.appendChild(wipe);
         }
         // Each quiz of the lesson; Loreta's students (162) by their own name.
         l.runs.forEach(function (run) {
@@ -1244,13 +1253,15 @@
     }).catch(lessonsFail);
   });
 
-  el("lessonWipe").addEventListener("click", function () {
-    if (!confirm("Ištrinti visus šios pamokos taškus, pagyrimus ir pastabas? To atšaukti negalima.")) return;
+  var CAMP_NAME = { good: "ЛУЧШИЕ", sleep: "Спят", disrupt: "Шумят" };
+
+  function wipeLesson() {
+    if (!confirm("Ištrinti dabartinės pamokos (pažymėtos „dabar“) taškus, pagyrimus ir pastabas? To atšaukti negalima.")) return;
     rpc("teacher_lesson_wipe", { p_token: token, p_class: current.id }).then(function () {
       closeFull(el("lessons"));
       return openClass(current.id);
     }).catch(lessonsFail);
-  });
+  }
 
   /* ---------- quiz ---------- */
 
