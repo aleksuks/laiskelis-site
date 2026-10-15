@@ -39,37 +39,43 @@
     </div>
     <div class="tools minor" id="toolsMinor">
       <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
+      <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
       <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
       <button class="tool small" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą"><img src="art/tool-class-add.png" alt="">Nuoroda</button>
       <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
       <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
     </div>
+    <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="true" aria-label="Suskleisti meniu">▴</button>
   </nav>
 
   <main class="board" id="board">
-    <div class="zone praise" data-kind="praise">
-      <img class="emblem" src="art/emblem-praise.png" alt="">
-      <h2>Pagyrimas</h2>
-    </div>
+    <textarea class="task" id="task" rows="1" maxlength="2000" spellcheck="false" placeholder="Užduotis…" aria-label="Užduotis"></textarea>
 
-    <div class="magnets-area">
+    <!-- Three camps. A magnet stays in the camp it was dropped on for the day. -->
+    <section class="camp good zone" data-kind="praise">
+      <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
+      <div class="magnets" id="campGood"></div>
+    </section>
+
+    <section class="mid zone" data-kind="neutral">
       <p id="error" class="msg" hidden></p>
       <div class="magnets" id="magnets"></div>
       <div class="away" id="away" hidden></div>
-      <p class="hint" id="hint">Spausk magnetą: +1 taškas. Tempk į pagyrimą ar pastabą.</p>
-    </div>
+    </section>
 
-    <div class="notes">
-      <h2>Pastaba</h2>
-      <div class="zone" data-kind="note_sleep">
-        <img class="emblem" src="art/emblem-sleep.png" alt="">
-        <p>nedirba</p>
+    <section class="camp bad">
+      <div class="note-zones">
+        <div class="zone" data-kind="note_sleep">
+          <img class="emblem" src="art/emblem-sleep.png" alt="">
+          <p>Спят</p>
+        </div>
+        <div class="zone" data-kind="note_disrupt">
+          <img class="emblem" src="art/emblem-disrupt.png" alt="">
+          <p>Шумят</p>
+        </div>
       </div>
-      <div class="zone" data-kind="note_disrupt">
-        <img class="emblem" src="art/emblem-disrupt.png" alt="">
-        <p>trukdo</p>
-      </div>
-    </div>
+      <div class="magnets" id="campBad"></div>
+    </section>
   </main>
 
   <main class="board" id="noClass" hidden>
@@ -126,6 +132,7 @@
       <div class="picked" id="picked" aria-live="polite"></div>
       <button class="btn" type="button" id="spin">Sukti</button>
       <p class="left" id="wheelLeft"></p>
+      <div class="wheel-names" id="wheelNames" aria-label="Kas sukasi ratu"></div>
     </div>
   </div>
 </div>
@@ -162,6 +169,18 @@
   <p class="pins-note">PIN matosi tik sukūrimo metu. Pamestą PIN pakeisk nauju. Mokiniai jungiasi laiskelis.lt/mokinys</p>
   <p id="pinsError" class="msg" hidden style="margin: 0 20px"></p>
   <div class="pin-list" id="pinList"></div>
+</div>
+
+<!-- ---------- lessons: start a new one, wipe this one, look back ---------- -->
+<div class="full" id="lessons" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="lessonsTitle">Pamokos</h2>
+    <button class="btn" type="button" id="lessonNew">Nauja pamoka</button>
+    <button class="btn quiet" type="button" id="lessonWipe">Ištrinti šią pamoką</button>
+    <button class="btn quiet" type="button" id="lessonsClose">Uždaryti</button>
+  </div>
+  <p id="lessonsError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="history" id="history"></div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
@@ -277,8 +296,20 @@
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
     el("tools").hidden = !hasClass;
-    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = !hasClass;
+    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = el("lessonsBtn").hidden = !hasClass;
   }
+
+  /* ---------- the tray folds away to give the board the room ---------- */
+
+  var TRAY_KEY = "teacher.trayMin";
+  function setTray(min) {
+    document.body.classList.toggle("tray-min", min);
+    el("trayToggle").setAttribute("aria-expanded", String(!min));
+    el("trayToggle").setAttribute("aria-label", min ? "Išskleisti meniu" : "Suskleisti meniu");
+    store(TRAY_KEY, min ? "1" : null);
+  }
+  el("trayToggle").addEventListener("click", function () { setTray(!document.body.classList.contains("tray-min")); });
+  setTray(load(TRAY_KEY) === "1");
 
   /* ---------- motion helpers ---------- */
 
@@ -296,7 +327,7 @@
     img.src = "art/eraser.png";
     img.alt = "";
     wipeEl.appendChild(img);
-    document.querySelector(".magnets-area").appendChild(wipeEl);
+    el("board").appendChild(wipeEl);
     Sound.swish();
     return later(520);
   }
@@ -362,6 +393,7 @@
 
   function openClass(id) {
     var switching = current && current.id !== id && !el("board").hidden;
+    flushTask();
     return Promise.all([
       rpc("teacher_class_state", { p_token: token, p_class: id }),
       switching ? wipe() : null,
@@ -374,6 +406,8 @@
       renderTabs();
       renderTools();
       renderLiveDot();
+      el("task").value = current.display_text;
+      sizeTask();
       renderMagnets(true);
       unwipe();
     }).catch(function (err) { unwipe(); fail(err); });
@@ -433,20 +467,22 @@
     return current.students.filter(function (s) { return !gone.has(s.id); });
   }
 
-  function renderMagnets(entering) {
+  // `arrived`: the one student whose magnet just landed in a camp.
+  function renderMagnets(entering, arrived) {
     names = shortNames(current.students);
-    var frag = document.createDocumentFragment();
+    var lists = { "": document.createDocumentFragment(), good: document.createDocumentFragment(), bad: document.createDocumentFragment() };
     visibleStudents().forEach(function (s, i) {
       var m = magnet(s);
-      if (entering) {
+      if (entering || s.id === arrived) {
         m.classList.add("enter");
-        m.style.setProperty("--i", i);
+        m.style.setProperty("--i", entering ? i : 0);
         m.addEventListener("animationend", function () { m.classList.remove("enter"); }, { once: true });
       }
-      frag.appendChild(m);
+      lists[s.camp || ""].appendChild(m);
     });
-    el("magnets").replaceChildren(frag);
-    el("hint").hidden = !current.students.length;
+    el("magnets").replaceChildren(lists[""]);
+    el("campGood").replaceChildren(lists.good);
+    el("campBad").replaceChildren(lists.bad);
     renderAway();
     if (!current.students.length) {
       var b = document.createElement("button");
@@ -456,6 +492,7 @@
       b.addEventListener("click", function () { openDialog("add"); });
       el("magnets").appendChild(b);
     }
+    fit();
   }
 
   function magnet(s) {
@@ -469,10 +506,15 @@
     m.setAttribute("aria-label", s.full_name + ", taškų: " + s.points_today);
     m.appendChild(document.createTextNode(names[s.id]));
 
+    // The yellow count is also the way to take a point back.
     if (s.points_today > 0) {
-      var p = document.createElement("span");
+      var p = document.createElement("button");
+      p.type = "button";
       p.className = "pts";
       p.textContent = s.points_today;
+      p.title = "−1";
+      p.setAttribute("aria-label", "Atimti tašką");
+      p.addEventListener("click", function () { removePoint(s); });
       m.appendChild(p);
     }
 
@@ -489,6 +531,8 @@
       if (e.target !== m) return;
       var kind = { Enter: "point", " ": "point", p: "praise", m: "note_sleep", t: "note_disrupt" }[e.key];
       if (kind) { e.preventDefault(); log(s, kind); }
+      if (e.key === "-" || e.key === "Backspace") { e.preventDefault(); removePoint(s); }
+      if (e.key === "n") moveCamp(s, null);
       if (e.key === "Delete") setAway(s, true);
     });
     return m;
@@ -515,20 +559,69 @@
     el("away").replaceChildren(frag);
   }
 
-  /* ---------- drag: a tap is a point, a drop on a zone is that zone ---------- */
+  /* ---------- fit: magnets shrink until every camp fits without scrolling ---------- */
+
+  var NARROW = matchMedia("(max-width: 860px)");
+  function fit() {
+    var root = document.documentElement.style;
+    if (NARROW.matches || el("board").hidden) { root.setProperty("--ms", NARROW.matches ? "0.8" : "1"); return; }
+    var boxes = [el("board").querySelector(".camp.good"), el("board").querySelector(".mid"), el("board").querySelector(".camp.bad")];
+    var over = function () { return boxes.some(function (b) { return b.scrollHeight > b.clientHeight + 1; }); };
+    // ponytail: linear search, each step forces a layout; fine for a class of 30.
+    for (var ms = 1; ms >= 0.5; ms -= 0.05) {
+      root.setProperty("--ms", ms.toFixed(2));
+      if (!over()) return;
+    }
+  }
+  new ResizeObserver(function () { fit(); }).observe(el("board"));
+
+  /* ---------- the task, written straight on the board ---------- */
+
+  var taskTimer = null, taskSave = null;
+
+  function sizeTask() {
+    var t = el("task");
+    t.style.height = "auto";
+    t.style.height = Math.min(t.scrollHeight + 2, innerHeight * 0.3) + "px";
+  }
+
+  // Saved a moment after typing stops; the projector screen reads the same text.
+  function saveTask(text) {
+    var c = current;
+    c.display_text = text;
+    clearTimeout(taskTimer);
+    taskSave = function () {
+      taskSave = null;
+      rpc("teacher_set_display", { p_token: token, p_class: c.id, p_text: text }).catch(fail);
+    };
+    taskTimer = setTimeout(taskSave, 700);
+  }
+  function flushTask() { if (taskSave) { clearTimeout(taskTimer); taskSave(); } }
+
+  el("task").addEventListener("input", function () { sizeTask(); saveTask(el("task").value); fit(); });
+  el("task").addEventListener("blur", flushTask);
+  addEventListener("pagehide", flushTask);
+
+  /* ---------- drag: a tap is a point, a drop on a camp moves the magnet there ---------- */
 
   var drag = null;
   var DRAG_PX = 8;
 
   function grab(e, s, m) {
-    if (e.button !== 0 || e.target.closest(".hide")) return;
+    if (e.button !== 0 || e.target.closest(".hide, .pts")) return;
     m.setPointerCapture(e.pointerId);
     drag = { s: s, m: m, x: e.clientX, y: e.clientY, ghost: null, zone: null };
   }
 
-  function zoneAt(x, y) {
+  // The camp a magnet already lives in is not a target: it just goes home.
+  function zoneAt(x, y, s) {
     var hit = document.elementFromPoint(x, y);
-    return hit && hit.closest(".zone");
+    var z = hit && hit.closest(".zone");
+    if (!z) return null;
+    var kind = z.dataset.kind;
+    if (kind === "neutral" && !s.camp) return null;
+    if (kind === "praise" && s.camp === "good") return null;
+    return z;
   }
 
   document.addEventListener("pointermove", function (e) {
@@ -543,7 +636,7 @@
     }
     drag.ghost.style.left = e.clientX + "px";
     drag.ghost.style.top = e.clientY + "px";
-    var z = zoneAt(e.clientX, e.clientY);
+    var z = zoneAt(e.clientX, e.clientY, drag.s);
     if (z !== drag.zone) {
       if (drag.zone) drag.zone.classList.remove("over");
       if (z) z.classList.add("over");
@@ -560,22 +653,23 @@
       if (commit) log(d.s, "point");
       return;
     }
-    // Dropped on a zone: the magnet is posted into it and the emblem stamps.
+    // Dropped on a camp: the emblem stamps and the magnet lands there.
     // Anywhere else: it slides back home.
     var g = d.ghost;
-    var target = commit && d.zone ? d.zone : d.m;
-    var r = target.getBoundingClientRect();
-    g.classList.add(target === d.m ? "home" : "posting");
-    g.style.left = r.left + r.width / 2 + "px";
-    g.style.top = r.top + r.height / 2 + "px";
-    if (target === d.m) Sound.clack();
-    else if (d.zone.dataset.kind === "praise") Sound.chime();
-    else Sound.clack();
-    if (target !== d.m) {
-      stamp(d.zone);
-      log(d.s, d.zone.dataset.kind);
+    var kind = commit && d.zone ? d.zone.dataset.kind : null;
+    if (!kind) {
+      var r = d.m.getBoundingClientRect();
+      g.classList.add("home");
+      g.style.left = r.left + r.width / 2 + "px";
+      g.style.top = r.top + r.height / 2 + "px";
+      Sound.clack();
+      later(300).then(function () { g.remove(); d.m.classList.remove("lifted"); });
+      return;
     }
-    later(300).then(function () { g.remove(); d.m.classList.remove("lifted"); });
+    g.remove();
+    if (kind === "praise") Sound.chime(); else Sound.clack();
+    if (kind === "neutral") moveCamp(d.s, null);
+    else { stamp(d.zone); log(d.s, kind); }
   }
 
   document.addEventListener("pointerup", function () { drop(true); });
@@ -583,37 +677,68 @@
 
   /* ---------- the log ---------- */
 
-  // Praise and notes stay nameless on screen: the board may be projected.
   var TOAST_TEXT = {
-    praise: "Pagyrimas įrašytas.",
-    note_sleep: "Pastaba įrašyta: nedirba.",
-    note_disrupt: "Pastaba įrašyta: trukdo.",
+    praise: "ЛУЧШИЙ ✓",
+    note_sleep: "Спят ✓",
+    note_disrupt: "Шумят ✓",
   };
+  var CAMP_OF = { praise: "good", note_sleep: "bad", note_disrupt: "bad" };
+
+  function setCampLocal(s, camp, classId) {
+    if (current.id !== classId) return;
+    s.camp = camp;
+    renderMagnets(false, s.id);
+  }
+
+  // Moves without writing to the log (back to the middle).
+  function moveCamp(s, camp) {
+    var classId = current.id, prev = s.camp || null;
+    if (prev === camp) return;
+    setCampLocal(s, camp, classId);
+    rpc("teacher_set_camp", { p_token: token, p_student: s.id, p_camp: camp })
+      .catch(function (err) { setCampLocal(s, prev, classId); fail(err); });
+  }
 
   function log(s, kind) {
-    var classId = current.id;
+    var classId = current.id, prev = s.camp || null;
     if (kind === "point") bumpPoints(s, 1);
+    else setCampLocal(s, CAMP_OF[kind], classId);
     rpc("teacher_event_add", { p_token: token, p_student: s.id, p_kind: kind }).then(function (eventId) {
       toast(kind === "point" ? names[s.id] + " +1" : TOAST_TEXT[kind], function () {
         return rpc("teacher_event_undo", { p_token: token, p_event: eventId }).then(function () {
-          if (kind === "point" && current.id === classId) bumpPoints(s, -1);
+          if (kind === "point") { if (current.id === classId) bumpPoints(s, -1); return; }
+          setCampLocal(s, prev, classId);
+          return rpc("teacher_set_camp", { p_token: token, p_student: s.id, p_camp: prev });
         });
       });
     }).catch(function (err) {
-      if (kind === "point" && current.id === classId) bumpPoints(s, -1);
+      if (kind === "point") { if (current.id === classId) bumpPoints(s, -1); }
+      else setCampLocal(s, prev, classId);
       fail(err);
     });
   }
 
-  function bumpPoints(s, delta) {
+  function removePoint(s) {
+    if (s.points_today <= 0) return;
+    var classId = current.id;
+    bumpPoints(s, -1);
+    rpc("teacher_point_remove", { p_token: token, p_student: s.id }).then(function (removed) {
+      if (removed) toast(names[s.id] + " −1", null);
+    }).catch(function (err) {
+      if (current.id === classId) bumpPoints(s, 1, true);
+      fail(err);
+    });
+  }
+
+  function bumpPoints(s, delta, quiet) {
     s.points_today = Math.max(0, s.points_today + delta);
-    var old = el("magnets").querySelector('[data-id="' + s.id + '"]');
+    var old = el("board").querySelector('.magnet[data-id="' + s.id + '"]');
     if (!old) return;
     var fresh = magnet(s);
-    var focused = old === document.activeElement;
+    var focused = old.contains(document.activeElement);
     old.replaceWith(fresh);
     if (focused) fresh.focus();
-    if (delta > 0) { fresh.classList.add("bump"); coinAt(fresh); Sound.coin(); }
+    if (delta > 0 && !quiet) { fresh.classList.add("bump"); coinAt(fresh); Sound.coin(); }
   }
 
   var toastTimer = null;
@@ -713,10 +838,11 @@
     closeFull(el("display"));
     var text = el("displayText").value;
     if (text === current.display_text) return;
-    var classState = current;
-    rpc("teacher_set_display", { p_token: token, p_class: classState.id, p_text: text })
-      .then(function () { classState.display_text = text; })
-      .catch(fail);
+    el("task").value = text;
+    sizeTask();
+    saveTask(text);
+    flushTask();
+    fit();
   });
 
   /* ---------- wheel ---------- */
@@ -725,6 +851,50 @@
   var WHEEL_FILLS = ["#2a5fc7", "#6a43b5", "#117c87", "#b2367a", "#45596b", "#a35612"];
   var pool = [];
   var turn = 0;
+  var wheelOut = {};           // class id -> Set taken off the wheel this visit
+  var picked = new Set();      // already drawn this opening
+  var spinning = false;
+
+  // A name picked last spin stays under the pointer until the wheel changes.
+  function commitPick() {
+    var id = el("picked").dataset.next;
+    if (id) { picked.add(id); delete el("picked").dataset.next; }
+  }
+
+  function refreshWheel() {
+    commitPick();
+    var out = wheelOut[current.id];
+    pool = visibleStudents().filter(function (s) { return !out.has(s.id) && !picked.has(s.id); });
+    var svg = el("wheelSvg");
+    svg.style.transition = "none";
+    turn = 0;
+    svg.style.transform = "rotate(0deg)";
+    drawWheel();
+    renderWheelNames();
+    svg.getBoundingClientRect();
+    svg.style.transition = "";
+  }
+
+  // Every name on the board: tap to take it off the wheel, tap again to put it back.
+  function renderWheelNames() {
+    var out = wheelOut[current.id];
+    var frag = document.createDocumentFragment();
+    visibleStudents().forEach(function (s) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "wheel-name" + (out.has(s.id) ? " out" : picked.has(s.id) ? " done" : "");
+      b.textContent = names[s.id];
+      b.setAttribute("aria-pressed", String(!out.has(s.id) && !picked.has(s.id)));
+      b.addEventListener("click", function () {
+        if (spinning) return;
+        if (out.has(s.id) || picked.has(s.id)) { out.delete(s.id); picked.delete(s.id); }
+        else out.add(s.id);
+        refreshWheel();
+      });
+      frag.appendChild(b);
+    });
+    el("wheelNames").replaceChildren(frag);
+  }
 
   // The pointer sits at 3 o'clock, so a name on a slice reads straight at it.
   function drawWheel() {
@@ -775,39 +945,25 @@
   }
 
   el("wheelBtn").addEventListener("click", function () {
-    pool = visibleStudents().slice();
-    turn = 0;
-    var svg = el("wheelSvg");
-    svg.style.transition = "none";
-    svg.style.transform = "rotate(0deg)";
+    if (!wheelOut[current.id]) wheelOut[current.id] = new Set();
+    picked = new Set();
     el("picked").textContent = "";
     delete el("picked").dataset.next;
     el("spin").textContent = "Sukti";
-    drawWheel();
+    refreshWheel();
     openFull(el("wheel"));
-    svg.getBoundingClientRect();
-    svg.style.transition = "";
     el("spin").focus();
   });
 
   el("wheelClose").addEventListener("click", function () { closeFull(el("wheel")); });
 
   el("spin").addEventListener("click", function () {
-    if (!pool.length) return;
-    var svg = el("wheelSvg");
-    var spinning = el("picked").dataset.next;
-    // A name picked last spin leaves the wheel before the next one.
-    if (spinning) {
-      pool = pool.filter(function (s) { return s.id !== spinning; });
-      delete el("picked").dataset.next;
-      svg.style.transition = "none";
-      turn = 0;
-      svg.style.transform = "rotate(0deg)";
-      drawWheel();
-      svg.getBoundingClientRect();
-      svg.style.transition = "";
+    if (el("picked").dataset.next) {
+      refreshWheel();
       if (!pool.length) { el("picked").textContent = ""; return; }
     }
+    if (!pool.length) return;
+    var svg = el("wheelSvg");
 
     var i = Math.floor(Math.random() * pool.length);
     var step = 360 / pool.length;
@@ -818,10 +974,11 @@
     if (!REDUCED.matches) Sound.spinTicks(4.2, pool.length, turn - from, [0.15, 0.7, 0.2, 1]);
     el("picked").textContent = "";
     el("spin").disabled = true;
+    spinning = true;
     svg.style.transform = "rotate(" + turn + "deg)";
 
-    var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     setTimeout(function () {
+      spinning = false;
       el("picked").textContent = names[pool[i].id];
       el("picked").classList.remove("pop");
       void el("picked").offsetWidth;
@@ -832,7 +989,88 @@
       el("wheelLeft").textContent = pool.length > 1 ? "Liko: " + (pool.length - 1) : "Visi išsukti.";
       el("spin").disabled = pool.length <= 1;
       el("spin").textContent = "Sukti dar";
-    }, reduced ? 0 : 4300);
+    }, REDUCED.matches ? 0 : 4300);
+  });
+
+  /* ---------- lessons ---------- */
+
+  var DATE_FMT = new Intl.DateTimeFormat("lt-LT", { weekday: "short", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vilnius" });
+  var TIME_FMT = new Intl.DateTimeFormat("lt-LT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Vilnius" });
+
+  function lessonsFail(err) {
+    if (err && err.code === "teacher_denied") { el("lessons").hidden = true; return signOut(); }
+    el("lessonsError").textContent = err.message;
+    el("lessonsError").hidden = false;
+  }
+
+  function openLessons() {
+    el("lessonsError").hidden = true;
+    el("lessonsTitle").textContent = "Pamokos: " + current.name;
+    el("history").replaceChildren();
+    openFull(el("lessons"));
+    loadHistory();
+  }
+
+  function loadHistory() {
+    var c = current;
+    var full = {};
+    c.students.forEach(function (s) { full[s.id] = s.full_name; });
+    return rpc("teacher_history", { p_token: token, p_class: c.id }).then(function (list) {
+      var frag = document.createDocumentFragment();
+      if (!list.length) {
+        var none = document.createElement("p");
+        none.className = "pins-note";
+        none.textContent = "Įrašų dar nėra.";
+        frag.appendChild(none);
+      }
+      list.forEach(function (l, idx) {
+        var d = document.createElement("details");
+        d.className = "lesson";
+        d.open = idx === 0;
+        var sum = document.createElement("summary");
+        var isNow = new Date(l.start) >= new Date(c.lesson_start);
+        sum.textContent = DATE_FMT.format(new Date(l.start)) + "–" + TIME_FMT.format(new Date(l.end)) + (isNow ? " · dabar" : "");
+        d.appendChild(sum);
+        var t = document.createElement("table");
+        var head = t.insertRow();
+        ["", "Taškai", "ЛУЧШИЙ", "Спят", "Шумят"].forEach(function (h) {
+          var th = document.createElement("th");
+          th.textContent = h;
+          head.appendChild(th);
+        });
+        l.students.slice().sort(function (a, b) {
+          return (full[a.id] || "").localeCompare(full[b.id] || "", "lt");
+        }).forEach(function (r) {
+          var row = t.insertRow();
+          [full[r.id] || "?", r.points, r.praise, r.note_sleep, r.note_disrupt].forEach(function (v, k) {
+            var td = row.insertCell();
+            td.textContent = k && !v ? "" : v;
+          });
+        });
+        d.appendChild(t);
+        frag.appendChild(d);
+      });
+      el("history").replaceChildren(frag);
+    }).catch(lessonsFail);
+  }
+
+  el("lessonsBtn").addEventListener("click", openLessons);
+  el("lessonsClose").addEventListener("click", function () { closeFull(el("lessons")); });
+
+  el("lessonNew").addEventListener("click", function () {
+    if (!confirm("Pradėti naują pamoką? Lenta išsivalys, įrašai liks istorijoje.")) return;
+    rpc("teacher_lesson_new", { p_token: token, p_class: current.id }).then(function () {
+      closeFull(el("lessons"));
+      return openClass(current.id);
+    }).catch(lessonsFail);
+  });
+
+  el("lessonWipe").addEventListener("click", function () {
+    if (!confirm("Ištrinti visus šios pamokos taškus, pagyrimus ir pastabas? To atšaukti negalima.")) return;
+    rpc("teacher_lesson_wipe", { p_token: token, p_class: current.id }).then(function () {
+      closeFull(el("lessons"));
+      return openClass(current.id);
+    }).catch(lessonsFail);
   });
 
   /* ---------- quiz ---------- */
@@ -1071,6 +1309,7 @@
     if (e.key !== "Escape") return;
     if (!el("quiz").hidden) return closeQuiz();
     if (!el("pins").hidden) return el("pinsClose").click();
+    if (!el("lessons").hidden) return el("lessonsClose").click();
     if (!el("display").hidden) el("displayClose").click();
     else if (!el("wheel").hidden) el("wheelClose").click();
   });
