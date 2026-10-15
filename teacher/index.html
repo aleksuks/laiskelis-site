@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150754">
-<link rel="stylesheet" href="art.css?v=202610150754">
+<link rel="stylesheet" href="style.css?v=202610150756">
+<link rel="stylesheet" href="art.css?v=202610150756">
 </head>
 <body>
 
@@ -190,8 +190,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150754"></script>
-<script src="sound.js?v=202610150754"></script>
+<script src="api.js?v=202610150756"></script>
+<script src="sound.js?v=202610150756"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -530,9 +530,6 @@
     nm.className = "name";
     nm.textContent = names[s.id];
     m.appendChild(nm);
-    // Long names get a smaller font, not a wider magnet.
-    var len = names[s.id].length;
-    if (len > 7) m.style.setProperty("--nf", Math.max(0.55, 7 / len).toFixed(2));
 
     // The yellow count is also the way to take a point back.
     if (s.points_today > 0) {
@@ -610,9 +607,23 @@
       root.setProperty("--msr", ms.toFixed(2));
       if (fits()) break;
     }
+    fitNames(el("board"));
     sizeTask();
   }
   var STRIP_SHARE = 0.3;
+
+  // A long name gets a smaller font, measured: reset all, read all, then write
+  // each one's share of its own width (font size scales the width linearly).
+  function fitNames(scope) {
+    var spans = scope.querySelectorAll(".magnet .name");
+    var i;
+    for (i = 0; i < spans.length; i++) spans[i].parentNode.style.removeProperty("--nf");
+    var ratio = [];
+    for (i = 0; i < spans.length; i++) ratio.push(spans[i].clientWidth / spans[i].scrollWidth);
+    for (i = 0; i < spans.length; i++) {
+      if (ratio[i] < 1) spans[i].parentNode.style.setProperty("--nf", Math.max(0.5, ratio[i] * 0.97).toFixed(3));
+    }
+  }
   new ResizeObserver(function () { fit(); }).observe(el("board"));
   if (document.fonts) document.fonts.ready.then(fit);
 
@@ -795,6 +806,7 @@
     var fresh = magnet(s);
     var focused = old.contains(document.activeElement);
     old.replaceWith(fresh);
+    fitNames(fresh);
     if (focused) fresh.focus();
     if (delta > 0 && !quiet) { fresh.classList.add("bump"); coinAt(fresh); Sound.coin(); }
   }

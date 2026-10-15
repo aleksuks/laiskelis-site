@@ -159,7 +159,7 @@ body { background: #cdd3d5; }
   border-image-width: round(calc(41px * var(--ms)), 1px) round(calc(46px * var(--ms)), 1px);
   border-image-repeat: stretch;
   min-height: calc(2 * round(calc(41px * var(--ms)), 1px));
-  padding: calc(6px * var(--ms)) calc(46px * var(--ms)) calc(6px * var(--ms)) calc(30px * var(--ms));
+  padding: calc(6px * var(--ms)) calc(28px * var(--ms));
   font-size: calc(22px * var(--ms) * var(--nf, 1));
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
   rotate: var(--tilt, 0deg);
@@ -170,7 +170,11 @@ body { background: #cdd3d5; }
 .magnet.c4 { border-image-source: url(art/magnet-4.png); }
 .magnet.c5 { border-image-source: url(art/magnet-5.png); }
 
-.magnet .hide { right: calc(12px * var(--ms)); top: calc(50% - 4px); width: calc(26px * var(--ms)); height: calc(26px * var(--ms)); font-size: calc(16px * var(--ms)); background: rgba(0, 0, 0, 0.22); }
+/* The × sits on the top-right corner like the points badge on the left,
+   and only shows on hover: it takes no room from the name. */
+.magnet .hide { top: calc(-8px * var(--ms)); right: calc(-2px * var(--ms)); transform: none; width: calc(26px * var(--ms)); height: calc(26px * var(--ms)); font-size: calc(16px * var(--ms)); background: var(--ink); border: 2px solid #fff; opacity: 0; transition: opacity 0.12s; }
+.magnet:hover .hide, .magnet:focus-within .hide { opacity: 1; }
+@media (hover: none) { .magnet .hide { opacity: 1; } }
 .magnet .pts {
   top: -6px;
   left: 2px;
