@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150720">
-<link rel="stylesheet" href="art.css?v=202610150720">
+<link rel="stylesheet" href="style.css?v=202610150754">
+<link rel="stylesheet" href="art.css?v=202610150754">
 </head>
 <body>
 
@@ -45,6 +45,7 @@
       <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
       <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
     </div>
+    <div class="abc" id="abc" aria-hidden="true"></div>
     <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="true" aria-label="Suskleisti meniu">▴</button>
   </nav>
 
@@ -189,8 +190,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150720"></script>
-<script src="sound.js?v=202610150720"></script>
+<script src="api.js?v=202610150754"></script>
+<script src="sound.js?v=202610150754"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -304,6 +305,22 @@
   }
 
   /* ---------- the tray folds away to give the board the room ---------- */
+
+  // The cursive alphabet for the folded bar.
+  var ABC = "Аа a Бб b Вв v Гг g Дд d Ее je Ёё jo Жж ž Зз z Ии i Йй j Кк k Лл l Мм m Нн n Оо o Пп p Рр r Сс s Тт t Уу u Фф f Хх ch Цц c Чч č Шш š Щщ šč Ъъ – Ыы y Ьь – Ээ e Юю ju Яя ja".split(" ");
+  (function () {
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < ABC.length; i += 2) {
+      var s = document.createElement("span");
+      var b = document.createElement("b");
+      b.textContent = ABC[i];
+      var t = document.createElement("i");
+      t.textContent = ABC[i + 1];
+      s.append(b, t);
+      frag.appendChild(s);
+    }
+    el("abc").appendChild(frag);
+  })();
 
   var TRAY_KEY = "teacher.trayMin";
   function setTray(min) {
