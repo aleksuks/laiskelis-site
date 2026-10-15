@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150706">
-<link rel="stylesheet" href="art.css?v=202610150706">
+<link rel="stylesheet" href="style.css?v=202610150711">
+<link rel="stylesheet" href="art.css?v=202610150711">
 </head>
 <body>
 
@@ -49,13 +49,14 @@
   </nav>
 
   <main class="board" id="board">
-    <textarea class="task" id="task" rows="1" maxlength="2000" spellcheck="false" placeholder="Užduotis…" aria-label="Užduotis"></textarea>
-
-    <!-- Three camps. A magnet stays in the camp it was dropped on for the day. -->
-    <section class="camp good zone" data-kind="praise">
-      <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
-      <div class="magnets" id="campGood"></div>
-    </section>
+    <div class="task-wrap">
+      <textarea class="task" id="task" rows="1" maxlength="2000" spellcheck="false" placeholder="Užduotis…" aria-label="Užduotis"></textarea>
+      <div class="task-size" role="group" aria-label="Šrifto dydis">
+        <button type="button" id="taskSmaller" aria-label="Mažesnis šriftas">A−</button>
+        <button type="button" id="taskAuto" aria-label="Automatinis dydis">A</button>
+        <button type="button" id="taskBigger" aria-label="Didesnis šriftas">A+</button>
+      </div>
+    </div>
 
     <section class="mid zone" data-kind="neutral">
       <p id="error" class="msg" hidden></p>
@@ -63,19 +64,21 @@
       <div class="away" id="away" hidden></div>
     </section>
 
-    <section class="camp bad">
-      <div class="note-zones">
-        <div class="zone" data-kind="note_sleep">
-          <img class="emblem" src="art/emblem-sleep.png" alt="">
-          <p>Спят</p>
-        </div>
-        <div class="zone" data-kind="note_disrupt">
-          <img class="emblem" src="art/emblem-disrupt.png" alt="">
-          <p>Шумят</p>
-        </div>
-      </div>
-      <div class="magnets" id="campBad"></div>
-    </section>
+    <!-- A magnet stays in the camp it was dropped on for the lesson. -->
+    <div class="camps">
+      <section class="camp good zone" data-kind="praise">
+        <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
+        <div class="magnets" id="campGood"></div>
+      </section>
+      <section class="camp bad zone" data-kind="note_sleep">
+        <header><img class="emblem" src="art/emblem-sleep.png" alt=""><h2>Спят</h2></header>
+        <div class="magnets" id="campSleep"></div>
+      </section>
+      <section class="camp bad zone" data-kind="note_disrupt">
+        <header><img class="emblem" src="art/emblem-disrupt.png" alt=""><h2>Шумят</h2></header>
+        <div class="magnets" id="campDisrupt"></div>
+      </section>
+    </div>
   </main>
 
   <main class="board" id="noClass" hidden>
@@ -185,8 +188,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150706"></script>
-<script src="sound.js?v=202610150706"></script>
+<script src="api.js?v=202610150711"></script>
+<script src="sound.js?v=202610150711"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -470,7 +473,7 @@
   // `arrived`: the one student whose magnet just landed in a camp.
   function renderMagnets(entering, arrived) {
     names = shortNames(current.students);
-    var lists = { "": document.createDocumentFragment(), good: document.createDocumentFragment(), bad: document.createDocumentFragment() };
+    var lists = { "": document.createDocumentFragment(), good: document.createDocumentFragment(), sleep: document.createDocumentFragment(), disrupt: document.createDocumentFragment() };
     visibleStudents().forEach(function (s, i) {
       var m = magnet(s);
       if (entering || s.id === arrived) {
@@ -482,7 +485,8 @@
     });
     el("magnets").replaceChildren(lists[""]);
     el("campGood").replaceChildren(lists.good);
-    el("campBad").replaceChildren(lists.bad);
+    el("campSleep").replaceChildren(lists.sleep);
+    el("campDisrupt").replaceChildren(lists.disrupt);
     renderAway();
     if (!current.students.length) {
       var b = document.createElement("button");
@@ -571,15 +575,22 @@
   function fit() {
     var root = document.documentElement.style;
     if (NARROW.matches || el("board").hidden) { root.setProperty("--msr", "0.7"); sizeTask(); return; }
-    // The strip of camps gets at most this share of the board; the task gets the rest.
+    // The neutral strip gets at most this share of the board; the task gets the rest.
+    // Each camp on the right must hold its magnets without scrolling.
     var cap = el("board").clientHeight * STRIP_SHARE;
     var strip = el("board").querySelector(".mid");
+    var camps = el("board").querySelectorAll(".camp");
+    var fits = function () {
+      if (strip.offsetHeight > cap) return false;
+      for (var i = 0; i < camps.length; i++) if (camps[i].scrollHeight > camps[i].clientHeight + 1) return false;
+      return true;
+    };
     // ponytail: linear search, each step forces a layout; fine for a class of 30.
     // Big boards start bigger: 0.75 at a 1300 px wide board.
     var start = Math.min(1.05, Math.max(0.75, 0.75 * el("board").clientWidth / 1300));
     for (var ms = start; ms >= 0.35; ms -= 0.05) {
       root.setProperty("--msr", ms.toFixed(2));
-      if (strip.offsetHeight <= cap) break;
+      if (fits()) break;
     }
     sizeTask();
   }
@@ -589,15 +600,30 @@
   /* ---------- the task, written straight on the board ---------- */
 
   var taskTimer = null, taskSave = null;
+  var FONT_KEY = "teacher.taskFont";
+  var taskFont = Number(load(FONT_KEY)) || 0;      // vw; 0 = fit to the box
 
-  // As big as the text allows: shrinks until it fits its box without scrolling.
+  // Automatic: as big as the text allows without scrolling. A−/A+ pin a size.
   function sizeTask() {
     var t = el("task");
+    if (taskFont) { t.style.fontSize = taskFont + "vw"; return; }
     for (var vw = 6; vw > 1.4; vw -= 0.2) {
       t.style.fontSize = vw.toFixed(1) + "vw";
       if (t.scrollHeight <= t.clientHeight + 1) return;
     }
   }
+
+  function setTaskFont(vw) {
+    taskFont = vw && Math.round(Math.min(10, Math.max(0.8, vw)) * 10) / 10;
+    store(FONT_KEY, taskFont ? String(taskFont) : null);
+    el("taskAuto").setAttribute("aria-pressed", String(!taskFont));
+    sizeTask();
+  }
+  var currentTaskVw = function () { return parseFloat(el("task").style.fontSize) || 3; };
+  el("taskSmaller").addEventListener("click", function () { setTaskFont(currentTaskVw() / 1.15); });
+  el("taskBigger").addEventListener("click", function () { setTaskFont(currentTaskVw() * 1.15); });
+  el("taskAuto").addEventListener("click", function () { setTaskFont(0); });
+  el("taskAuto").setAttribute("aria-pressed", String(!taskFont));
 
   // Saved a moment after typing stops; the projector screen reads the same text.
   function saveTask(text) {
@@ -633,8 +659,7 @@
     var z = hit && hit.closest(".zone");
     if (!z) return null;
     var kind = z.dataset.kind;
-    if (kind === "neutral" && !s.camp) return null;
-    if (kind === "praise" && s.camp === "good") return null;
+    if (CAMP_OF[kind] === (s.camp || null)) return null;
     return z;
   }
 
@@ -696,7 +721,7 @@
     note_sleep: "Спят ✓",
     note_disrupt: "Шумят ✓",
   };
-  var CAMP_OF = { praise: "good", note_sleep: "bad", note_disrupt: "bad" };
+  var CAMP_OF = { neutral: null, praise: "good", note_sleep: "sleep", note_disrupt: "disrupt" };
 
   function setCampLocal(s, camp, classId) {
     if (current.id !== classId) return;

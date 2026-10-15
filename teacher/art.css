@@ -135,7 +135,6 @@ body { background: #cdd3d5; }
 .camp .emblem { width: calc(52px * var(--msr)); height: calc(52px * var(--msr)); flex: none; }
 /* Camps are narrow: their magnets are a size smaller than the middle's. */
 .camp { --ms: calc(var(--msr) * 0.85); }
-.note-zones .zone .emblem { width: calc(52px * var(--msr)); height: calc(52px * var(--msr)); }
 .magnet .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .emblem { transition: transform 0.22s cubic-bezier(0.3, 1.7, 0.5, 1); }
 .zone.over .emblem { transform: scale(1.18) rotate(-7deg); }
