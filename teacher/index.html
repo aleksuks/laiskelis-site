@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150802">
-<link rel="stylesheet" href="art.css?v=202610150802">
+<link rel="stylesheet" href="style.css?v=202610150855">
+<link rel="stylesheet" href="art.css?v=202610150855">
 </head>
 <body>
 
@@ -209,8 +209,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150802"></script>
-<script src="sound.js?v=202610150802"></script>
+<script src="api.js?v=202610150855"></script>
+<script src="sound.js?v=202610150855"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -1273,13 +1273,14 @@
     var rows = board.students.slice().sort(function (a, b) {
       return (short[a.id] || "").localeCompare(short[b.id] || "", "lt");
     });
+    var flags = runFlags(board.students);
     var frag = document.createDocumentFragment();
     rows.forEach(function (r) {
       var row = document.createElement("div");
       row.className = "runner" + (r.answered >= n ? " done" : "");
       var name = document.createElement("span");
       name.className = "who";
-      name.textContent = short[r.id] || "?";
+      name.textContent = (short[r.id] || "?") + (flags[r.id] ? " " + flags[r.id] : "");
       var track = document.createElement("span");
       track.className = "track";
       var fill = document.createElement("i");
@@ -1304,6 +1305,25 @@
       frag.appendChild(row);
     });
     el("runners").replaceChildren(frag);
+    el("runners").style.setProperty("--n", Math.max(rows.length, 8));
+  }
+
+  // 🔥 right and quick; 💩 quick and mostly wrong, i.e. tapping at random.
+  // "Quick" for 🔥 is the class median pace; for 💩 an absolute floor, since
+  // nobody reads a question in under that. Tuning knobs.
+  var FLAG_MIN_ANSWERS = 3, FIRE_SHARE = 0.8, POOP_SHARE = 0.4, POOP_MS = 3500;
+
+  function runFlags(students) {
+    var paced = students.filter(function (r) { return r.answered >= FLAG_MIN_ANSWERS; });
+    var ms = paced.map(function (r) { return r.avg_ms; }).sort(function (a, b) { return a - b; });
+    var median = ms.length ? ms[Math.floor(ms.length / 2)] : 0;
+    var out = {};
+    paced.forEach(function (r) {
+      var share = r.correct / r.answered;
+      if (share >= FIRE_SHARE && r.avg_ms <= median) out[r.id] = "🔥";
+      else if (share < POOP_SHARE && r.avg_ms < POOP_MS) out[r.id] = "💩";
+    });
+    return out;
   }
 
   function startPoll() {

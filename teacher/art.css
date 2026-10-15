@@ -477,3 +477,28 @@ body.tray-min .abc {
 .live-tiles.done .tile.picked:not(.right) { opacity: 0.6; }
 .live-end { display: grid; justify-items: center; gap: 24px; }
 .live-score { font-family: var(--marker); font-size: clamp(90px, 12vw, 300px); line-height: 1; color: var(--blue); margin: 0; }
+
+/* ====================================== live board: one tall column */
+
+/* Everyone in one column with long bars; the row size follows the class
+   size (--n, set from JS) so a full class fits on the screen. */
+.quiz-board .runners {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  font-size: clamp(11px, calc((100vh - 150px) / var(--n, 20) * 0.52), 38px);
+}
+.quiz-board .runner {
+  grid-template-columns: minmax(5em, 13em) minmax(40px, 1fr) 3.6em 2.8em 1.9em;
+  gap: 0.6em;
+  font-size: 1em;
+  padding: 0.18em 0;
+}
+.quiz-board .runner .who { font-size: 1.15em; }
+.quiz-board .runner .track { height: 0.62em; border-radius: 0.31em; }
+.quiz-board .runner .track i { border-radius: 0.31em; }
+.quiz-board .runner .count, .quiz-board .runner .speed { font-size: 0.8em; }
+.quiz-board .runner .mood { font-size: 1em; }
+.quiz-board .runner .mood .mood-face { width: 1.5em; height: 1.5em; }
+@media (max-width: 860px) {
+  .quiz-board .runner { grid-template-columns: minmax(5em, 9em) minmax(40px, 1fr) 3em 2.6em 1.4em; }
+}
