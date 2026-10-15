@@ -1100,6 +1100,22 @@
     loadHistory();
   }
 
+  // rows: [name, ...values], sorted by name; empty counts stay blank.
+  function historyTable(heads, rows) {
+    var t = document.createElement("table");
+    var head = t.insertRow();
+    heads.forEach(function (h) {
+      var th = document.createElement("th");
+      th.textContent = h;
+      head.appendChild(th);
+    });
+    rows.sort(function (a, b) { return a[0].localeCompare(b[0], "lt"); }).forEach(function (r) {
+      var row = t.insertRow();
+      r.forEach(function (v, k) { row.insertCell().textContent = k && !v ? "" : v; });
+    });
+    return t;
+  }
+
   function loadHistory() {
     var c = current;
     var full = {};
@@ -1120,23 +1136,22 @@
         var isNow = new Date(l.start) >= new Date(c.lesson_start);
         sum.textContent = DATE_FMT.format(new Date(l.start)) + "–" + TIME_FMT.format(new Date(l.end)) + (isNow ? " · dabar" : "");
         d.appendChild(sum);
-        var t = document.createElement("table");
-        var head = t.insertRow();
-        ["", "Taškai", "ЛУЧШИЙ", "Спят", "Шумят"].forEach(function (h) {
-          var th = document.createElement("th");
-          th.textContent = h;
-          head.appendChild(th);
+        if (l.students.length) {
+          d.appendChild(historyTable(["", "Taškai", "ЛУЧШИЕ", "Спят", "Шумят"], l.students.map(function (r) {
+            return [full[r.id] || "?", r.points, r.praise, r.note_sleep, r.note_disrupt];
+          })));
+        }
+        // Each quiz of the lesson; Loreta's students (162) by their own name.
+        l.runs.forEach(function (run) {
+          var h = document.createElement("h3");
+          h.textContent = run.title + " · " + TIME_FMT.format(new Date(run.at));
+          d.appendChild(h);
+          d.appendChild(historyTable(["", "Teisingi", "Pažymys"], run.results.map(function (r) {
+            return [full[r.id] || (r.guest ? r.guest + " (L)" : "?"),
+              r.correct + "/" + run.n + (r.answered < run.n ? " (atsakė " + r.answered + ")" : ""),
+              gradeFor(r.correct, run.n)];
+          })));
         });
-        l.students.slice().sort(function (a, b) {
-          return (full[a.id] || "").localeCompare(full[b.id] || "", "lt");
-        }).forEach(function (r) {
-          var row = t.insertRow();
-          [full[r.id] || "?", r.points, r.praise, r.note_sleep, r.note_disrupt].forEach(function (v, k) {
-            var td = row.insertCell();
-            td.textContent = k && !v ? "" : v;
-          });
-        });
-        d.appendChild(t);
         frag.appendChild(d);
       });
       el("history").replaceChildren(frag);

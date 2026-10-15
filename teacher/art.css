@@ -412,6 +412,7 @@ body.tray-min .board { margin-top: 8px; }
 .lesson th { text-align: right; font-size: 14px; color: var(--ink-dim); padding: 4px 10px; }
 .lesson td { text-align: right; padding: 4px 10px; border-top: 1px solid #e3e6e4; }
 .lesson th:first-child, .lesson td:first-child { text-align: left; }
+.lesson h3 { margin: 14px 0 0; font-size: 17px; }
 
 /* The folded bar is the cursive alphabet chart: Propisi, the school
    copybook hand, each pair over its Lithuanian sound. Propisi is only
