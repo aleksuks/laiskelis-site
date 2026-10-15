@@ -106,7 +106,7 @@ textarea:focus-visible, .magnet:focus-visible {
 
 /* ---------- the board ---------- */
 
-/* The app is exactly one screen tall: ЛУЧШИЙ on the left, the task in the
+/* The app is exactly one screen tall: ЛУЧШИЕ on the left, the task in the
    middle, Спят and Шумят on the right, the neutral magnets along the bottom.
    Magnets shrink (--msr, set by fit()) rather than scroll. */
 #app:not([hidden]) { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
