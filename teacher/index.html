@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150711">
-<link rel="stylesheet" href="art.css?v=202610150711">
+<link rel="stylesheet" href="style.css?v=202610150714">
+<link rel="stylesheet" href="art.css?v=202610150714">
 </head>
 <body>
 
@@ -49,6 +49,12 @@
   </nav>
 
   <main class="board" id="board">
+    <!-- A magnet stays in the camp it was dropped on for the lesson. -->
+    <section class="camp good zone" data-kind="praise">
+      <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
+      <div class="magnets" id="campGood"></div>
+    </section>
+
     <div class="task-wrap">
       <textarea class="task" id="task" rows="1" maxlength="2000" spellcheck="false" placeholder="Užduotis…" aria-label="Užduotis"></textarea>
       <div class="task-size" role="group" aria-label="Šrifto dydis">
@@ -64,12 +70,7 @@
       <div class="away" id="away" hidden></div>
     </section>
 
-    <!-- A magnet stays in the camp it was dropped on for the lesson. -->
     <div class="camps">
-      <section class="camp good zone" data-kind="praise">
-        <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
-        <div class="magnets" id="campGood"></div>
-      </section>
       <section class="camp bad zone" data-kind="note_sleep">
         <header><img class="emblem" src="art/emblem-sleep.png" alt=""><h2>Спят</h2></header>
         <div class="magnets" id="campSleep"></div>
@@ -188,8 +189,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150711"></script>
-<script src="sound.js?v=202610150711"></script>
+<script src="api.js?v=202610150714"></script>
+<script src="sound.js?v=202610150714"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -575,8 +576,8 @@
   function fit() {
     var root = document.documentElement.style;
     if (NARROW.matches || el("board").hidden) { root.setProperty("--msr", "0.7"); sizeTask(); return; }
-    // The neutral strip gets at most this share of the board; the task gets the rest.
-    // Each camp on the right must hold its magnets without scrolling.
+    // The neutral strip gets at most this share of the board.
+    // Each camp must hold its magnets without scrolling.
     var cap = el("board").clientHeight * STRIP_SHARE;
     var strip = el("board").querySelector(".mid");
     var camps = el("board").querySelectorAll(".camp");

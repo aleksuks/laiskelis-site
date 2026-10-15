@@ -106,9 +106,9 @@ textarea:focus-visible, .magnet:focus-visible {
 
 /* ---------- the board ---------- */
 
-/* The app is exactly one screen tall. The task takes the left, the neutral
-   magnets a strip under it, and the camps the whole right side. Magnets
-   shrink (--msr, set by fit()) rather than scroll. */
+/* The app is exactly one screen tall: ЛУЧШИЙ on the left, the task in the
+   middle, Спят and Шумят on the right, the neutral magnets along the bottom.
+   Magnets shrink (--msr, set by fit()) rather than scroll. */
 #app:not([hidden]) { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 .board {
@@ -121,9 +121,9 @@ textarea:focus-visible, .magnet:focus-visible {
   box-shadow: inset 0 0 0 1px var(--frame-dark), inset 0 2px 12px rgba(0, 0, 0, 0.06);
   padding: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 26%);
+  grid-template-columns: minmax(0, 22%) minmax(0, 1fr) minmax(0, 22%);
   grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas: "task camps" "mid camps";
+  grid-template-areas: "good task bad" "mid mid mid";
   gap: 12px;
 }
 
@@ -163,8 +163,8 @@ textarea:focus-visible, .magnet:focus-visible {
 
 .mid { grid-area: mid; min-width: 0; display: flex; flex-direction: column; gap: 8px; border-radius: 18px; }
 
-/* The camps: three, stacked down the right side. Drawn in marker. */
-.camps { grid-area: camps; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+/* The camps. Drawn in marker. */
+.camps { grid-area: bad; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
 .camp {
   flex: 1 1 0;
   min-height: 0;
@@ -176,7 +176,7 @@ textarea:focus-visible, .magnet:focus-visible {
   flex-direction: column;
   gap: 4px;
 }
-.camp.good { color: var(--green); }
+.camp.good { grid-area: good; color: var(--green); }
 .camp.bad { color: var(--red); }
 .camp header { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .camp h2 { font-family: var(--marker); font-weight: 700; font-size: calc(36px * var(--msr)); line-height: 1; margin: 0; }
@@ -494,7 +494,7 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
   .board {
     grid-template-columns: 1fr;
     grid-template-rows: none;
-    grid-template-areas: "task" "mid" "camps";
+    grid-template-areas: "task" "good" "mid" "bad";
     margin: 8px;
     padding: 12px;
     border-width: 6px;
