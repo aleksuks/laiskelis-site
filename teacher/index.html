@@ -1259,12 +1259,16 @@
   function renderBoard() {
     var n = board.n;
     var short = shortNames(quizClass.students);
+    // Loreta's students (162) aren't on the roster; the board carries their name.
+    var guests = board.students.filter(function (r) { return r.guest; });
+    guests.forEach(function (r) { short[r.id] = r.guest + " (L)"; });
     el("quizTitle").textContent = board.title + (board.live ? "" : ": baigta");
     el("quizStop").hidden = !board.live;
     el("quizCsv").hidden = el("quizNew").hidden = board.live;
     el("quizPick").hidden = true;
     el("quizBoard").hidden = false;
-    el("quizJoined").textContent = "Prisijungė " + board.students.length + " iš " + quizClass.students.length;
+    el("quizJoined").textContent = "Prisijungė " + (board.students.length - guests.length) + " iš " + quizClass.students.length +
+      (guests.length ? " + " + guests.length + " Loretos" : "");
     // Once it ends nobody needs the QR code: the finished pile takes its place.
     el("joinArt").src = board.live ? "../mokinys/qr.svg" : "art/hero-quiz-done.png";
     el("joinArt").alt = board.live ? "QR kodas: laiskelis.lt/mokinys" : "";
@@ -1353,7 +1357,7 @@
     quizClass.students.forEach(function (s) { full[s.id] = s.full_name; });
     var lines = [["Mokinys", "Teisingi", "Iš", "Pažymys", "Atsakyta", "Vid. s"].join(";")];
     board.students.forEach(function (r) {
-      lines.push(['"' + (full[r.id] || "").replace(/"/g, '""') + '"', r.correct, board.n,
+      lines.push(['"' + (full[r.id] || (r.guest ? r.guest + " (L)" : "")).replace(/"/g, '""') + '"', r.correct, board.n,
         gradeFor(r.correct, board.n), r.answered, r.answered ? Math.round(r.avg_ms / 1000) : ""].join(";"));
     });
     var blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });

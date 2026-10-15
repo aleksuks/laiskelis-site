@@ -29,6 +29,8 @@
   h2.mark { font-family: var(--marker); font-size: 36px; line-height: 1; margin: 8px 0 0; color: var(--blue); }
   .sub { color: var(--ink-dim); margin: 0; }
   input[type="text"], input[inputmode] { font-size: 20px; }
+  label.check { flex-direction: row; align-items: center; gap: 10px; }
+  label.check input { width: 22px; height: 22px; margin: 0; }
   .btn { justify-content: center; padding: 14px 20px; font-size: 18px; }
   .links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
   .links button { border: 0; background: none; padding: 4px 0; color: var(--ink-dim); text-decoration: underline; }
@@ -222,9 +224,10 @@
     <label>Vardas ir pavardė
       <input type="text" id="name" autocomplete="name" spellcheck="false" required>
     </label>
-    <label>PIN
+    <label id="pinLabel">PIN
       <input type="text" id="pin" inputmode="numeric" autocomplete="off" maxlength="5" required>
     </label>
+    <label class="check"><input type="checkbox" id="guest"> Esu Loretos mokinys</label>
     <button class="btn" id="loginBtn">Prisijungti</button>
   </form>
 
@@ -359,6 +362,10 @@
   function clearTimers() { timers.forEach(clearTimeout); timers = []; }
 
   function store(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+  function setGuest(on) {
+    el("newPinBtn").hidden = on;
+    try { on ? localStorage.setItem(GUEST_KEY, "1") : localStorage.removeItem(GUEST_KEY); } catch (e) {}
+  }
   function load() { try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; } }
 
   /* ---------- login ---------- */
@@ -366,7 +373,19 @@
   var LOGIN_ERRORS = {
     denied: "Neteisingas vardas arba PIN. Vardą ir pavardę rašyk taip, kaip dienyne.",
     locked: "Per daug bandymų. Palauk 15 minučių.",
+    name: "Įrašyk savo vardą ir pavardę.",
+    no_quiz: "Testas dar neprasidėjo. Palauk, kol mokytoja jį pradės.",
+    full: "Prisijungė per daug svečių.",
   };
+  var GUEST_KEY = "mokinys.guest";   // Loreta's student: any name, no PIN
+
+  // Loreta's students join the live grade-9/10 quiz with any name (162).
+  el("guest").addEventListener("change", function () {
+    var on = el("guest").checked;
+    el("pinLabel").hidden = on;
+    el("pin").required = !on;
+    el("name").autocomplete = on ? "off" : "name";
+  });
 
   function showLogin(message) {
     clearTimers();
@@ -379,6 +398,7 @@
     if (err && err.code === "teacher_student_denied") {
       token = null;
       store(null);
+      setGuest(false);
       showLogin();
       return true;
     }
@@ -388,10 +408,14 @@
   el("login").addEventListener("submit", function (e) {
     e.preventDefault();
     el("loginBtn").disabled = true;
-    rpc("teacher_student_login", { p_name: el("name").value, p_pin: el("pin").value }).then(function (res) {
+    var call = el("guest").checked
+      ? rpc("teacher_guest_login", { p_name: el("name").value })
+      : rpc("teacher_student_login", { p_name: el("name").value, p_pin: el("pin").value });
+    call.then(function (res) {
       if (res.error) throw new Error(LOGIN_ERRORS[res.error] || GENERIC_ERROR);
       token = res.token;
       store(token);
+      setGuest(!!res.guest);
       el("pin").value = "";
       return refresh();
     }).catch(function (err) {
@@ -403,6 +427,7 @@
     rpc("teacher_student_logout", { p_token: token }).catch(function () {});
     token = null;
     store(null);
+    setGuest(false);
     showLogin();
   });
 
@@ -888,6 +913,7 @@
   /* ---------- boot ---------- */
 
   token = load();
+  try { setGuest(!!localStorage.getItem(GUEST_KEY)); } catch (e) {}
   if (token) refresh(); else showLogin();
 })();
 </script>
