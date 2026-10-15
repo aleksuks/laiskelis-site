@@ -179,7 +179,12 @@ textarea:focus-visible, .magnet:focus-visible {
 .camp.good { grid-area: good; color: var(--green); }
 .camp.bad { color: var(--red); }
 .camp header { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.camp h2 { font-family: var(--marker); font-weight: 700; font-size: calc(36px * var(--msr)); line-height: 1; margin: 0; }
+/* Camp names: Russian in Propisi, the school copybook hand, with the
+   Lithuanian in plain print under it. */
+@font-face { font-family: "Propisi"; src: url(art/propisi.otf) format("opentype"); font-display: block; }
+.camp h2 { display: flex; flex-direction: column; align-items: center; margin: 0; line-height: 1; }
+.camp h2 .ru { font-family: "Propisi", var(--marker); font-weight: 400; font-size: calc(64px * var(--msr)); }
+.camp h2 .lt { font-family: var(--font); font-weight: 700; font-size: calc(20px * var(--msr)); margin-top: 2px; }
 
 .magnets {
   display: grid;

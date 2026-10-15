@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610150714">
-<link rel="stylesheet" href="art.css?v=202610150714">
+<link rel="stylesheet" href="style.css?v=202610150720">
+<link rel="stylesheet" href="art.css?v=202610150720">
 </head>
 <body>
 
@@ -51,7 +51,7 @@
   <main class="board" id="board">
     <!-- A magnet stays in the camp it was dropped on for the lesson. -->
     <section class="camp good zone" data-kind="praise">
-      <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2>ЛУЧШИЙ</h2></header>
+      <header><img class="emblem" src="art/emblem-praise.png" alt=""><h2><span class="ru">ЛУЧШИЙ</span><span class="lt">Geriausi</span></h2></header>
       <div class="magnets" id="campGood"></div>
     </section>
 
@@ -72,11 +72,11 @@
 
     <div class="camps">
       <section class="camp bad zone" data-kind="note_sleep">
-        <header><img class="emblem" src="art/emblem-sleep.png" alt=""><h2>Спят</h2></header>
+        <header><img class="emblem" src="art/emblem-sleep.png" alt=""><h2><span class="ru">Спят</span><span class="lt">Miega</span></h2></header>
         <div class="magnets" id="campSleep"></div>
       </section>
       <section class="camp bad zone" data-kind="note_disrupt">
-        <header><img class="emblem" src="art/emblem-disrupt.png" alt=""><h2>Шумят</h2></header>
+        <header><img class="emblem" src="art/emblem-disrupt.png" alt=""><h2><span class="ru">Шумят</span><span class="lt">Triukšmauja</span></h2></header>
         <div class="magnets" id="campDisrupt"></div>
       </section>
     </div>
@@ -189,8 +189,8 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610150714"></script>
-<script src="sound.js?v=202610150714"></script>
+<script src="api.js?v=202610150720"></script>
+<script src="sound.js?v=202610150720"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -597,6 +597,7 @@
   }
   var STRIP_SHARE = 0.3;
   new ResizeObserver(function () { fit(); }).observe(el("board"));
+  if (document.fonts) document.fonts.ready.then(fit);
 
   /* ---------- the task, written straight on the board ---------- */
 
