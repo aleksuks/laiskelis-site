@@ -199,7 +199,7 @@
 <div class="full" id="lessons" hidden>
   <div class="bar">
     <h2 class="full-title" id="lessonsTitle">Pamokos</h2>
-    <button class="btn" type="button" id="lessonNew">Nauja pamoka</button>
+    <button class="btn" type="button" id="lessonNew">Baigti pamoką</button>
     <button class="btn quiet" type="button" id="lessonWipe">Ištrinti šią pamoką</button>
     <button class="btn quiet" type="button" id="lessonsClose">Uždaryti</button>
   </div>
@@ -1147,7 +1147,7 @@
   el("lessonsClose").addEventListener("click", function () { closeFull(el("lessons")); });
 
   el("lessonNew").addEventListener("click", function () {
-    if (!confirm("Pradėti naują pamoką? Lenta išsivalys, įrašai liks istorijoje.")) return;
+    if (!confirm("Baigti pamoką? Lenta išsivalys, įrašai liks istorijoje.")) return;
     rpc("teacher_lesson_new", { p_token: token, p_class: current.id }).then(function () {
       closeFull(el("lessons"));
       return openClass(current.id);
