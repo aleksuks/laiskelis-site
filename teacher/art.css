@@ -13,7 +13,8 @@
   /* magnet-N.png is 288x108: pill y 12..96, caps 60 px. Drawn at 0.76. */
   --magnet-slice: 54 60 54 60;
   --ms: 1;
-  --magnet-bw: calc(41px * var(--ms)) calc(46px * var(--ms));
+  /* Whole pixels: fractional slices leave a white seam through the pill. */
+  --magnet-bw: round(calc(41px * var(--ms)), 1px) round(calc(46px * var(--ms)), 1px);
   --zone-slice: 60;
   --zone-w: 30px;
 }
@@ -155,7 +156,7 @@ body { background: #cdd3d5; }
   border-image-slice: var(--magnet-slice) fill;
   border-image-width: var(--magnet-bw);
   border-image-repeat: stretch;
-  min-height: calc(82px * var(--ms));
+  min-height: calc(2 * round(calc(41px * var(--ms)), 1px));
   padding: calc(6px * var(--ms)) calc(46px * var(--ms)) calc(6px * var(--ms)) calc(30px * var(--ms));
   font-size: calc(22px * var(--ms));
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
