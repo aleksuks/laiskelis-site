@@ -520,4 +520,4 @@ body.tray-min .abc {
 .recap .rule { margin-top: 8px; }
 .lesson .recap { margin-top: 8px; border-width: 0; padding: 4px 0; background: none; }
 .lesson summary .trend { float: right; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
-.lesson .wipe { margin-top: 12px; }
+.lesson .lesson-delete { display: flex; margin: 12px 0 4px auto; }
