@@ -40,6 +40,7 @@
     <div class="tools minor" id="toolsMinor">
       <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
       <button class="tool small" id="overviewBtn" type="button"><img src="art/tool-students.png" alt="">Visos klasės</button>
+      <button class="tool small" id="campsReset" type="button"><img src="art/eraser.png" alt="">Visi į vidurį</button>
       <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
       <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
       <button class="tool small" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą"><img src="art/tool-class-add.png" alt="">Nuoroda</button>
@@ -373,7 +374,7 @@
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
     el("tools").hidden = !hasClass;
-    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = el("lessonsBtn").hidden = !hasClass;
+    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
   }
 
   /* ---------- the tray folds away to give the board the room ---------- */
@@ -858,6 +859,20 @@
     announceTimer = setTimeout(function () { box.hidden = true; }, 2500);
   }
   el("announce").addEventListener("click", function () { clearTimeout(announceTimer); el("announce").hidden = true; });
+
+  // Every magnet back to the middle. Nothing is logged and the praise / notes
+  // stay in the history; undo puts each one back in its camp.
+  el("campsReset").addEventListener("click", function () {
+    var moved = current.students.filter(function (s) { return s.camp; })
+      .map(function (s) { return { s: s, camp: s.camp }; });
+    if (!moved.length) return;
+    Sound.swish();
+    moved.forEach(function (x) { moveCamp(x.s, null); });
+    toast("Visi grįžo į vidurį", function () {
+      moved.forEach(function (x) { moveCamp(x.s, x.camp); });
+      return Promise.resolve();
+    });
+  });
 
   function log(s, kind) {
     var classId = current.id, prev = s.camp || null;
