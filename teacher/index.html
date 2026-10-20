@@ -485,6 +485,10 @@
     }
   }
 
+  // A lesson lasts an hour (182): when it runs out, reload the class and the
+  // server starts a fresh one (camps and points clear; the history keeps it).
+  var lessonTimer = null;
+
   function openClass(id) {
     var switching = current && current.id !== id && !el("board").hidden;
     flushTask();
@@ -493,6 +497,11 @@
       switching ? wipe() : null,
     ]).then(function (res) {
       current = res[0];
+      clearTimeout(lessonTimer);
+      var left = new Date(current.lesson_ends) - Date.now();
+      if (left > 0) lessonTimer = setTimeout(function () {
+        if (token && current && current.id === id) openClass(id).catch(fail);
+      }, left + 2000);
       store(CLASS_KEY, id);
       if (!away[id]) away[id] = new Set();
       clearError();
