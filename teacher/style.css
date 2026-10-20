@@ -541,3 +541,9 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .ov-facts div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 10px; }
 .ov-facts dt { color: var(--ink-dim); }
 .ov-facts dd { margin: 0; }
+.ov-files { width: 100%; font-size: 15px; }
+.ov-files summary { cursor: pointer; color: var(--blue); font-weight: 700; }
+.ov-files ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 3px; max-height: 260px; overflow-y: auto; }
+.ov-files li { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) auto; gap: 10px; }
+.ov-files a { overflow-wrap: anywhere; }
+.ov-kind { color: var(--ink-dim); }

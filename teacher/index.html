@@ -1283,7 +1283,30 @@
     return s;
   }
 
-  function ovCard(c, plan, book, week) {
+  // Files from the Mokykla folder (179, filled by school-db/sync.py), newest first.
+  // Names only: a link opens a Drive search for that exact name.
+  function ovFiles(files, title) {
+    var d = document.createElement("details");
+    d.className = "ov-files";
+    var s = document.createElement("summary");
+    s.textContent = (title || "Visa medžiaga") + " (" + files.length + ")";
+    d.appendChild(s);
+    var ul = document.createElement("ul");
+    files.forEach(function (f) {
+      var li = document.createElement("li");
+      var a = document.createElement("a");
+      a.href = "https://drive.google.com/drive/search?q=" + encodeURIComponent('"' + f.name + '"');
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = f.name;
+      li.append(ovCell(f.kind + (f.lesson ? " · " + f.lesson + " pam." : ""), "ov-kind"), a, ovCell(DAY_FMT.format(new Date(f.modified)), "ov-kind"));
+      ul.appendChild(li);
+    });
+    d.appendChild(ul);
+    return d;
+  }
+
+  function ovCard(c, plan, book, week, files) {
     var card = document.createElement("section");
     card.className = "ov-card";
     var lag = c.planned - c.actual;
@@ -1323,9 +1346,12 @@
     fact("Pagal planą (" + week + " sav.)", due ? c.planned + ". " + due.cycle_name + " · " + due.topic : "dar nepradėta");
     fact("Pasiekta", c.actual ? c.actual + ". " + plan[c.actual - 1].topic : "—");
     if (next) fact("Kitas atsiskaitymas", next.nr + ". " + next.assess + (next.assess_topic ? " " + next.assess_topic : "") + " · " + next.week + " sav.");
+    var forNext = files.filter(function (f) { return f.lesson && f.lesson > c.actual && f.lesson <= Math.max(c.planned, c.actual) + 1; });
+    if (forNext.length) fact("Medžiaga dabar", forNext.map(function (f) { return f.lesson + ". " + f.name; }).join(" · "));
     fact("Mokiniai", String(c.students));
     fact("Testai", c.runs ? c.runs + " · " + (c.accuracy == null ? "" : c.accuracy + " % teisingų · ") + (c.last_run ? c.last_run.title + ", " + DAY_FMT.format(new Date(c.last_run.at)) : "") : "dar nebuvo");
     card.appendChild(facts);
+    if (files.length) card.appendChild(ovFiles(files));
 
     var open = document.createElement("button");
     open.type = "button";
@@ -1341,12 +1367,25 @@
     el("overviewList").replaceChildren();
     el("overviewNote").textContent = "";
     openFull(el("overview"));
-    rpc("teacher_plan_overview", { p_token: token }).then(function (res) {
+    Promise.all([
+      rpc("teacher_plan_overview", { p_token: token }),
+      rpc("teacher_materials_list", { p_token: token }).catch(function () { return []; })
+    ]).then(function (both) {
+      var res = both[0], files = both[1] || [];
       var frag = document.createDocumentFragment();
       res.classes.forEach(function (c) {
         var plan = res.plans[c.grade];
-        if (plan) frag.appendChild(ovCard(c, plan, res.books[c.grade], res.week));
+        if (plan) frag.appendChild(ovCard(c, plan, res.books[c.grade], res.week, files.filter(function (f) { return f.grade === c.grade; })));
       });
+      var common = files.filter(function (f) { return f.grade == null; });
+      if (common.length) {
+        var card = document.createElement("section");
+        card.className = "ov-card";
+        var h = document.createElement("h3");
+        h.textContent = "Bendra";
+        card.append(h, ovFiles(common, "Failai"));
+        frag.appendChild(card);
+      }
       el("overviewList").replaceChildren(frag);
       el("overviewNote").textContent = "Plano savaitė " + res.week + ". „Pasiekta“ – paskutinė pamoka, kuriai įrašyti pažymiai daugiau nei trečdaliui klasės (iš Kaupiamųjų); tai įvertis. Žalia – atlikta, geltona – pagal planą jau turėjo būti, žiedas – atsiskaitymas.";
     }).catch(function (err) {
