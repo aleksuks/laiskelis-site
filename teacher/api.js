@@ -19,6 +19,10 @@ const ERRORS = {
   teacher_student_denied: "Prisijunk iš naujo.",
   teacher_quiz_closed: "Testas baigtas.",
   teacher_quiz_live: "Dabar vyksta testas.",
+  feedback_empty: "Parašyk bent į vieną laukelį.",
+  feedback_closed: "Atsiliepimų rinkimas jau baigtas.",
+  feedback_full: "Šį kartą atsakymų jau surinkta pakankamai.",
+  feedback_denied: "Prisijunk iš naujo.",
 };
 
 // The 10-point scale, by share of correct answers (same as kvizas/). Tuning knob.

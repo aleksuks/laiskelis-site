@@ -547,3 +547,15 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .ov-files li { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) auto; gap: 10px; }
 .ov-files a { overflow-wrap: anywhere; }
 .ov-kind { color: var(--ink-dim); }
+
+.fb-board { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr 220px; gap: 20px; padding: 8px 20px 24px; }
+.fb-board section { display: flex; flex-direction: column; min-height: 0; }
+.fb-board h3 { margin: 0 0 10px; font-size: 26px; }
+.fb-col { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.fb-card { text-align: left; font-size: 20px; background: #fff; border: 2px solid var(--blue); border-radius: 14px; padding: 8px 12px; cursor: pointer; overflow-wrap: anywhere; }
+.fb-card:hover { border-color: var(--red); text-decoration: line-through; }
+.fb-side { display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
+.fb-side img { width: 100%; background: #fff; padding: 8px; border-radius: 10px; }
+.fb-side p { margin: 0; color: var(--ink-dim); }
+.fb-side label { margin-top: 8px; }
+@media (max-width: 800px) { .fb-board { grid-template-columns: 1fr; overflow-y: auto; } }

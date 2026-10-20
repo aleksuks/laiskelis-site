@@ -215,10 +215,26 @@
   .spark i:nth-child(n + 4) { animation-delay: 120ms; }
   @keyframes grow { from { transform: scaleY(0); } }
   .art-empty .sub { font-size: 16px; }
+  .fb { border: 3px solid var(--blue); border-radius: 18px; padding: 14px 16px; }
+  .fb textarea { min-height: 90px; font-weight: 400; }
+  .fb-done { text-align: center; }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <!-- The lesson feedback board (feedbackas), shown on top of the login and
+       stats screens while the teacher has a round open. Anonymous: the
+       submit carries no student token, only the round's id. -->
+  <form id="fb" class="screen fb" hidden>
+    <h1>Pamokos atsiliepimas</h1>
+    <p class="sub">Anonimiškai: atsakymas nesusiejamas su tavo vardu.</p>
+    <p id="fbError" class="msg" hidden></p>
+    <label><span id="fbQ1"></span><textarea id="fbA1" maxlength="500" autocomplete="off"></textarea></label>
+    <label><span id="fbQ2"></span><textarea id="fbA2" maxlength="500" autocomplete="off"></textarea></label>
+    <button class="btn" id="fbSend">Siųsti</button>
+  </form>
+  <p class="sub fb-done" id="fbThanks" hidden>✅ Ačiū! Tavo atsakymas anonimiškai pateko į ekraną.</p>
 
   <form id="login" class="screen" hidden>
     <img class="hero" src="../teacher/art/hero-student-login.png" alt="">
@@ -334,7 +350,44 @@
     void node.offsetWidth;
     node.classList.add("enter");
     window.scrollTo(0, 0);
+    if (name === "login" || name === "stats") checkFeedback();
+    else el("fb").hidden = el("fbThanks").hidden = true;
   }
+
+  /* ---------- lesson feedback (feedbackas, 086; anonymous, no token sent) ---------- */
+
+  var fbRound = null;
+  function fbDone(id) { try { return localStorage.getItem("feedbackas.done." + id) === "1"; } catch (e) { return false; } }
+
+  function checkFeedback() {
+    rpc("feedback_current", {}).then(function (rows) {
+      var s = rows && rows[0];
+      fbRound = s && !fbDone(s.session_id) ? s : null;
+      if (fbRound) { el("fbQ1").textContent = s.prompt_1; el("fbQ2").textContent = s.prompt_2; }
+      el("fb").hidden = !fbRound || (screen !== "login" && screen !== "stats");
+    }).catch(function () {});
+  }
+
+  el("fb").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var a1 = el("fbA1").value.trim(), a2 = el("fbA2").value.trim();
+    el("fbError").hidden = true;
+    if (!a1 && !a2) { el("fbError").textContent = "Parašyk bent į vieną laukelį."; el("fbError").hidden = false; return; }
+    el("fbSend").disabled = true;
+    rpc("feedback_submit", { p_session_id: fbRound.session_id, p_answer_1: a1, p_answer_2: a2 }).then(function () {
+      try { localStorage.setItem("feedbackas.done." + fbRound.session_id, "1"); } catch (e) {}
+      el("fbA1").value = el("fbA2").value = "";
+      el("fb").hidden = true;
+      el("fbThanks").hidden = false;
+    }).catch(function (err) {
+      el("fbError").textContent = err.message;
+      el("fbError").hidden = false;
+    }).then(function () { el("fbSend").disabled = false; });
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && (screen === "login" || screen === "stats")) checkFeedback();
+  });
 
   function moodFace(m) {
     var face = document.createElement("i");

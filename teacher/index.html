@@ -35,7 +35,7 @@
       <button class="tool" id="wheelBtn" type="button"><img src="art/tool-wheel.png" alt="">Ratas</button>
       <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
       <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
-      <a class="tool" href="../feedbackas/mokytojui.html" target="_blank" rel="noopener"><img src="art/tool-feedback.png" alt="">Atsiliepimai</a>
+      <button class="tool" id="fbBtn" type="button"><img src="art/tool-feedback.png" alt="">Atsiliepimai<span class="live-dot" id="fbDot" hidden></span></button>
     </div>
     <div class="tools minor" id="toolsMinor">
       <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
@@ -227,6 +227,32 @@
   <p id="overviewError" class="msg" hidden style="margin: 0 20px"></p>
   <p class="pins-note" id="overviewNote"></p>
   <div class="ov-list" id="overviewList"></div>
+</div>
+
+<!-- ---------- lesson feedback board (feedbackas 086; teacher token as key, 180) ---------- -->
+<div class="full" id="fbView" hidden>
+  <div class="bar">
+    <h2 class="full-title">Atsiliepimai</h2>
+    <span class="pins-note" id="fbState"></span>
+    <button class="btn" type="button" id="fbStart">Pradėti</button>
+    <button class="btn quiet" type="button" id="fbEnd" hidden>Baigti rinkti</button>
+    <button class="btn quiet" type="button" id="fbWipe" hidden>Išvalyti ekraną</button>
+    <button class="btn quiet" type="button" id="fbClose">Uždaryti</button>
+  </div>
+  <p id="fbError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="fb-board">
+    <section><h3 id="fbHead1"></h3><div class="fb-col" id="fbCol1"></div></section>
+    <section><h3 id="fbHead2"></h3><div class="fb-col" id="fbCol2"></div></section>
+    <aside class="fb-side">
+      <img src="../mokinys/qr.svg" alt="QR kodas į laiskelis.lt/mokinys">
+      <p>laiskelis.lt/mokinys<br>Anonimiškai. Paspausk atsakymą, kad jį pašalintum.</p>
+      <details>
+        <summary>Klausimai</summary>
+        <label>Pirmas<input type="text" id="fbP1" maxlength="200" value="Ką šiandien supratai geriausiai?"></label>
+        <label>Antras<input type="text" id="fbP2" maxlength="200" value="Kas liko neaišku?"></label>
+      </details>
+    </aside>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
@@ -1394,6 +1420,88 @@
       el("overviewError").hidden = false;
     });
   }
+
+  /* ---------- lesson feedback board (feedbackas; the session token is the key, 180) ---------- */
+
+  var FB_POLL_MS = 4000;
+  var fbTimer = null;
+  var fbRemoved = new Set();   // clicked away, held until the server agrees
+
+  try {
+    var fbP = JSON.parse(localStorage.getItem("feedbackas.prompts") || "{}");
+    if (fbP.p1) el("fbP1").value = fbP.p1;
+    if (fbP.p2) el("fbP2").value = fbP.p2;
+  } catch (e) {}
+
+  function fbFail(err) {
+    if (err && (err.code === "teacher_denied" || err.code === "feedback_denied")) { fbStop(); el("fbView").hidden = true; return signOut(); }
+    el("fbError").textContent = err.message;
+    el("fbError").hidden = false;
+  }
+
+  function fbCard(text, id, field) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "fb-card";
+    b.textContent = text;
+    b.setAttribute("aria-label", "Pašalinti atsakymą: " + text);
+    b.addEventListener("click", function () {
+      fbRemoved.add(id + ":" + field);
+      b.remove();
+      rpc("feedback_delete_answer", { p_key: token, p_id: id, p_field: field })
+        .catch(function (err) { fbRemoved.delete(id + ":" + field); fbFail(err); })
+        .then(fbRefresh);
+    });
+    return b;
+  }
+
+  function fbRefresh() {
+    return rpc("feedback_current", {}).then(function (rows) {
+      var s = (rows && rows[0]) || null;
+      el("fbDot").hidden = !s;
+      el("fbStart").textContent = s ? "Pradėti iš naujo" : "Pradėti";
+      el("fbEnd").hidden = !s;
+      el("fbState").textContent = s ? "Renkami atsakymai · liko ~" + Math.max(0, Math.ceil((new Date(s.expires_at) - Date.now()) / 60000)) + " min." : "Nepradėta";
+      el("fbHead1").textContent = s ? s.prompt_1 : el("fbP1").value;
+      el("fbHead2").textContent = s ? s.prompt_2 : el("fbP2").value;
+      return el("fbView").hidden ? null : rpc("feedback_read", { p_key: token });
+    }).then(function (rows) {
+      if (!rows) return;
+      var c1 = document.createDocumentFragment(), c2 = document.createDocumentFragment();
+      rows.forEach(function (r) {
+        if (r.answer_1 && !fbRemoved.has(r.id + ":1")) c1.appendChild(fbCard(r.answer_1, r.id, 1));
+        if (r.answer_2 && !fbRemoved.has(r.id + ":2")) c2.appendChild(fbCard(r.answer_2, r.id, 2));
+      });
+      el("fbCol1").replaceChildren(c1);
+      el("fbCol2").replaceChildren(c2);
+      el("fbWipe").hidden = !rows.length;
+      el("fbError").hidden = true;
+    }).catch(fbFail);
+  }
+
+  function fbStop() { if (fbTimer) { clearInterval(fbTimer); fbTimer = null; } }
+  function fbPoll() { fbStop(); fbRefresh(); fbTimer = setInterval(fbRefresh, FB_POLL_MS); }
+
+  el("fbBtn").addEventListener("click", function () { openFull(el("fbView")); fbPoll(); });
+  el("fbClose").addEventListener("click", function () { fbStop(); closeFull(el("fbView")); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) fbStop(); else if (!el("fbView").hidden) fbPoll();
+  });
+
+  el("fbStart").addEventListener("click", function () {
+    try { localStorage.setItem("feedbackas.prompts", JSON.stringify({ p1: el("fbP1").value, p2: el("fbP2").value })); } catch (e) {}
+    el("fbStart").disabled = true;
+    rpc("feedback_start", { p_key: token, p_prompt_1: el("fbP1").value, p_prompt_2: el("fbP2").value, p_label: current ? current.name : null })
+      .then(fbRefresh).catch(fbFail)
+      .then(function () { el("fbStart").disabled = false; });
+  });
+  el("fbEnd").addEventListener("click", function () {
+    rpc("feedback_end", { p_key: token }).then(fbRefresh).catch(fbFail);
+  });
+  el("fbWipe").addEventListener("click", function () {
+    if (!confirm("Ištrinti visus atsakymus iš ekrano? Atstatyti nebus galima.")) return;
+    rpc("feedback_wipe", { p_key: token }).then(fbRefresh).catch(fbFail);
+  });
 
   el("overviewBtn").addEventListener("click", openOverview);
   el("overviewClose").addEventListener("click", function () { closeFull(el("overview")); });
