@@ -8,9 +8,9 @@
 // too). Every quiz_ table has RLS on with no policies; all it can do here
 // is what the migration grants.
 
-const SUPABASE_URL = "https://fuskxhhwkanenwmmoytu.supabase.co";
+const SUPABASE_URL = "https://zfphluadrxouxfxjejab.supabase.co";
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2t4aGh3a2FuZW53bW1veXR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDQyMTQsImV4cCI6MjA5ODM4MDIxNH0.zpfGW8G5kx5UVmVA-ypC_vZoFd5KnG1UTAyaDt9c6dw";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmcGhsdWFkcnhvdXhmeGplamFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1MDI4NjgsImV4cCI6MjEwODA3ODg2OH0.rbJCkqGZD9eG52GCm2won-4x9eDbU6xn704VfTk-LKE";
 
 // Named database exceptions. A raw PostgREST error never reaches a screen.
 const ERRORS = {
