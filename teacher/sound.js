@@ -3,7 +3,7 @@
 // tones or a breath of filtered noise, quiet enough for a classroom.
 //
 // A magnet moved to a camp is announced on purpose (teacher's call, 2026-10):
-// praise cheers, a note buzzes, both loud enough for the back row.
+// praise plays the "right" clip, a note the "wrong" one (sounds/*.mp3).
 //
 // The on/off choice is per device (localStorage), and the browser only lets
 // audio start after the first tap, which is when the context is created.
@@ -62,6 +62,23 @@ var Sound = (function () {
     src.start(t);
   }
 
+  // Recorded clips (sounds/*.mp3, next to this file; the student page loads
+  // it from ../teacher/, so the path comes from this script's own URL).
+  var BASE = ((document.currentScript && document.currentScript.src) || "").replace(/[^\/]*$/, "");
+  var clips = {};
+  ["right", "wrong"].forEach(function (n) {
+    clips[n] = new Audio(BASE + "sounds/" + n + ".mp3");
+    clips[n].preload = "auto";
+  });
+  function clip(name) {
+    return function () {
+      if (!on) return;
+      var a = clips[name];
+      a.currentTime = 0;
+      a.play().catch(function () {});
+    };
+  }
+
   function play(fn) {
     return function () {
       if (!on) return;
@@ -114,25 +131,10 @@ var Sound = (function () {
     fanfare: play(function (c) {          // the wheel lands
       [523, 659, 784, 1047].forEach(function (f, i) { tone(c, f, i * 0.075, 0.28, "triangle", 0.1); });
     }),
-    right: play(function (c) {
-      tone(c, 880, 0, 0.12, "triangle", 0.11);
-      tone(c, 1320, 0.08, 0.22, "triangle", 0.1);
-    }),
-    wrong: play(function (c) {
-      tone(c, 260, 0, 0.22, "sine", 0.12, 190);
-    }),
+    right: clip("right"),   // a right answer (full-screen quiz, student quiz), a magnet into ЛУЧШИЕ
+    wrong: clip("wrong"),   // a wrong answer, a magnet into Спят / Шумят
     sparkle: play(function (c) {          // a milestone sticker
       [1047, 1319, 1568, 2093].forEach(function (f, i) { tone(c, f, i * 0.06, 0.3, "sine", 0.07); });
-    }),
-    cheer: play(function (c) {            // into ЛУЧШИЕ: big rising fanfare + chord
-      [523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(c, f, i * 0.09, 0.35, "triangle", 0.3); });
-      [523, 784, 1047].forEach(function (f) { tone(c, f, 0.5, 1.1, "sawtooth", 0.12); tone(c, f, 0.5, 1.1, "triangle", 0.25); });
-    }),
-    buzz: play(function (c) {             // into Спят / Шумят: loud "uh-oh" buzzer, twice
-      [0, 0.45].forEach(function (at) {
-        tone(c, 330, at, 0.18, "sawtooth", 0.3, 300);
-        tone(c, 220, at + 0.2, 0.32, "sawtooth", 0.3, 180);
-      });
     }),
     pop: play(function (c) {              // a mood picked
       tone(c, 520, 0, 0.08, "sine", 0.12, 900);

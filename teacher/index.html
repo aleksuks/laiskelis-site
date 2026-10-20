@@ -853,7 +853,7 @@
     el("announceCamp").textContent = a[1];
     box.className = "announce " + a[2];
     box.hidden = false;
-    if (kind === "praise") Sound.cheer(); else Sound.buzz();
+    if (kind === "praise") Sound.right(); else Sound.wrong();
     clearTimeout(announceTimer);
     announceTimer = setTimeout(function () { box.hidden = true; }, 2500);
   }
