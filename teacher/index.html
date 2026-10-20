@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610151450">
+<link rel="stylesheet" href="style.css?v=202610201800">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -39,6 +39,7 @@
     </div>
     <div class="tools minor" id="toolsMinor">
       <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
+      <button class="tool small" id="overviewBtn" type="button"><img src="art/tool-students.png" alt="">Visos klasės</button>
       <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
       <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
       <button class="tool small" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą"><img src="art/tool-class-add.png" alt="">Nuoroda</button>
@@ -215,6 +216,17 @@
   </div>
   <p id="progressError" class="msg" hidden style="margin: 0 20px"></p>
   <div class="history" id="progressList"></div>
+</div>
+
+<!-- ---------- all classes: the year plan against where each class really is (178) ---------- -->
+<div class="full" id="overview" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="overviewTitle">Visos klasės</h2>
+    <button class="btn quiet" type="button" id="overviewClose">Uždaryti</button>
+  </div>
+  <p id="overviewError" class="msg" hidden style="margin: 0 20px"></p>
+  <p class="pins-note" id="overviewNote"></p>
+  <div class="ov-list" id="overviewList"></div>
 </div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
@@ -1261,6 +1273,91 @@
       return isNow ? openClass(current.id).then(loadHistory) : loadHistory();
     }).catch(lessonsFail);
   }
+
+  /* ---------- all classes: plan against reality (178) ---------- */
+
+  function ovCell(text, cls) {
+    var s = document.createElement("span");
+    s.className = cls;
+    s.textContent = text;
+    return s;
+  }
+
+  function ovCard(c, plan, book, week) {
+    var card = document.createElement("section");
+    card.className = "ov-card";
+    var lag = c.planned - c.actual;
+    var state = !c.marks_nr.length ? ["Pažymių dar nėra", "none"]
+      : lag > 2 ? ["Atsilieka ~" + lag + " pam.", "late"]
+      : lag < -2 ? ["Pirmauja ~" + -lag + " pam.", "ahead"]
+      : ["Pagal planą", "ok"];
+
+    var head = document.createElement("header");
+    var h = document.createElement("h3");
+    h.textContent = c.name;
+    head.append(h, ovCell(c.grade + " kl. · " + (book ? book.textbook.replace(/^.*?„/, "„").replace(/\. Vilnius.*$/, "") : ""), "ov-book"), ovCell(state[0], "ov-state " + state[1]));
+    card.appendChild(head);
+
+    // 72 lessons: done, due by now but not done (late), still ahead; graded ones ringed.
+    var bar = document.createElement("div");
+    bar.className = "ov-bar";
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label", c.name + ": pasiekta " + c.actual + " pamoka, pagal planą " + c.planned);
+    plan.forEach(function (l) {
+      var i = document.createElement("i");
+      var cls = l.nr <= c.actual ? "done" : l.nr <= c.planned ? "late" : "";
+      if (l.assess) cls += " test";
+      if (l.nr === c.planned) cls += " now";
+      if (l.nr > 1 && plan[l.nr - 2].cycle !== l.cycle) cls += " cyc";
+      i.className = cls;
+      i.title = l.nr + ". " + l.topic + (l.assess ? " — " + l.assess : "");
+      bar.appendChild(i);
+    });
+    card.appendChild(bar);
+
+    var facts = document.createElement("dl");
+    facts.className = "ov-facts";
+    function fact(k, v) { var d = document.createElement("div"); var a = document.createElement("dt"); a.textContent = k; var b = document.createElement("dd"); b.textContent = v; d.append(a, b); facts.appendChild(d); }
+    var due = plan[c.planned - 1];
+    var next = plan.filter(function (l) { return l.assess && l.nr > c.actual; })[0];
+    fact("Pagal planą (" + week + " sav.)", due ? c.planned + ". " + due.cycle_name + " · " + due.topic : "dar nepradėta");
+    fact("Pasiekta", c.actual ? c.actual + ". " + plan[c.actual - 1].topic : "—");
+    if (next) fact("Kitas atsiskaitymas", next.nr + ". " + next.assess + (next.assess_topic ? " " + next.assess_topic : "") + " · " + next.week + " sav.");
+    fact("Mokiniai", String(c.students));
+    fact("Testai", c.runs ? c.runs + " · " + (c.accuracy == null ? "" : c.accuracy + " % teisingų · ") + (c.last_run ? c.last_run.title + ", " + DAY_FMT.format(new Date(c.last_run.at)) : "") : "dar nebuvo");
+    card.appendChild(facts);
+
+    var open = document.createElement("button");
+    open.type = "button";
+    open.className = "btn quiet";
+    open.textContent = "Atidaryti klasę";
+    open.addEventListener("click", function () { closeFull(el("overview")); openClass(c.id); });
+    card.appendChild(open);
+    return card;
+  }
+
+  function openOverview() {
+    el("overviewError").hidden = true;
+    el("overviewList").replaceChildren();
+    el("overviewNote").textContent = "";
+    openFull(el("overview"));
+    rpc("teacher_plan_overview", { p_token: token }).then(function (res) {
+      var frag = document.createDocumentFragment();
+      res.classes.forEach(function (c) {
+        var plan = res.plans[c.grade];
+        if (plan) frag.appendChild(ovCard(c, plan, res.books[c.grade], res.week));
+      });
+      el("overviewList").replaceChildren(frag);
+      el("overviewNote").textContent = "Plano savaitė " + res.week + ". „Pasiekta“ – paskutinė pamoka, kuriai įrašyti pažymiai daugiau nei trečdaliui klasės (iš Kaupiamųjų); tai įvertis. Žalia – atlikta, geltona – pagal planą jau turėjo būti, žiedas – atsiskaitymas.";
+    }).catch(function (err) {
+      if (err && err.code === "teacher_denied") { el("overview").hidden = true; return signOut(); }
+      el("overviewError").textContent = err.message;
+      el("overviewError").hidden = false;
+    });
+  }
+
+  el("overviewBtn").addEventListener("click", openOverview);
+  el("overviewClose").addEventListener("click", function () { closeFull(el("overview")); });
 
   /* ---------- quiz ---------- */
 
