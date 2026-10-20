@@ -548,6 +548,35 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .ov-files a { overflow-wrap: anywhere; }
 .ov-kind { color: var(--ink-dim); }
 
+.next-mine { border-width: 5px; }
+.next-lesson { display: flex; flex-direction: column; gap: 3px; width: 100%; font-size: 16px; padding-top: 8px; border-top: 1px dashed var(--ink-dim); }
+.next-lesson strong { font-size: 19px; }
+.next-lesson .ov-state { align-self: flex-start; }
+
+.gb-wrap { flex: 1; min-height: 0; overflow: auto; margin: 0 20px 12px; background: #fff; border-radius: 12px; }
+.gb { border-collapse: separate; border-spacing: 0; font-size: 15px; }
+.gb th, .gb td { border-right: 1px solid #e3e6e4; border-bottom: 1px solid #e3e6e4; padding: 0; text-align: center; white-space: nowrap; }
+.gb thead th { position: sticky; background: #f4f6f5; z-index: 2; }
+.gb thead tr:first-child th { top: 0; height: 30px; }
+.gb thead tr:nth-child(2) th { top: 30px; }
+.gb .gb-name { position: sticky; left: 0; z-index: 1; background: #fff; text-align: left; padding: 4px 10px; font-weight: 600; }
+.gb thead .gb-name { z-index: 3; background: #f4f6f5; }
+.gb .gb-grp { font-size: 13px; padding: 4px 8px; color: var(--ink-dim); text-align: left; border-left: 2px solid var(--ink-dim); }
+.gb .gb-col button { border: 0; background: none; padding: 4px 6px; cursor: pointer; font-weight: 700; display: flex; flex-direction: column; align-items: center; width: 100%; }
+.gb .gb-col button small { font-weight: 400; color: var(--ink-dim); font-size: 12px; }
+.gb .gb-col button:hover { background: #e6eef9; }
+.gb .gb-test button { color: var(--blue); }
+.gb input { width: 2.6em; border: 0; border-radius: 0; text-align: center; font-size: 16px; padding: 6px 2px; background: transparent; }
+.gb input:focus { outline: 3px solid var(--blue); outline-offset: -3px; background: #eef4fd; }
+.gb input.saving { color: var(--ink-dim); }
+.gb .gb-calc { background: #f4f6f5; font-weight: 700; min-width: 2.6em; padding: 4px 6px; }
+.gb .gb-sem { color: var(--blue); }
+.gb-edit { margin: 0 20px 16px; padding: 12px 16px; background: #fff; border: 3px solid var(--blue); border-radius: 14px; display: grid; grid-template-columns: 14em 7em 1fr auto; gap: 12px; align-items: end; }
+.gb-edit[hidden] { display: none; }
+.gb-edit textarea { min-height: 90px; }
+.gb-edit-btns { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 800px) { .gb-edit { grid-template-columns: 1fr; } }
+
 .announce { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vmin; background: rgba(20, 24, 22, 0.78); cursor: pointer; text-align: center; padding: 16px; }
 .announce[hidden] { display: none; }
 .announce img { width: 38vmin; height: 38vmin; object-fit: contain; animation: announce-pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both; }

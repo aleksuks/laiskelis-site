@@ -43,7 +43,8 @@
       <button class="tool small" id="campsReset" type="button"><img src="art/eraser.png" alt="">Visi į vidurį</button>
       <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
       <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
-      <button class="tool small" id="driveEdit" type="button" aria-label="Keisti Drive nuorodą"><img src="art/tool-class-add.png" alt="">Nuoroda</button>
+      <button class="tool small" id="gbBtn" type="button"><img src="art/tool-pins.png" alt="">Kaupiamieji</button>
+      <button class="tool small" id="nextBtn" type="button"><img src="art/tool-class-add.png" alt="">Rytoj</button>
       <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
       <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
     </div>
@@ -231,6 +232,33 @@
   <div class="ov-list" id="overviewList"></div>
 </div>
 
+<!-- ---------- Rytoj: the next school day's plan lessons, by date only (183) ---------- -->
+<div class="full" id="next" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="nextTitle">Rytoj</h2>
+    <button class="btn quiet" type="button" id="nextClose">Uždaryti</button>
+  </div>
+  <p id="nextError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="ov-list" id="nextList"></div>
+</div>
+
+<!-- ---------- Kaupiamieji: the class's grade book, edited here (183) ---------- -->
+<div class="full" id="gb" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="gbTitle">Kaupiamieji</h2>
+    <span class="pins-note">Įrašyk 1–10, Enter – žemyn. Paspausk stulpelio pavadinimą, kad pakeistum, už ką pažymys.</span>
+    <button class="btn quiet" type="button" id="gbClose">Uždaryti</button>
+  </div>
+  <p id="gbError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="gb-wrap"><table class="gb" id="gbTable"></table></div>
+  <form class="gb-edit" id="gbEdit" hidden>
+    <label>Pavadinimas<input type="text" id="gbLabel" maxlength="40" required></label>
+    <label>Pamoka<input type="number" id="gbLesson" min="1" max="200"></label>
+    <label class="gb-descr">Už ką (užduotis, vertinimas)<textarea id="gbDescr" maxlength="2000"></textarea></label>
+    <div class="gb-edit-btns"><button class="btn" id="gbSave">Išsaugoti</button><button class="btn quiet" type="button" id="gbCancel">Atšaukti</button></div>
+  </form>
+</div>
+
 <!-- ---------- lesson feedback board (feedbackas 086; teacher token as key, 180) ---------- -->
 <div class="full" id="fbView" hidden>
   <div class="bar">
@@ -374,7 +402,7 @@
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
     el("tools").hidden = !hasClass;
-    el("addStudents").hidden = el("pinsBtn").hidden = el("driveEdit").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
+    el("addStudents").hidden = el("pinsBtn").hidden = el("gbBtn").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
   }
 
   /* ---------- the tray folds away to give the board the room ---------- */
@@ -525,7 +553,6 @@
   el("drive").addEventListener("click", function (e) {
     if (!current.drive_url) { e.preventDefault(); editDrive(); }
   });
-  el("driveEdit").addEventListener("click", editDrive);
 
   function editDrive() {
     var url = prompt("Klasės " + current.name + " Google Drive aplanko nuoroda:", current.drive_url || "https://drive.google.com/");
@@ -1486,6 +1513,238 @@
       el("overviewError").hidden = false;
     });
   }
+
+  /* ---------- Rytoj: what the plan says for the next school day (183) ---------- */
+
+  var WEEKDAY_FMT = new Intl.DateTimeFormat("lt-LT", { weekday: "long", month: "long", day: "numeric", timeZone: "Europe/Vilnius" });
+
+  function closeOnDenied(id, errId) {
+    return function (err) {
+      if (err && err.code === "teacher_denied") { el(id).hidden = true; return signOut(); }
+      el(errId).textContent = err.message;
+      el(errId).hidden = false;
+    };
+  }
+
+  function openNext() {
+    el("nextError").hidden = true;
+    el("nextList").replaceChildren();
+    openFull(el("next"));
+    rpc("teacher_plan_next", { p_token: token }).then(function (res) {
+      var day = new Date(res.day + "T12:00:00");
+      var tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vilnius" }).format(Date.now() + 864e5) === res.day;
+      el("nextTitle").textContent = (tomorrow ? "Rytoj" : "Kita pamoka") + " · " + WEEKDAY_FMT.format(day);
+      var mine = current ? current.id : null;
+      var frag = document.createDocumentFragment();
+      res.classes.slice().sort(function (a, b) { return (b.id === mine) - (a.id === mine); }).forEach(function (c) {
+        var card = document.createElement("section");
+        card.className = "ov-card" + (c.id === mine ? " next-mine" : "");
+        var h = document.createElement("h3");
+        h.textContent = c.name;
+        card.appendChild(h);
+        if (!c.lessons.length) card.appendChild(ovCell("Plane šiai savaitei pamokų nėra.", "ov-kind"));
+        c.lessons.forEach(function (l) {
+          var b = document.createElement("div");
+          b.className = "next-lesson";
+          var t = document.createElement("strong");
+          t.textContent = l.nr + ". " + l.topic;
+          b.append(t, ovCell(l.cycle_name + " · " + l.chapter, "ov-kind"));
+          if (l.can_do) b.appendChild(ovCell("«Я умею» " + l.can_do, ""));
+          if (l.assess) b.appendChild(ovCell("Atsiskaitymas: " + l.assess + (l.assess_topic ? " · " + l.assess_topic : ""), "ov-state late"));
+          card.appendChild(b);
+        });
+        frag.appendChild(card);
+      });
+      el("nextList").replaceChildren(frag);
+    }).catch(closeOnDenied("next", "nextError"));
+  }
+
+  el("nextBtn").addEventListener("click", openNext);
+  el("nextClose").addEventListener("click", function () { closeFull(el("next")); });
+
+  /* ---------- Kaupiamieji: the grade book (183) ---------- */
+
+  // K<bucket> = rounded average once every column of the bucket has a mark;
+  // a semester = average of its complete K's and its atsiskaitymai, 1 decimal.
+  // Same as the xlsx formulas; only orientacinis (the real one is in TAMO).
+  var gb = null;   // { cols, students, marks: { "col:student": value } }
+
+  function gbVal(c, s) { var v = gb.marks[c.id + ":" + s]; return v == null ? null : v; }
+
+  function gbBucket(b, s) {
+    var vs = gb.cols.filter(function (c) { return c.bucket === b; }).map(function (c) { return gbVal(c, s); });
+    if (vs.some(function (v) { return v == null; })) return null;
+    return Math.round(vs.reduce(function (a, v) { return a + v; }, 0) / vs.length);
+  }
+
+  function gbSemester(sem, s) {
+    var vals = [], seen = {};
+    gb.cols.forEach(function (c) {
+      if (c.semester !== sem) return;
+      if (c.bucket == null) { var v = gbVal(c, s); if (v != null) vals.push(v); }
+      else if (!seen[c.bucket]) { seen[c.bucket] = 1; var k = gbBucket(c.bucket, s); if (k != null) vals.push(k); }
+    });
+    if (!vals.length) return "";
+    return (Math.round(vals.reduce(function (a, v) { return a + v; }, 0) / vals.length * 10) / 10).toFixed(1).replace(".", ",");
+  }
+
+  function gbRefreshRow(s) {
+    document.querySelectorAll('#gbTable [data-k][data-s="' + s + '"]').forEach(function (td) {
+      var k = gbBucket(Number(td.dataset.k), s);
+      td.textContent = k == null ? "" : k;
+    });
+    document.querySelectorAll('#gbTable [data-sem][data-s="' + s + '"]').forEach(function (td) {
+      td.textContent = gbSemester(Number(td.dataset.sem), s);
+    });
+  }
+
+  function gbCell(tag, text, cls) {
+    var x = document.createElement(tag);
+    if (text != null) x.textContent = text;
+    if (cls) x.className = cls;
+    return x;
+  }
+
+  function gbRender() {
+    var t = el("gbTable");
+    var groups = gbCell("tr"), heads = gbCell("tr");
+    groups.appendChild(gbCell("th", "", "gb-name"));
+    heads.appendChild(gbCell("th", "Mokinys", "gb-name"));
+    // Columns as shown: each mark column, then K<b> after the last of its bucket, then I / II pusm.
+    var shown = [];
+    gb.cols.forEach(function (c, i) {
+      shown.push({ col: c });
+      var nx = gb.cols[i + 1];
+      if (c.bucket != null && (!nx || nx.bucket !== c.bucket)) shown.push({ k: c.bucket, grp: c.grp });
+    });
+    shown.push({ sem: 1 }, { sem: 2 });
+
+    var lastGrp = null, span = null, n = 0;
+    shown.forEach(function (x) {
+      var g = x.col ? x.col.grp : x.grp || "Orientacinis vidurkis";
+      if (g !== lastGrp) { span = gbCell("th", g, "gb-grp"); groups.appendChild(span); lastGrp = g; n = 0; }
+      span.colSpan = ++n;
+      if (x.col) {
+        var th = gbCell("th", null, "gb-col" + (x.col.bucket == null ? " gb-test" : ""));
+        var b = gbCell("button", x.col.label);
+        b.type = "button";
+        if (x.col.lesson) b.appendChild(gbCell("small", "p." + x.col.lesson));
+        b.title = x.col.descr || "Paspausk, kad įrašytum, už ką";
+        b.addEventListener("click", function () { gbEditCol(x.col); });
+        th.appendChild(b);
+        heads.appendChild(th);
+      } else heads.appendChild(gbCell("th", x.k ? "K" + x.k : x.sem === 1 ? "I pusm." : "II pusm.", "gb-calc"));
+    });
+
+    var body = document.createElement("tbody");
+    gb.students.forEach(function (st, row) {
+      var tr = gbCell("tr");
+      tr.appendChild(gbCell("th", st.name, "gb-name"));
+      shown.forEach(function (x, colIdx) {
+        var td = gbCell("td");
+        td.dataset.s = st.id;
+        if (x.col) {
+          var inp = document.createElement("input");
+          inp.type = "text";
+          inp.inputMode = "numeric";
+          inp.maxLength = 2;
+          inp.dataset.row = row;
+          inp.dataset.col = colIdx;
+          inp.setAttribute("aria-label", st.name + ", " + x.col.label + (x.col.lesson ? " p." + x.col.lesson : ""));
+          var v = gbVal(x.col, st.id);
+          inp.value = v == null ? "" : v;
+          inp.addEventListener("change", function () { gbSave(inp, x.col, st.id); });
+          inp.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            var nx = el("gbTable").querySelector('input[data-row="' + (row + 1) + '"][data-col="' + colIdx + '"]');
+            if (nx) nx.focus(); else inp.blur();
+          });
+          td.appendChild(inp);
+        } else if (x.k) { td.dataset.k = x.k; td.className = "gb-calc"; }
+        else { td.dataset.sem = x.sem; td.className = "gb-calc gb-sem"; }
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    var head = document.createElement("thead");
+    head.append(groups, heads);
+    t.replaceChildren(head, body);
+    gb.students.forEach(function (st) { gbRefreshRow(st.id); });
+  }
+
+  function gbSave(inp, col, s) {
+    var raw = inp.value.trim();
+    var v = raw === "" ? null : Number(raw);
+    var key = col.id + ":" + s, prev = gb.marks[key];
+    if (v !== null && !(Number.isInteger(v) && v >= 1 && v <= 10)) {
+      inp.value = prev == null ? "" : prev;
+      el("gbError").textContent = "Pažymys – sveikas skaičius nuo 1 iki 10.";
+      el("gbError").hidden = false;
+      return;
+    }
+    el("gbError").hidden = true;
+    if (v === null) delete gb.marks[key]; else gb.marks[key] = v;
+    gbRefreshRow(s);
+    inp.classList.add("saving");
+    rpc("teacher_gb_set", { p_token: token, p_col: col.id, p_student: s, p_value: v }).then(function () {
+      inp.classList.remove("saving");
+    }).catch(function (err) {
+      if (prev == null) delete gb.marks[key]; else gb.marks[key] = prev;
+      inp.value = prev == null ? "" : prev;
+      inp.classList.remove("saving");
+      gbRefreshRow(s);
+      closeOnDenied("gb", "gbError")(err);
+    });
+  }
+
+  var gbEditing = null;
+  function gbEditCol(col) {
+    gbEditing = col;
+    el("gbLabel").value = col.label;
+    el("gbLesson").value = col.lesson || "";
+    el("gbDescr").value = col.descr || "";
+    el("gbEdit").hidden = false;
+    el("gbDescr").focus();
+  }
+  el("gbCancel").addEventListener("click", function () { el("gbEdit").hidden = true; });
+  el("gbEdit").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var col = gbEditing, lesson = el("gbLesson").value ? Number(el("gbLesson").value) : null;
+    el("gbSave").disabled = true;
+    rpc("teacher_gb_col_set", { p_token: token, p_col: col.id, p_label: el("gbLabel").value, p_lesson: lesson, p_descr: el("gbDescr").value })
+      .then(function () {
+        col.label = el("gbLabel").value.trim();
+        col.lesson = lesson;
+        col.descr = el("gbDescr").value;
+        el("gbEdit").hidden = true;
+        gbRender();
+      })
+      .catch(closeOnDenied("gb", "gbError"))
+      .then(function () { el("gbSave").disabled = false; });
+  });
+
+  function openGradebook() {
+    var c = current;
+    el("gbTitle").textContent = "Kaupiamieji: " + c.name;
+    el("gbError").hidden = true;
+    el("gbEdit").hidden = true;
+    el("gbTable").replaceChildren();
+    openFull(el("gb"));
+    rpc("teacher_gb", { p_token: token, p_class: c.id }).then(function (res) {
+      gb = { cols: res.cols, students: res.students, marks: {} };
+      res.marks.forEach(function (m) { gb.marks[m[0] + ":" + m[1]] = m[2]; });
+      if (!gb.cols.length) {
+        el("gbError").textContent = "Šiai klasei kaupiamųjų lentelės dar nėra.";
+        el("gbError").hidden = false;
+        return;
+      }
+      gbRender();
+    }).catch(closeOnDenied("gb", "gbError"));
+  }
+
+  el("gbBtn").addEventListener("click", openGradebook);
+  el("gbClose").addEventListener("click", function () { closeFull(el("gb")); });
 
   /* ---------- lesson feedback board (feedbackas; the session token is the key, 180) ---------- */
 
