@@ -2,8 +2,8 @@
 // Web Audio: no audio files, nothing to load. Each sound is a few short
 // tones or a breath of filtered noise, quiet enough for a classroom.
 //
-// A note about a student (Pastaba) makes no sound on purpose: the board may
-// be projected, and a sound would announce it to the room. Praise chimes.
+// A magnet moved to a camp is announced on purpose (teacher's call, 2026-10):
+// praise cheers, a note buzzes, both loud enough for the back row.
 //
 // The on/off choice is per device (localStorage), and the browser only lets
 // audio start after the first tap, which is when the context is created.
@@ -123,6 +123,16 @@ var Sound = (function () {
     }),
     sparkle: play(function (c) {          // a milestone sticker
       [1047, 1319, 1568, 2093].forEach(function (f, i) { tone(c, f, i * 0.06, 0.3, "sine", 0.07); });
+    }),
+    cheer: play(function (c) {            // into ЛУЧШИЕ: big rising fanfare + chord
+      [523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(c, f, i * 0.09, 0.35, "triangle", 0.3); });
+      [523, 784, 1047].forEach(function (f) { tone(c, f, 0.5, 1.1, "sawtooth", 0.12); tone(c, f, 0.5, 1.1, "triangle", 0.25); });
+    }),
+    buzz: play(function (c) {             // into Спят / Шумят: loud "uh-oh" buzzer, twice
+      [0, 0.45].forEach(function (at) {
+        tone(c, 330, at, 0.18, "sawtooth", 0.3, 300);
+        tone(c, 220, at + 0.2, 0.32, "sawtooth", 0.3, 180);
+      });
     }),
     pop: play(function (c) {              // a mood picked
       tone(c, 520, 0, 0.08, "sine", 0.12, 900);

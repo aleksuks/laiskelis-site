@@ -211,8 +211,9 @@
 <!-- ---------- progress: the students' recap (166), as they see it, plus the class ---------- -->
 <div class="full" id="progress" hidden>
   <div class="bar">
-    <h2 class="full-title" id="progressTitle">Pažanga</h2>
-    <button class="btn quiet" type="button" id="progressClose">Atgal</button>
+    <h2 class="full-title" id="progressTitle">Mokiniai</h2>
+    <button class="btn quiet" type="button" id="progressAdd">Pridėti mokinių</button>
+    <button class="btn quiet" type="button" id="progressClose">Uždaryti</button>
   </div>
   <p id="progressError" class="msg" hidden style="margin: 0 20px"></p>
   <div class="history" id="progressList"></div>
@@ -254,6 +255,9 @@
     </aside>
   </div>
 </div>
+
+<!-- A magnet moved to a camp: big emblem + name, so the whole room notices. Click closes. -->
+<div class="announce" id="announce" role="status" hidden><img id="announceArt" alt=""><div class="announce-name" id="announceName"></div><div class="announce-camp" id="announceCamp"></div></div>
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
@@ -804,8 +808,7 @@
       return;
     }
     g.remove();
-    if (kind === "praise") Sound.chime(); else Sound.clack();
-    if (kind === "neutral") moveCamp(d.s, null);
+    if (kind === "neutral") { Sound.clack(); moveCamp(d.s, null); }
     else { stamp(d.zone); log(d.s, kind); }
   }
 
@@ -836,10 +839,30 @@
       .catch(function (err) { setCampLocal(s, prev, classId); fail(err); });
   }
 
+  var ANNOUNCE = {
+    praise: ["art/emblem-praise.png", "ЛУЧШИЕ · Geriausi", "good"],
+    note_sleep: ["art/emblem-sleep.png", "Спят · Miega", "bad"],
+    note_disrupt: ["art/emblem-disrupt.png", "Шумят · Triukšmauja", "bad"],
+  };
+  var announceTimer = null;
+
+  function announce(s, kind) {
+    var a = ANNOUNCE[kind], box = el("announce");
+    el("announceArt").src = a[0];
+    el("announceName").textContent = names[s.id] || "";
+    el("announceCamp").textContent = a[1];
+    box.className = "announce " + a[2];
+    box.hidden = false;
+    if (kind === "praise") Sound.cheer(); else Sound.buzz();
+    clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () { box.hidden = true; }, 2500);
+  }
+  el("announce").addEventListener("click", function () { clearTimeout(announceTimer); el("announce").hidden = true; });
+
   function log(s, kind) {
     var classId = current.id, prev = s.camp || null;
     if (kind === "point") bumpPoints(s, 1);
-    else setCampLocal(s, CAMP_OF[kind], classId);
+    else { setCampLocal(s, CAMP_OF[kind], classId); announce(s, kind); }
     rpc("teacher_event_add", { p_token: token, p_student: s.id, p_kind: kind }).then(function (eventId) {
       toast(kind === "point" ? names[s.id] + " +1" : TOAST_TEXT[kind], function () {
         return rpc("teacher_event_undo", { p_token: token, p_event: eventId }).then(function () {
@@ -922,7 +945,8 @@
   }
 
   el("firstClass").addEventListener("click", function () { openDialog("create"); });
-  el("addStudents").addEventListener("click", function () { openDialog("add"); });
+  el("addStudents").addEventListener("click", function () { openProgress(); });
+  el("progressAdd").addEventListener("click", function () { closeFull(el("progress")); openDialog("add"); });
   el("classCancel").addEventListener("click", function () { el("classDialog").close(); });
 
   el("classForm").addEventListener("submit", function (e) {
@@ -1226,15 +1250,17 @@
   function openProgress() {
     var c = current;
     el("progressError").hidden = true;
-    el("progressTitle").textContent = "Pažanga: " + c.name;
+    el("progressTitle").textContent = "Mokiniai: " + c.name;
     el("progressList").replaceChildren();
     openFull(el("progress"));
     rpc("teacher_class_progress", { p_token: token, p_class: c.id }).then(function (res) {
       var frag = document.createDocumentFragment();
-      var done = [], none = [];
+      var done = [], all = [];
       res.students.forEach(function (st) {
         st.quizzes = res.quizzes;
-        (st.runs.length ? done : none).push({ name: st.name, stats: st, recap: progressRecap(st) });
+        var x = { name: st.name, stats: st, recap: st.runs.length ? progressRecap(st) : null };
+        all.push(x);
+        if (x.recap) done.push(x);
       });
 
       var cls = classRecap(done);
@@ -1248,29 +1274,45 @@
         frag.appendChild(top);
       }
 
+      // Every student (181): quizzes and recap if any, plus praise / notes and a remove button.
       var ARROW = { up: "↑", down: "↓", same: "→" };
-      done.forEach(function (x) {
+      all.forEach(function (x) {
+        var ev = x.stats.events || {};
         var d = document.createElement("details");
         d.className = "lesson";
         var sum = document.createElement("summary");
         sum.textContent = x.name;
         var t = document.createElement("span");
         t.className = "trend";
-        t.textContent = x.stats.runs.length + " " + ltPlural(x.stats.runs.length, "testas", "testai", "testų") + " · " + x.recap.recent + " % " + ARROW[x.recap.trend];
+        t.textContent = (x.recap
+          ? x.stats.runs.length + " " + ltPlural(x.stats.runs.length, "testas", "testai", "testų") + " · " + x.recap.recent + " % " + ARROW[x.recap.trend]
+          : "testų dar nėra") + " · 👍 " + (ev.praise || 0) + " · ⚠ " + ((ev.sleep || 0) + (ev.disrupt || 0));
         sum.appendChild(t);
-        d.append(sum, recapList(x.recap, false));
-        d.appendChild(historyTable(["", "Teisingi", "Pažymys"], x.stats.runs.slice().reverse().map(function (r) {
-          return [DAY_FMT.format(new Date(r.at)) + " · " + r.title, r.correct + "/" + r.n, gradeFor(r.correct, r.n)];
-        }), true));
+        d.appendChild(sum);
+        var facts = document.createElement("p");
+        facts.className = "pins-note";
+        facts.textContent = "Pagyrimai: " + (ev.praise || 0) + " (šią sav. " + (ev.praise_week || 0) + ") · Pastabos: miega " + (ev.sleep || 0) + ", trukdo " + (ev.disrupt || 0) + " (šią sav. " + (ev.notes_week || 0) + ")";
+        d.appendChild(facts);
+        if (x.recap) {
+          d.appendChild(recapList(x.recap, false));
+          d.appendChild(historyTable(["", "Teisingi", "Pažymys"], x.stats.runs.slice().reverse().map(function (r) {
+            return [DAY_FMT.format(new Date(r.at)) + " · " + r.title, r.correct + "/" + r.n, gradeFor(r.correct, r.n)];
+          }), true));
+        }
+        var rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "btn quiet lesson-delete";
+        rm.textContent = "Pašalinti " + x.name;
+        rm.addEventListener("click", function () {
+          if (!confirm("Pašalinti " + x.name + " iš " + c.name + "? Dings jo testų rezultatai, pagyrimai ir pastabos. To atšaukti negalima.")) return;
+          rpc("teacher_student_remove", { p_token: token, p_student: x.stats.id })
+            .then(function () { return openClass(c.id); })
+            .then(openProgress)
+            .catch(function (err) { el("progressError").textContent = err.message; el("progressError").hidden = false; });
+        });
+        d.appendChild(rm);
         frag.appendChild(d);
       });
-
-      if (none.length) {
-        var p = document.createElement("p");
-        p.className = "pins-note";
-        p.textContent = "Dar nedarė testų: " + none.map(function (x) { return x.name; }).join(", ") + ".";
-        frag.appendChild(p);
-      }
       el("progressList").replaceChildren(frag);
     }).catch(function (err) {
       if (err && err.code === "teacher_denied") { el("progress").hidden = true; el("lessons").hidden = true; return signOut(); }

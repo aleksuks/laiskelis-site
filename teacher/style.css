@@ -548,6 +548,16 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .ov-files a { overflow-wrap: anywhere; }
 .ov-kind { color: var(--ink-dim); }
 
+.announce { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vmin; background: rgba(20, 24, 22, 0.78); cursor: pointer; text-align: center; padding: 16px; }
+.announce[hidden] { display: none; }
+.announce img { width: 38vmin; height: 38vmin; object-fit: contain; animation: announce-pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+.announce-name { font-family: var(--marker); font-size: 12vmin; line-height: 1; color: #fff; animation: announce-pop 0.5s 0.08s cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+.announce-camp { font-size: 5vmin; font-weight: 700; padding: 0.2em 0.8em; border-radius: 999px; color: #fff; }
+.announce.good .announce-camp { background: var(--green); }
+.announce.bad .announce-camp { background: var(--red); }
+@keyframes announce-pop { from { transform: scale(0.3) rotate(-8deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .announce img, .announce-name { animation: none; } }
+
 .fb-board { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr 220px; gap: 20px; padding: 8px 20px 24px; }
 .fb-board section { display: flex; flex-direction: column; min-height: 0; }
 .fb-board h3 { margin: 0 0 10px; font-size: 26px; }
