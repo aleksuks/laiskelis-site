@@ -246,7 +246,7 @@
 <div class="full" id="gb" hidden>
   <div class="bar">
     <h2 class="full-title" id="gbTitle">Kaupiamieji</h2>
-    <span class="pins-note">Įrašyk 1–10, Enter – žemyn. Paspausk stulpelio pavadinimą, kad pakeistum, už ką pažymys.</span>
+    <span class="pins-note">Įrašyk 1–10, Enter – žemyn. Paspausk stulpelio pavadinimą, kad pakeistum, už ką pažymys, pridėtum ar ištrintum stulpelį.</span>
     <button class="btn quiet" type="button" id="gbClose">Uždaryti</button>
   </div>
   <p id="gbError" class="msg" hidden style="margin: 0 20px"></p>
@@ -255,7 +255,8 @@
     <label>Pavadinimas<input type="text" id="gbLabel" maxlength="40" required></label>
     <label>Pamoka<input type="number" id="gbLesson" min="1" max="200"></label>
     <label class="gb-descr">Už ką (užduotis, vertinimas)<textarea id="gbDescr" maxlength="2000"></textarea></label>
-    <div class="gb-edit-btns"><button class="btn" id="gbSave">Išsaugoti</button><button class="btn quiet" type="button" id="gbCancel">Atšaukti</button></div>
+    <div class="gb-edit-btns"><button class="btn" id="gbSave">Išsaugoti</button><button class="btn quiet" type="button" id="gbCancel">Atšaukti</button>
+      <button class="btn quiet" type="button" id="gbAdd">+ Stulpelis po šiuo</button><button class="btn quiet" type="button" id="gbDel">Ištrinti stulpelį</button></div>
   </form>
 </div>
 
@@ -1724,6 +1725,39 @@
       .then(function () { el("gbSave").disabled = false; });
   });
 
+  // A new column goes right after the open one, in its K (190).
+  el("gbAdd").addEventListener("click", function () {
+    var col = gbEditing;
+    el("gbAdd").disabled = true;
+    rpc("teacher_gb_col_add", { p_token: token, p_after: col.id })
+      .then(function (nc) {
+        gb.cols.splice(gb.cols.indexOf(col) + 1, 0, nc);
+        gbRender();
+        gbEditCol(nc);
+        el("gbLabel").focus();
+        el("gbLabel").select();
+      })
+      .catch(closeOnDenied("gb", "gbError"))
+      .then(function () { el("gbAdd").disabled = false; });
+  });
+
+  el("gbDel").addEventListener("click", function () {
+    var col = gbEditing;
+    var n = gb.students.filter(function (st) { return gbVal(col, st.id) != null; }).length;
+    if (gb.cols.length < 2) return;
+    if (!confirm("Ištrinti stulpelį „" + col.label + "“" + (n ? " ir jo " + n + " pažym." : "") + "? To atšaukti negalima.")) return;
+    el("gbDel").disabled = true;
+    rpc("teacher_gb_col_del", { p_token: token, p_col: col.id })
+      .then(function () {
+        gb.cols.splice(gb.cols.indexOf(col), 1);
+        gb.students.forEach(function (st) { delete gb.marks[col.id + ":" + st.id]; });
+        el("gbEdit").hidden = true;
+        gbRender();
+      })
+      .catch(closeOnDenied("gb", "gbError"))
+      .then(function () { el("gbDel").disabled = false; });
+  });
+
   function openGradebook() {
     var c = current;
     el("gbTitle").textContent = "Kaupiamieji: " + c.name;
@@ -2064,6 +2098,8 @@
         (quiz.parts || []).forEach(function (p) { if (p.from === i) steps.push({ rule: p }); });
         steps.push({ q: i });
       });
+      // A part after the last question is a closing card (a writing task), no questions.
+      (quiz.parts || []).forEach(function (p) { if (p.from === quiz.questions.length) steps.push({ rule: p }); });
       steps.push({ end: true });
       live = { quiz: quiz, steps: steps, at: 0, picks: {}, revealed: null };
       el("liveTitle").textContent = quiz.title;
