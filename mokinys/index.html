@@ -507,6 +507,7 @@
   function refresh() {
     return rpc("teacher_student_state", { p_token: token }).then(function (res) {
       run = res.run;
+      sendAway();   // reopened after closing the browser: no longer away
       if (run) route(); else openStats();
     }).catch(function (err) {
       if (signedOut(err)) return;
@@ -1023,6 +1024,16 @@
     if (!document.hidden && token && screen === "stats") refresh();
     if (!document.hidden && screen === "login") checkGuestOpen();
   });
+
+  // Left the browser during a live quiz: the teacher's board shows 💤 (187).
+  // A beacon, because the page may be frozen before a fetch would go out.
+  // It can't set headers, so the key rides in the URL and the body is text.
+  function sendAway() {
+    if (!token || !run || run.practice || !navigator.sendBeacon) return;
+    navigator.sendBeacon(SUPABASE_URL + "/rest/v1/rpc/teacher_student_away?apikey=" + SUPABASE_ANON_KEY,
+      JSON.stringify({ t: token, r: run.id, a: document.hidden }));
+  }
+  document.addEventListener("visibilitychange", sendAway);
 
   /* ---------- new PIN ---------- */
 

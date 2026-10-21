@@ -1925,6 +1925,9 @@
     }).catch(quizFail);
   }
 
+  // 💤 once a student has been out of the browser this long (187). Tuning knob.
+  var AWAY_S = 10;
+
   function renderBoard() {
     var n = board.n;
     var short = shortNames(quizClass.students);
@@ -1953,7 +1956,8 @@
       row.className = "runner" + (r.answered >= n ? " done" : "");
       var name = document.createElement("span");
       name.className = "who";
-      name.textContent = (short[r.id] || "?") + (flags[r.id] ? " " + flags[r.id] : "");
+      name.textContent = (short[r.id] || "?") + (flags[r.id] ? " " + flags[r.id] : "") +
+        (board.live && r.away_s >= AWAY_S ? " 💤" : "");
       var track = document.createElement("span");
       track.className = "track";
       var fill = document.createElement("i");
