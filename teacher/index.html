@@ -2203,9 +2203,22 @@
       row.className = "pin-row" + (shownPins[s.id] ? " fresh" : "");
       var name = document.createElement("span");
       name.textContent = s.full_name;
-      var pin = document.createElement("span");
+      // A hidden PIN is a button: it shows the one they already have, nothing reset.
+      var hidden = s.has_pin && !shownPins[s.id];
+      var pin = document.createElement(hidden ? "button" : "span");
       pin.className = "pin";
       pin.textContent = shownPins[s.id] || (s.has_pin ? "••••" : "nėra");
+      if (hidden) {
+        pin.type = "button";
+        pin.title = "Rodyti PIN";
+        pin.addEventListener("click", function () {
+          rpc("teacher_pin_show", { p_token: token, p_student: s.id }).then(function (p) {
+            if (!p) return;
+            shownPins[s.id] = p;
+            renderPins();
+          }).catch(pinsFail);
+        });
+      }
       var b = document.createElement("button");
       b.type = "button";
       b.className = "tool dim";

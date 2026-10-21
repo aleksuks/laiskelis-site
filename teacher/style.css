@@ -467,6 +467,8 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 }
 .pin-row .pin { font-weight: 700; font-size: 22px; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; color: var(--ink-dim); }
 .pin-row.fresh .pin { color: var(--ink); }
+button.pin { font-family: inherit; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+button.pin:hover { color: var(--ink); }
 
 @media print {
   body:has(#pins:not([hidden])) > :not(#pins) { display: none !important; }
