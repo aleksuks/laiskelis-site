@@ -44,6 +44,7 @@
       <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
       <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
       <button class="tool small" id="gbBtn" type="button"><img src="art/tool-pins.png" alt="">Kaupiamieji</button>
+      <button class="tool small" id="selfBtn" type="button"><img src="art/tool-students.png" alt="">Įsivertinimas</button>
       <button class="tool small" id="nextBtn" type="button"><img src="art/tool-class-add.png" alt="">Rytoj</button>
       <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
       <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
@@ -243,6 +244,17 @@
   <div class="ov-list" id="nextList"></div>
 </div>
 
+<!-- ---------- Įsivertinimas: each student's two 1–10 self-ratings (193) ---------- -->
+<div class="full" id="self" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="selfTitle">Įsivertinimas</h2>
+    <span class="pins-note">Paspausk skaičių; paspaudus dar kartą – ištrinama.</span>
+    <button class="btn quiet" type="button" id="selfClose">Uždaryti</button>
+  </div>
+  <p id="selfError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="gb-wrap"><table class="gb self" id="selfTable"></table></div>
+</div>
+
 <!-- ---------- Kaupiamieji: the class's grade book, edited here (183) ---------- -->
 <div class="full" id="gb" hidden>
   <div class="bar">
@@ -404,7 +416,7 @@
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
     el("tools").hidden = !hasClass;
-    el("addStudents").hidden = el("pinsBtn").hidden = el("gbBtn").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
+    el("addStudents").hidden = el("pinsBtn").hidden = el("gbBtn").hidden = el("selfBtn").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
   }
 
   /* ---------- the tray folds away to give the board the room ---------- */
@@ -1780,6 +1792,57 @@
 
   el("gbBtn").addEventListener("click", openGradebook);
   el("gbClose").addEventListener("click", function () { closeFull(el("gb")); });
+
+  /* ---------- Įsivertinimas: two 1–10 self-ratings per student (193) ---------- */
+
+  var SELF_Q = [["now", "Kaip aš dabar vertinu savo lygį"],
+                ["want", "Remiantis savo požiūriu ir reikalavimais sau, kokio lygio norėčiau"]];
+
+  function openSelf() {
+    var c = current;
+    el("selfTitle").textContent = "Įsivertinimas: " + c.name;
+    el("selfError").hidden = true;
+    el("selfTable").replaceChildren();
+    openFull(el("self"));
+    rpc("teacher_self", { p_token: token, p_class: c.id }).then(function (rows) {
+      var got = {};
+      rows.forEach(function (r) { got[r[0]] = { now: r[1], want: r[2] }; });
+      var head = gbCell("tr");
+      head.appendChild(gbCell("th", "Mokinys", "gb-name"));
+      SELF_Q.forEach(function (q) { head.appendChild(gbCell("th", q[1] + " (1–10)", "self-q")); });
+      var thead = gbCell("thead"), tbody = gbCell("tbody");
+      thead.appendChild(head);
+      c.students.slice().sort(function (a, b) { return a.full_name.localeCompare(b.full_name, "lt"); }).forEach(function (s) {
+        var mine = got[s.id] || {};
+        var tr = gbCell("tr");
+        tr.appendChild(gbCell("td", s.full_name, "gb-name"));
+        SELF_Q.forEach(function (q) {
+          var td = gbCell("td", null, "self-scale");
+          for (var n = 1; n <= 10; n++) td.appendChild(selfButton(s.id, q[0], n, mine));
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      el("selfTable").append(thead, tbody);
+    }).catch(closeOnDenied("self", "selfError"));
+  }
+
+  // One number of a student's 1–10 row; tapping the chosen one again clears it.
+  function selfButton(id, which, n, mine) {
+    var b = gbCell("button", String(n), mine[which] === n ? "on" : "");
+    b.type = "button";
+    b.addEventListener("click", function () {
+      var value = mine[which] === n ? null : n;
+      rpc("teacher_self_set", { p_token: token, p_student: id, p_which: which, p_value: value }).then(function () {
+        mine[which] = value;
+        b.parentNode.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", Number(x.textContent) === value); });
+      }).catch(closeOnDenied("self", "selfError"));
+    });
+    return b;
+  }
+
+  el("selfBtn").addEventListener("click", openSelf);
+  el("selfClose").addEventListener("click", function () { closeFull(el("self")); });
 
   /* ---------- lesson feedback board (feedbackas; the session token is the key, 180) ---------- */
 

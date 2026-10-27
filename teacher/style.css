@@ -575,6 +575,13 @@ button.pin:hover { color: var(--ink); }
 .gb input.saving { color: var(--ink-dim); }
 .gb .gb-calc { background: #f4f6f5; font-weight: 700; min-width: 2.6em; padding: 4px 6px; }
 .gb .gb-sem { color: var(--blue); }
+.gb.self { font-size: 18px; width: 100%; }
+.gb.self .gb-name { padding: 8px 14px; }
+.gb .self-q { padding: 8px 12px; white-space: normal; font-size: 17px; min-width: 20em; }
+.gb .self-scale { padding: 6px 10px; }
+.gb .self-scale button { width: 2.1em; height: 2.1em; margin: 0 2px; border: 2px solid #d5dbd8; border-radius: 50%; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.gb .self-scale button:hover { border-color: var(--blue); }
+.gb .self-scale button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .gb-edit { margin: 0 20px 16px; padding: 12px 16px; background: #fff; border: 3px solid var(--blue); border-radius: 14px; display: grid; grid-template-columns: 14em 7em 1fr auto; gap: 12px; align-items: end; }
 .gb-edit[hidden] { display: none; }
 .gb-edit textarea { min-height: 90px; }
