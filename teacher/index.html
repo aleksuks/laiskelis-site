@@ -1982,7 +1982,11 @@
         el("quizPick").appendChild(box);
       }
       // A quiz with no questions is a task (one card on the big screen), grouped by rule.
-      var tests = list.filter(function (q) { return q.n; });
+      // topic = "<unit> · <vocabulary>" (195): tests sit under their textbook unit.
+      var unit = function (q) { return q.topic.split(" · ")[0]; };
+      var words = function (q) { return q.topic.split(" · ").slice(1).join(" · "); };
+      var tests = list.filter(function (q) { return q.n; })
+        .sort(function (a, b) { return a.topic.localeCompare(b.topic, "lt", { numeric: true }); });
       var tasks = list.filter(function (q) { return !q.n; })
         .sort(function (a, b) { return a.skill.localeCompare(b.skill, "lt"); });
       function head(tag, text) {
@@ -1992,14 +1996,15 @@
         el("quizPick").appendChild(h);
       }
       if (tests.length && tasks.length) head("h2", "Testai");
-      tests.forEach(function (q) {
+      tests.forEach(function (q, i) {
+        if (!i || unit(tests[i - 1]) !== unit(q)) head("h3", unit(q));
         var card = document.createElement("div");
         card.className = "quiz-card";
         var h = document.createElement("h3");
         h.textContent = q.title;
         var meta = document.createElement("p");
         meta.className = "skill";
-        meta.textContent = "Taisyklė: " + q.skill + " · Tema: " + q.topic + " · " + q.n + " klaus.";
+        meta.textContent = "Gramatika: " + q.skill + " · Žodžiai: " + words(q) + " · " + q.n + " klaus.";
         var d = document.createElement("p");
         d.textContent = q.description;
         var b = document.createElement("button");
