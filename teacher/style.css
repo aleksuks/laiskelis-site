@@ -406,6 +406,8 @@ dialog form { display: flex; flex-direction: column; gap: 14px; }
 .quiz-card p { margin: 0; }
 .quiz-card .skill { color: var(--ink-dim); font-size: 15px; }
 .quiz-card .btn { margin-top: 8px; }
+.pick-head { grid-column: 1 / -1; margin: 8px 0 -4px; }
+#wheel { z-index: 41; }   /* above the live screen, which can open it */
 
 .quiz-board {
   flex: 1;

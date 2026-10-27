@@ -173,6 +173,7 @@
     <span class="live-count" id="liveCount"></span>
     <button class="btn quiet" type="button" id="liveBack" aria-label="Atgal">←</button>
     <button class="btn" type="button" id="liveNext">Toliau</button>
+    <button class="btn quiet" type="button" id="liveWheel">Ratas</button>
     <button class="btn quiet" type="button" id="liveClose">Uždaryti</button>
   </div>
   <div class="live-stage">
@@ -1912,7 +1913,18 @@
         box.append(img, p);
         el("quizPick").appendChild(box);
       }
-      list.forEach(function (q) {
+      // A quiz with no questions is a task (one card on the big screen), grouped by rule.
+      var tests = list.filter(function (q) { return q.n; });
+      var tasks = list.filter(function (q) { return !q.n; })
+        .sort(function (a, b) { return a.skill.localeCompare(b.skill, "lt"); });
+      function head(tag, text) {
+        var h = document.createElement(tag);
+        h.className = "pick-head";
+        h.textContent = text;
+        el("quizPick").appendChild(h);
+      }
+      if (tests.length && tasks.length) head("h2", "Testai");
+      tests.forEach(function (q) {
         var card = document.createElement("div");
         card.className = "quiz-card";
         var h = document.createElement("h3");
@@ -1945,6 +1957,26 @@
             .then(function () { b.disabled = false; });
         });
         card.append(h, meta, d, row);
+        el("quizPick").appendChild(card);
+      });
+      if (tasks.length) head("h2", "Užduotys");
+      tasks.forEach(function (q, i) {
+        if (!i || tasks[i - 1].skill !== q.skill) head("h3", q.skill);
+        var card = document.createElement("div");
+        card.className = "quiz-card";
+        var h = document.createElement("h3");
+        h.textContent = q.title;
+        var d = document.createElement("p");
+        d.textContent = q.description;
+        var show = document.createElement("button");
+        show.className = "btn";
+        show.type = "button";
+        show.textContent = "Rodyti ekrane";
+        show.addEventListener("click", function () {
+          show.disabled = true;
+          openLive(q).then(function () { show.disabled = false; });
+        });
+        card.append(h, d, show);
         el("quizPick").appendChild(card);
       });
     }).catch(quizFail);
@@ -2208,9 +2240,11 @@
     if (live.at > 0) { live.at--; live.revealed = null; renderLive(); }
   });
   el("liveClose").addEventListener("click", function () { live = null; closeFull(el("live")); });
+  // The wheel opens on top of the live screen (#wheel sits above it in the CSS).
+  el("liveWheel").addEventListener("click", function () { el("wheelBtn").click(); });
 
   document.addEventListener("keydown", function (e) {
-    if (!live || el("live").hidden || e.target.closest("textarea, input")) return;
+    if (!live || el("live").hidden || !el("wheel").hidden || e.target.closest("textarea, input")) return;
     var step = live.steps[live.at];
     if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); liveNext(); }
     else if (e.key === "ArrowLeft") el("liveBack").click();
@@ -2291,12 +2325,12 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
+    if (!el("wheel").hidden) return el("wheelClose").click();
     if (!el("quiz").hidden) return closeQuiz();
     if (!el("live").hidden) return el("liveClose").click();
     if (!el("pins").hidden) return el("pinsClose").click();
     if (!el("lessons").hidden) return el("lessonsClose").click();
     if (!el("display").hidden) el("displayClose").click();
-    else if (!el("wheel").hidden) el("wheelClose").click();
   });
 
   /* ---------- boot ---------- */

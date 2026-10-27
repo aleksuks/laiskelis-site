@@ -447,6 +447,12 @@ body.tray-min .abc {
 .live-rule table { width: 100%; border-collapse: collapse; margin: 0.2em 0 0.7em; }
 .live-rule th { text-align: left; color: var(--ink-dim); font-weight: 600; padding: 0.2em 0.4em; border-bottom: 2px solid var(--frame); }
 .live-rule td { padding: 0.25em 0.4em; border-bottom: 1px solid #e3e6e4; }
+/* a task card: the instruction big in the middle, help below */
+.live-rule .task-title { text-align: center; font-size: 1.6em; font-weight: 800; margin-bottom: 0.6em; }
+.live-rule .task-cols { display: grid; grid-template-columns: 3fr 2fr; gap: 0 1.5em; }
+.live-rule .task-cols td { white-space: nowrap; }
+.live-rule .task-foot { text-align: center; font-weight: 700; margin: 0.4em 0 0; }
+@media (max-width: 800px) { .live-rule .task-cols { grid-template-columns: 1fr; } }
 .live-prompt { text-align: center; font-weight: 700; font-size: clamp(32px, 4.2vw, 110px); line-height: 1.2; margin-bottom: 4vh; }
 .live-prompt .kind { font-size: 0.4em; font-weight: 600; color: var(--ink-dim); }
 .live-prompt .verb { font-size: 0.5em; font-weight: 600; color: var(--blue); }
