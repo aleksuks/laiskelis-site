@@ -383,6 +383,7 @@
   var VERDICT_MS = 1600;
   var MOODS = ["😀", "🙂", "😐", "😕", "😫"];
   var MILESTONES = [0.5, 0.7, 0.9];
+  var POINTS = false;          // lesson +1 points: off until the teacher starts giving them (teacher/ too)
 
   var SHAPES = [
     '<svg viewBox="0 0 24 24"><path d="M12 3 22 21H2z"/></svg>',
@@ -972,14 +973,13 @@
       : null;
 
     // Before the first quiz only the points mean anything; zeros would be noise.
-    var points = fact("Taškai šią savaitę", stats.points_week, "iš viso " + stats.points_total, "points");
-    if (runs.length) el("facts").replaceChildren(
-      points,
+    var facts = POINTS ? [fact("Taškai šią savaitę", stats.points_week, "iš viso " + stats.points_total, "points")] : [];
+    if (runs.length) facts.push(
       fact("Atlikti testai", runs.length),
       fact("Atsakymo laikas", avgS === null ? "–" : avgS + " s", "vidutiniškai"),
       fact("Geriausia serija", bestStreak(runs), "teisingi iš eilės")
     );
-    else el("facts").replaceChildren(points);
+    el("facts").replaceChildren.apply(el("facts"), facts);
 
     // The recap first: how it's going, where it's strong, what to repeat (166).
     var recap = progressRecap(stats);

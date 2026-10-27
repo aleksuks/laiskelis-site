@@ -924,7 +924,12 @@
     });
   });
 
+  // Lesson +1 points are off until the teacher starts giving them (mokinys/ too):
+  // a tap or Enter on a magnet then does nothing.
+  var POINTS = false;
+
   function log(s, kind) {
+    if (kind === "point" && !POINTS) return;
     var classId = current.id, prev = s.camp || null;
     if (kind === "point") bumpPoints(s, 1);
     else { setCampLocal(s, CAMP_OF[kind], classId); announce(s, kind); }
