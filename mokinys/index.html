@@ -29,11 +29,12 @@
   h2.mark { font-family: var(--marker); font-size: 36px; line-height: 1; margin: 8px 0 0; color: var(--blue); }
   .sub { color: var(--ink-dim); margin: 0; }
   input[type="text"], input[inputmode] { font-size: 20px; }
-  label.check { flex-direction: row; align-items: center; gap: 10px; }
+  label.check { flex-direction: row; align-items: center; gap: 10px; min-height: 44px; }
+  .hint { font-weight: 400; font-size: 15px; color: var(--ink-dim); }
   label.check input { width: 22px; height: 22px; margin: 0; }
   .btn { justify-content: center; padding: 14px 20px; font-size: 18px; }
   .links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
-  .links button { border: 0; background: none; padding: 4px 0; color: var(--ink-dim); text-decoration: underline; }
+  .links button { border: 0; background: none; min-height: 44px; padding: 0 2px; color: var(--ink-dim); text-decoration: underline; }
 
   /* mood */
   .moods { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
@@ -55,16 +56,23 @@
   .rule td:nth-child(2), .rule td:nth-child(3) { font-weight: 600; }
   .countdown { display: flex; align-items: center; gap: 12px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .countdown .bar, .timer { flex: 1; height: 8px; border-radius: 4px; background: #e3e6e4; overflow: hidden; }
+  /* .timer sits in a column flex: flex: 1 there would collapse it to 0 px */
+  .timer { flex: none; }
   .countdown .bar i, .timer i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left; }
   .timer.low i { background: var(--red); }
 
   /* question */
   .top { display: flex; justify-content: space-between; align-items: center; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
-  .top .mood-btn { border: 0; background: none; padding: 0 4px; line-height: 0; }
-  .top-right { display: flex; align-items: center; gap: 10px; }
-  .sound-btn { border: 0; background: none; padding: 0; line-height: 0; }
+  .top .mood-btn, .sound-btn { border: 0; background: none; padding: 0; min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+  .top-right { display: flex; align-items: center; gap: 4px; }
+  .top b { color: var(--ink); }
+  #qScore { color: var(--green); font-weight: 700; margin-right: 6px; }
+  #qNum, #qScore { white-space: nowrap; }
+  @media (max-width: 374px) { #qNum .wide { display: none; } }
   .sound-btn img { width: 30px; height: 30px; }
-  .top .mood-btn .mood-face { width: 38px; height: 38px; }
+  /* framed like the mood screen's buttons, so it reads as one to tap */
+  .top .mood-btn { width: 44px; height: 44px; border: 2px solid var(--frame); border-radius: 12px; background: #fff; }
+  .top .mood-btn .mood-face { width: 32px; height: 32px; }
   .prompt {
     background: #fff;
     border: 2px solid var(--frame);
@@ -98,6 +106,10 @@
   .tiles.done .tile { opacity: 0.3; }
   .tiles.done .tile.right { opacity: 1; box-shadow: inset 0 0 0 4px var(--ink); }
   .tiles.done .tile.picked:not(.right) { opacity: 0.75; }
+  /* after the answer: which tile was right, which was yours */
+  .tiles.done .tile.right::after, .tiles.done .tile.picked:not(.right)::after { margin-left: auto; font-size: 26px; line-height: 1; }
+  .tiles.done .tile.right::after { content: "✓"; }
+  .tiles.done .tile.picked:not(.right)::after { content: "✗"; }
   .tiles.translate { grid-template-columns: 1fr; }
   .tiles.translate .tile { min-height: 60px; font-size: 18px; }
   .verdict { text-align: center; font-weight: 700; font-size: 22px; padding: 10px; border-radius: 14px; color: #fff; }
@@ -107,23 +119,53 @@
   /* result */
   .score { text-align: center; }
   .score .grade { font-family: var(--marker); font-size: 140px; line-height: 1; color: var(--blue); }
-  .score .of { font-size: 22px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .score .of { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .score h1 { margin-bottom: 4px; }
   .mistake { background: #fff; border: 1px solid #e3e6e4; border-radius: 10px; padding: 10px 14px; }
   .mistake .fix { color: var(--green); font-weight: 700; }
-  .mistake del { color: var(--red); }
+  .mistake .was { margin-top: 4px; font-size: 15px; color: var(--ink-dim); }
+  .mistake del { color: var(--red); font-size: 17px; }
 
   /* stats */
-  .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .fact { background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 12px 14px; }
-  .fact b { display: block; font-size: 34px; line-height: 1.1; font-variant-numeric: tabular-nums; }
-  .fact span { color: var(--ink-dim); font-size: 15px; }
+  /* What the student earned is written on the board in marker, a tally
+     down the left edge, not boxed up: number first, what it counts beside it. */
+  .facts { display: flex; flex-direction: column; gap: 12px; padding-left: 4px; }
+  .fact { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  .fact b { grid-column: 1; grid-row: 1 / span 2; font-family: var(--marker); font-size: 48px; line-height: 0.8; color: var(--blue); white-space: nowrap; }
+  .fact span { grid-column: 2; font-weight: 700; }
+  .fact small { grid-column: 2; color: var(--ink-dim); font-size: 15px; }
   .fact.points b { color: #8a6a00; }
-  .fact.points { border-color: var(--point); }
+
+  /* No quiz yet: a note from the teacher, taped to the board. */
+  .waiting {
+    position: relative;
+    margin-top: 10px;
+    background: #fffdf6;
+    border-radius: 2px;
+    padding: 20px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    rotate: -0.8deg;
+    box-shadow: 0 2px 0 rgba(34, 39, 43, 0.12), 0 6px 10px rgba(34, 39, 43, 0.1);
+  }
+  .waiting::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    width: 84px;
+    height: 27px;
+    translate: -50% 0;
+    background: url(../teacher/art/tape.png) center / 100% 100% no-repeat;
+  }
+  .waiting p { margin: 0; }
+  .waiting .note { color: var(--ink-dim); text-align: center; }
 
   .skill {
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-rows: auto auto;
     gap: 6px 12px;
     align-items: end;
@@ -135,9 +177,18 @@
   }
   .skill .name { font-weight: 700; }
   .skill .pct { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; grid-row: span 2; align-self: center; }
-  .skill .tag { font-size: 14px; color: var(--ink-dim); font-weight: 400; }
-  .spark { display: flex; align-items: flex-end; gap: 2px; height: 34px; border-bottom: 1px solid var(--frame); }
-  .spark i { flex: 0 1 14px; min-width: 4px; background: var(--blue); border-radius: 3px 3px 0 0; }
+  .skill::after { content: "›"; grid-row: 1 / 3; grid-column: 3; align-self: center; font-size: 28px; color: var(--ink-dim); }
+  /* the teacher's marker note on the card, on its own line */
+  .skill .tag { display: block; white-space: nowrap; font-family: var(--marker); font-size: 24px; line-height: 1; margin-top: 4px; }
+  .skill .tag.best { color: var(--green); }
+  .skill .tag.weak { color: #8f5a00; }
+  /* one fixed bar per test taken, so two tests look like two, not an empty chart */
+  .spark { justify-self: start; display: flex; align-items: flex-end; gap: 3px; height: 34px; padding: 0 2px; border-bottom: 2px solid var(--frame); }
+  .spark i { flex: none; width: 10px; background: var(--blue); border-radius: 3px 3px 0 0; }
+  /* the weakest skill carries its own way to practise, joined under the card */
+  .skill-pair { display: flex; flex-direction: column; }
+  .skill-pair .skill { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .skill-go { min-height: 48px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: #fff8e8; border: 2px solid var(--frame); border-top: 1px dashed var(--frame); border-radius: 0 0 14px 14px; color: #8f5a00; font-weight: 700; text-align: left; }
 
   table.runs { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
   .runs th { text-align: left; font-weight: 600; color: var(--ink-dim); font-size: 14px; padding: 4px 6px; border-bottom: 2px solid var(--frame); }
@@ -197,11 +248,11 @@
     font-size: 104px;
     line-height: 1;
   }
-  .fact.points { position: relative; padding-right: 64px; }
+  .fact.points { position: relative; padding-right: 56px; }
   .fact.points::after {
     content: "";
     position: absolute;
-    right: 10px;
+    right: 0;
     top: 50%;
     width: 46px;
     height: 46px;
@@ -215,6 +266,7 @@
   .spark i:nth-child(n + 4) { animation-delay: 120ms; }
   @keyframes grow { from { transform: scaleY(0); } }
   .art-empty .sub { font-size: 16px; }
+  .fb h1 { font-size: 40px; }
   .fb { border: 3px solid var(--blue); border-radius: 18px; padding: 14px 16px; }
   .fb textarea { min-height: 90px; font-weight: 400; }
   .fb-done { text-align: center; }
@@ -243,7 +295,7 @@
     <label>Vardas ir pavardė
       <input type="text" id="name" autocomplete="name" spellcheck="false" required>
     </label>
-    <label id="pinLabel">PIN
+    <label id="pinLabel">PIN kodas <span class="hint">5 skaitmenys, kuriuos gavai iš mokytojos</span>
       <input type="text" id="pin" inputmode="numeric" autocomplete="off" maxlength="5" required>
     </label>
     <label class="check" id="guestLabel" hidden><input type="checkbox" id="guest"> Esu Loretos mokinys</label>
@@ -252,18 +304,18 @@
 
   <div id="mood" class="screen" hidden>
     <h1>Kaip jautiesi?</h1>
-    <p class="sub">Tai matys visa klasė.</p>
+    <p class="sub">Pasirink veidą. Jį matys visa klasė.</p>
     <div class="moods" id="moods"></div>
   </div>
 
   <div id="rule" class="screen" hidden>
     <div id="ruleBody" class="rule"></div>
     <div class="countdown"><div class="bar"><i id="ruleBar"></i></div><span id="ruleLeft"></span></div>
-    <button class="btn" id="ruleBtn" disabled>Supratau</button>
+    <button class="btn" id="ruleBtn" disabled>Skaityk taisyklę…</button>
   </div>
 
   <div id="question" class="screen" hidden>
-    <div class="top"><span id="qNum"></span><button class="mood-btn" id="moodBtn" type="button" aria-label="Kaip jautiesi?"></button><span class="top-right"><button class="sound-btn" id="soundBtn" type="button"><img id="soundArt" alt=""></button><span id="qScore"></span></span></div>
+    <div class="top"><span id="qNum"></span><span class="top-right"><span id="qScore"></span><button class="mood-btn" id="moodBtn" type="button" aria-label="Pakeisti nuotaiką" title="Pakeisti nuotaiką"></button><button class="sound-btn" id="soundBtn" type="button"><img id="soundArt" alt=""></button></span></div>
     <div class="timer" id="timer"><i id="timerBar"></i></div>
     <div class="prompt" id="prompt"></div>
     <div class="tiles" id="tiles"></div>
@@ -272,16 +324,21 @@
   </div>
 
   <div id="result" class="screen" hidden>
-    <div class="score"><div class="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div></div>
+    <div class="score"><h1 id="resultTitle">Testas baigtas!</h1><div class="rosette" role="img" id="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div></div>
     <p class="sub practice-note" id="practiceNote" hidden>Pasikartojimas: rezultatas niekur neįrašomas.</p>
     <div class="screen" id="mistakes"></div>
-    <button class="btn quiet" type="button" id="toStats">Mano statistika</button>
+    <button class="btn" type="button" id="toStats">Mano statistika</button>
   </div>
 
   <div id="stats" class="screen" hidden>
     <h1 id="statsName"></h1>
     <p id="statsError" class="msg" hidden></p>
-    <button class="btn" type="button" id="checkQuiz">Ar prasidėjo testas?</button>
+    <!-- No polling here (spec): the student taps when the teacher starts. -->
+    <div class="waiting">
+      <p><b>Dabar testo nėra.</b> Kai mokytoja pasakys, kad testas prasidėjo, spausk mygtuką.</p>
+      <button class="btn" type="button" id="checkQuiz">Įeiti į testą</button>
+      <p class="note" id="quizNote" role="status" hidden>Testas dar neprasidėjo. Palauk mokytojos ženklo.</p>
+    </div>
     <div id="recap" hidden></div>
     <div class="facts" id="facts"></div>
     <div class="screen" id="skills"></div>
@@ -295,9 +352,10 @@
   <div id="skillView" class="screen" hidden>
     <h1 id="skillName"></h1>
     <table class="runs">
-      <thead><tr><th>Data</th><th>Testas</th><th class="n">Teisingi</th><th class="n">Greitis</th><th class="n">Pažymys</th></tr></thead>
+      <thead><tr><th>Data</th><th>Testas</th><th class="n">Teisingi</th><th class="n">Laikas</th><th class="n">Pažymys</th></tr></thead>
       <tbody id="skillRuns"></tbody>
     </table>
+    <p class="sub">Laikas – kiek vidutiniškai galvojai prie vieno klausimo.</p>
     <button class="btn quiet" type="button" id="skillBack">Atgal</button>
   </div>
 
@@ -351,7 +409,7 @@
     node.classList.add("enter");
     window.scrollTo(0, 0);
     if (name === "login" || name === "stats") checkFeedback();
-    else el("fb").hidden = el("fbThanks").hidden = true;
+    else { showFb(false); el("fbThanks").hidden = true; }
   }
 
   /* ---------- lesson feedback (feedbackas, 086; anonymous, no token sent) ---------- */
@@ -359,12 +417,18 @@
   var fbRound = null;
   function fbDone(id) { try { return localStorage.getItem("feedbackas.done." + id) === "1"; } catch (e) { return false; } }
 
+  // While the form is up, "Siųsti" is the one primary button on the page.
+  function showFb(on) {
+    el("fb").hidden = !on;
+    el("checkQuiz").classList.toggle("quiet", on);
+  }
+
   function checkFeedback() {
     rpc("feedback_current", {}).then(function (rows) {
       var s = rows && rows[0];
       fbRound = s && !fbDone(s.session_id) ? s : null;
       if (fbRound) { el("fbQ1").textContent = s.prompt_1; el("fbQ2").textContent = s.prompt_2; }
-      el("fb").hidden = !fbRound || (screen !== "login" && screen !== "stats");
+      showFb(!!fbRound && (screen === "login" || screen === "stats"));
     }).catch(function () {});
   }
 
@@ -377,7 +441,7 @@
     rpc("feedback_submit", { p_session_id: fbRound.session_id, p_answer_1: a1, p_answer_2: a2 }).then(function () {
       try { localStorage.setItem("feedbackas.done." + fbRound.session_id, "1"); } catch (e) {}
       el("fbA1").value = el("fbA2").value = "";
-      el("fb").hidden = true;
+      showFb(false);
       el("fbThanks").hidden = false;
     }).catch(function (err) {
       el("fbError").textContent = err.message;
@@ -591,6 +655,7 @@
     clearTimers();
     el("ruleBody").innerHTML = part.rule_html;   // authored in a migration, never by a student
     el("ruleBtn").disabled = true;
+    el("ruleBtn").textContent = "Skaityk taisyklę…";
     show("rule");
 
     var bar = el("ruleBar");
@@ -601,11 +666,15 @@
     bar.style.transform = "scaleX(0)";
 
     var left = part.seconds;
-    el("ruleLeft").textContent = left;
+    var says = function (n) { el("ruleLeft").textContent = "Klausimai po " + n + " s"; };
+    says(left);
     var tick = setInterval(function () {
       left--;
-      el("ruleLeft").textContent = Math.max(0, left);
-      if (part.seconds - left >= part.min_seconds) el("ruleBtn").disabled = false;
+      says(Math.max(0, left));
+      if (part.seconds - left >= part.min_seconds && el("ruleBtn").disabled) {
+        el("ruleBtn").disabled = false;
+        el("ruleBtn").textContent = "Supratau – pradėti";
+      }
       if (left <= 0) done();
     }, 1000);
     timers.push(tick);
@@ -656,8 +725,11 @@
     current = i;
     var q = run.content.questions[i];
 
-    el("qNum").textContent = (i + 1) + " / " + total();
-    el("qScore").textContent = "✓ " + score();
+    var word = document.createElement("span");
+    word.className = "wide";
+    word.textContent = "Klausimas ";
+    el("qNum").replaceChildren(word, bold(i + 1), " iš " + total());
+    renderScore();
     el("moodBtn").hidden = !!run.practice;
     if (!run.practice) el("moodBtn").replaceChildren(moodFace(run.mood));
     el("verdict").hidden = true;
@@ -690,6 +762,12 @@
     bar.style.transform = "scaleX(0)";
     later(function () { el("timer").classList.add("low"); }, (QUESTION_SECONDS - 7) * 1000);
     later(function () { answer(i, -1); }, QUESTION_SECONDS * 1000);
+  }
+
+  function bold(t) { var b = document.createElement("b"); b.textContent = t; return b; }
+  function renderScore() {
+    var s = score();
+    el("qScore").textContent = "✓ " + s + " " + ltPlural(s, "teisingas", "teisingi", "teisingų");
   }
 
   function freezeTimer() {
@@ -733,7 +811,7 @@
       if (res.right) Sound.right(); else Sound.wrong();
       v.textContent = res.right ? "Teisingai" : (choice === -1 ? "Laikas baigėsi" : "Neteisingai");
       v.hidden = false;
-      el("qScore").textContent = "✓ " + score();
+      renderScore();
       milestone(before, score());
 
       later(route, VERDICT_MS);
@@ -773,10 +851,18 @@
     var s = score();
     var n = total();
     el("grade").textContent = gradeFor(s, n);
-    el("of").textContent = s + " / " + n;
+    el("of").replaceChildren(bold(s), " iš ", bold(n), " teisingai");
+    el("resultTitle").textContent = run.practice ? "Pasikartojimas baigtas!" : "Testas baigtas!";
+    el("rosette").setAttribute("aria-label", "Pažymys " + gradeFor(s, n));
 
     var list = el("mistakes");
     list.replaceChildren();
+    if (s < n) {
+      var h = document.createElement("h2");
+      h.className = "mark";
+      h.textContent = "Tavo klaidos";
+      list.appendChild(h);
+    }
     run.answers.forEach(function (a, i) {
       if (a === null || a === run.correct[i]) return;
       var q = run.content.questions[i];
@@ -791,13 +877,16 @@
         var bits = q.text.split("___");
         row.append(bits[0], fix, bits[1] || "");
       }
+      var was = document.createElement("div");
+      was.className = "was";
       if (a >= 0) {
-        var was = document.createElement("div");
         var del = document.createElement("del");
         del.textContent = q.options[a];
-        was.appendChild(del);
-        row.appendChild(was);
+        was.append("Tavo atsakymas: ", del);
+      } else {
+        was.textContent = "Neatsakei – baigėsi laikas.";
       }
+      row.appendChild(was);
       list.appendChild(row);
     });
     el("practiceNote").hidden = !run.practice;
@@ -818,6 +907,7 @@
     clearTimers();
     if (run && run.practice) { run = null; seenRule = {}; }
     el("statsError").hidden = true;
+    el("quizNote").hidden = true;
     return rpc("teacher_student_stats", { p_token: token }).then(function (res) {
       stats = res;
       renderStats();
@@ -839,19 +929,41 @@
     return best;
   }
 
-  function fact(value, label, cls) {
+  // The label stands beside the number as a caption, not a phrase after it,
+  // so no Lithuanian plural has to agree with the number.
+  function fact(label, value, note, cls) {
     var d = document.createElement("div");
     d.className = "fact" + (cls ? " " + cls : "");
-    var b = document.createElement("b");
-    b.textContent = value;
     var s = document.createElement("span");
     s.textContent = label;
-    d.append(b, s);
+    var b = document.createElement("b");
+    b.textContent = value;
+    d.append(s, b);
+    if (note) {
+      var n = document.createElement("small");
+      n.textContent = note;
+      d.appendChild(n);
+    }
     return d;
   }
 
+  function heading(text, note) {
+    var frag = document.createDocumentFragment();
+    var h = document.createElement("h2");
+    h.className = "mark";
+    h.textContent = text;
+    frag.appendChild(h);
+    if (note) {
+      var p = document.createElement("p");
+      p.className = "sub";
+      p.textContent = note;
+      frag.appendChild(p);
+    }
+    return frag;
+  }
+
   function renderStats() {
-    el("statsName").textContent = stats.name.split(" ")[0];
+    el("statsName").textContent = "Labas, " + stats.name.split(" ")[0] + "!";
     var runs = stats.runs;
 
     var speedRuns = runs.filter(function (r) { return r.avg_ms; });
@@ -859,17 +971,20 @@
       ? Math.round(speedRuns.reduce(function (t, r) { return t + r.avg_ms; }, 0) / speedRuns.length / 1000)
       : null;
 
-    el("facts").replaceChildren(
-      fact(stats.points_week, "taškų šią savaitę (iš viso " + stats.points_total + ")", "points"),
-      fact(runs.length, "testų atlikta"),
-      fact(avgS === null ? "–" : avgS + " s", "vidutiniškai klausimui"),
-      fact(bestStreak(runs), "teisingų iš eilės")
+    // Before the first quiz only the points mean anything; zeros would be noise.
+    var points = fact("Taškai šią savaitę", stats.points_week, "iš viso " + stats.points_total, "points");
+    if (runs.length) el("facts").replaceChildren(
+      points,
+      fact("Atlikti testai", runs.length),
+      fact("Atsakymo laikas", avgS === null ? "–" : avgS + " s", "vidutiniškai"),
+      fact("Geriausia serija", bestStreak(runs), "teisingi iš eilės")
     );
+    else el("facts").replaceChildren(points);
 
     // The recap first: how it's going, where it's strong, what to repeat (166).
     var recap = progressRecap(stats);
     el("recap").hidden = !recap.lines.length;
-    el("recap").replaceChildren(recapList(recap, true));
+    el("recap").replaceChildren(heading("Kaip sekasi"), recapList(recap, true));
 
     // Skills, oldest run first inside each.
     var bySkill = {};
@@ -896,10 +1011,7 @@
       box.append(img, p, sub);
       frag.appendChild(box);
     } else {
-      var h = document.createElement("h2");
-      h.className = "mark";
-      h.textContent = "Taisyklės";
-      frag.appendChild(h);
+      frag.appendChild(heading("Taisyklės", "Procentai – kiek atsakei teisingai. Stulpelis – vienas testas."));
     }
     skills.forEach(function (s, i) {
       var b = document.createElement("button");
@@ -907,11 +1019,12 @@
       b.className = "skill";
       var name = document.createElement("span");
       name.className = "name";
-      name.textContent = s.name + " ";
-      if (skills.length > 1 && (i === 0 || i === skills.length - 1)) {
+      name.textContent = s.name;
+      var best = skills.length > 1 && i === 0, weak = skills.length > 1 && i === skills.length - 1;
+      if (best || weak) {
         var tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = i === 0 ? "stipriausia" : "verta pakartoti";
+        tag.className = "tag " + (best ? "best" : "weak");
+        tag.textContent = best ? "stipriausia" : "verta pakartoti";
         name.appendChild(tag);
       }
       var big = document.createElement("span");
@@ -928,7 +1041,20 @@
       });
       b.append(name, big, spark);
       b.addEventListener("click", function () { openSkill(s); });
-      frag.appendChild(b);
+      if (!weak) { frag.appendChild(b); return; }
+      // Its latest quiz, as practice: the tag says what to do, this does it.
+      var pair = document.createElement("div");
+      pair.className = "skill-pair";
+      var go = document.createElement("button");
+      go.type = "button";
+      go.className = "skill-go";
+      go.append(s.runs[s.runs.length - 1].title);
+      var arrow = document.createElement("span");
+      arrow.textContent = "Pasikartok →";
+      go.appendChild(arrow);
+      go.addEventListener("click", function () { startPractice(s.runs[s.runs.length - 1].quiz, go); });
+      pair.append(b, go);
+      frag.appendChild(pair);
     });
     el("skills").replaceChildren(frag);
     renderPractice();
@@ -974,12 +1100,7 @@
       if (!seen[r.quiz]) { seen[r.quiz] = true; quizzes.push(r); }
     });
     var frag = document.createDocumentFragment();
-    if (quizzes.length) {
-      var h = document.createElement("h2");
-      h.className = "mark";
-      h.textContent = "Pasikartok";
-      frag.appendChild(h);
-    }
+    if (quizzes.length) frag.appendChild(heading("Pasikartok", "Išspręsk testą dar kartą – pažymys neįrašomas."));
     quizzes.forEach(function (r) {
       var b = document.createElement("button");
       b.type = "button";
@@ -1015,7 +1136,7 @@
     el("checkQuiz").disabled = true;
     refresh().then(function () {
       el("checkQuiz").disabled = false;
-      if (screen === "stats") statsError("Testas dar neprasidėjo.");
+      if (screen === "stats" && el("statsError").hidden) el("quizNote").hidden = false;
     });
   });
 
