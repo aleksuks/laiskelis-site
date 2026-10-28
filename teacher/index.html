@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281700">
+<link rel="stylesheet" href="style.css?v=202610281800">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2497,8 +2497,18 @@
   function dealRound() {
     el("wordsNext").disabled = true;
     return rpc("teacher_word_deal", { p_token: token, p_game: wg.board.id })
-      .then(function () { wg.seen = null; return refreshWords(); })
-      .then(function () { wg.mode = "pairs"; wgStartPoll(); renderWords(); })
+      .then(function (round) {
+        // 0: everyone here has had every word, the game is over (205)
+        if (round === 0) {
+          wg.board.live = false;
+          wg.cls.live_game = null;
+          wgStopPoll();
+          Sound.fanfare();
+          return setWordsMode("top");
+        }
+        wg.seen = null;
+        return refreshWords().then(function () { wg.mode = "pairs"; wgStartPoll(); renderWords(); });
+      })
       .catch(wordsFail)
       .then(function () { el("wordsNext").disabled = false; });
   }
@@ -2542,9 +2552,20 @@
     var n = wg.set ? wg.set.words.length : 0;
     el("wordsCount").textContent =
       m === "intro" ? (wg.page + 1) + " / " + Math.ceil(n / INTRO_PACK) :
-      m === "pairs" ? "Raundas " + wg.board.round :
+      m === "pairs" ? "Raundas " + wg.board.round + coverText() :
       m === "top" ? (wg.board.round ? wg.board.round + " raund." : "") :
       m === "fade" ? (wg.step < FADE_STEPS ? "Raidės dingsta: " + wg.step + " / " + FADE_STEPS : "Tik užuominos") : "";
+  }
+
+  // the slowest phone here: how many of the words it has had (205)
+  function coverText() {
+    var b = wg.board, min = null;
+    (b.phones || []).forEach(function (p) {
+      if (p.seen_s > b.present_s) return;
+      var n = (b.cover || {})[p.id] || 0;
+      if (min === null || n < min) min = n;
+    });
+    return min === null || !b.n_words ? "" : " · visi matė ≥ " + min + "/" + b.n_words;
   }
 
   function renderWords() {
@@ -2597,7 +2618,12 @@
       var stats = document.createElement("span");
       stats.className = "stats";
       stats.textContent = "žvilgsniai " + r.peeks + " · klaidos " + r.wrong + " · poros " + r.found;
-      row.append(pl, name, stats);
+      // the final score: +1 a pair found, −1 a wrong code (202), negative too
+      var v = (b.points || {})[r.id] || 0;
+      var pts = document.createElement("span");
+      pts.className = "score" + (v < 0 ? " neg" : "");
+      pts.textContent = (v > 0 ? "+" : "") + v;
+      row.append(pl, name, stats, pts);
       frag.appendChild(row);
     });
     if (!rows.length) head("Dar niekas nežaidė");

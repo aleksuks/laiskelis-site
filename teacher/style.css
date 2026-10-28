@@ -719,11 +719,13 @@ button.pin:hover { color: var(--ink); }
 .leaders h3 { font-family: var(--marker); font-size: 44px; line-height: 1; margin: 12px 0 4px; color: var(--green); }
 .leaders h3.t1 { color: var(--red); }
 .leaders h3.t2 { color: var(--ink-dim); }
-.leader { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; align-items: baseline; gap: 16px; font-size: clamp(22px, 2vw, 40px); padding: 6px 12px; border-bottom: 1px solid #e3e6e4; }
+.leader { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto 3.2em; align-items: baseline; gap: 16px; font-size: clamp(22px, 2vw, 40px); padding: 6px 12px; border-bottom: 1px solid #e3e6e4; }
 .leader .place { font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .leader b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leader .stats { color: var(--ink-dim); font-size: 0.6em; font-variant-numeric: tabular-nums; }
 .leader.bad b { color: var(--ink-dim); font-weight: 600; }
+.leader .score { font-family: var(--marker); font-weight: 700; font-size: 1.3em; line-height: 1; text-align: right; color: var(--green); font-variant-numeric: tabular-nums; }
+.leader .score.neg { color: var(--red); }
 
 @media (max-width: 800px) {
   .words-stage { grid-template-columns: 1fr; }
