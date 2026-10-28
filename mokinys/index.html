@@ -349,6 +349,7 @@
     <div class="screen" id="gPlay">
       <div class="wcard" id="gCard"><div class="kind" id="gKind"></div><div class="text" id="gText"></div></div>
       <div class="timer" id="gTimer"><i id="gTimerBar"></i></div>
+      <p class="verdict ok" id="gProgress" hidden></p>
       <button class="btn quiet" type="button" id="gPeek">Žvilgtelėti</button>
       <form class="codes" id="gMatch">
         <div class="mycode"><small>Tavo kodas</small><b id="gCode"></b></div>
@@ -1138,6 +1139,13 @@
       renderFound(c.pair);
     } else {
       el("gCode").textContent = c.code;
+      // a word with more than one clue (a trio, a late phone, 204): the word
+      // holder keeps searching until every clue holder has found them
+      var more = c.kind === "word" && c.clues_found > 0;
+      el("gProgress").hidden = !more;
+      if (more) el("gProgress").textContent = "Rasta " + c.clues_found + " iš " + c.clues_n + " užuominų: ieškok dar!";
+      if (more && gLocal.cluesFound !== c.clues_found && screen === "game") Sound.right();
+      gLocal.cluesFound = c.clues_found;
       renderCard();
     }
     if (screen !== "game") show("game");
