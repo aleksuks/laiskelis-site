@@ -646,6 +646,7 @@ button.pin:hover { color: var(--ink); }
 .status-list li.ok { border-color: var(--green); color: var(--green); }
 .status-list li.bad { border-color: var(--red); color: var(--red); }
 .status-list li.peek { border-color: #b67a0c; color: #8a5b00; }
+.status-list li.spam { border-color: var(--red); background: #fde8e8; color: var(--red); font-weight: 700; }
 .status-list li.gone { border-color: var(--frame-dark); color: var(--ink-dim); font-style: italic; }
 .status-list li.hunt { color: var(--ink-dim); }
 .status-list li b { color: var(--ink); }

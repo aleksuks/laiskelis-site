@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281600">
+<link rel="stylesheet" href="style.css?v=202610281700">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2720,6 +2720,9 @@
   // left (the phone stopped polling). Ages are server seconds (200). On the
   // right the game's points: +1 a pair found, −1 a wrong code (202).
   var JUST_S = 20;   // "ką tik" for this long. Tuning knob.
+  // Typing other students' codes one after another: this many wrong codes
+  // in the round, the last one this recent, reads "daro beleką" on top.
+  var SPAM_WRONG = 3, SPAM_S = 60;   // tuning knobs
 
   function statusList(b, short) {
     var rows = {};
@@ -2734,6 +2737,9 @@
         if (m.wrong_s !== null) put(m.id, m.wrong_s, m.wrong_s <= JUST_S ? "ką tik bandė klaidingai"
           : "bandė klaidingai" + (m.wrong > 1 ? " jau " + m.wrong + " kartą" : ""), "bad");
         if (m.peek_s !== null) put(m.id, m.peek_s, "žvilgtelėjo į žodį" + (m.peeks > 1 ? " jau " + m.peeks + " kartą" : ""), "peek");
+        if (!m.found && m.wrong >= SPAM_WRONG && m.wrong_s !== null && m.wrong_s <= SPAM_S) {
+          rows[m.id] = { id: m.id, age: -2, text: "daro beleką (" + m.wrong + " klaidingi kodai)", cls: "spam" };
+        }
       });
     });
     b.phones.forEach(function (p) {
