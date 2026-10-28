@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610282000">
+<link rel="stylesheet" href="style.css?v=202610282100">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2705,7 +2705,8 @@
     el("introList").replaceChildren(frag);
   }
 
-  // The wall: a word shows once it has been found in this game; this round's
+  // The wall: every word not in play this round shows with its Lithuanian
+  // meaning, so students can work out theirs by elimination; this round's
   // words are "?" until their pair (or trio) has all found each other.
   function renderPairs() {
     var b = wg.board;
@@ -2736,11 +2737,16 @@
       var t = document.createElement("div");
       var cur = now[i];
       var ever = b.found[i] > 0;
-      t.className = "wtile" + (cur ? (cur.all ? " found" : " hunt") : ever ? " known" : "") +
+      t.className = "wtile" + (cur ? (cur.all ? " found" : " hunt") : " known") +
         (newly.indexOf(i) >= 0 ? " fresh" : "");
       var word = document.createElement("b");
-      word.textContent = cur && !cur.all ? "?" : ever ? w.w : "";
+      word.textContent = cur && !cur.all ? "?" : w.w;
       t.appendChild(word);
+      if (!cur) {
+        var lt = document.createElement("small");
+        lt.textContent = w.lt;
+        t.appendChild(lt);
+      }
       if (cur && cur.all) {
         cur.group.sides.forEach(function (s) {
           if (s < 0) return;
