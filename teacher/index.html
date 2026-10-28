@@ -1996,12 +1996,14 @@
 
   function closeQuiz() {
     stopPoll();
+    cancelBack();
     closeFull(el("quiz"));
     renderLiveDot();
   }
 
   function showPick() {
     stopPoll();
+    cancelBack();
     el("quizTitle").textContent = "Testai: " + quizClass.grade + " klasė";
     el("quizStop").hidden = el("quizCsv").hidden = el("quizNew").hidden = true;
     el("quizBoard").hidden = true;
@@ -2094,12 +2096,50 @@
   }
 
   function refreshBoard() {
+    var wasLive = board && board.live ? board.id : null;
     return rpc("teacher_run_board", { p_token: token, p_class: quizClass.id }).then(function (res) {
       board = res;
       quizClass.live_run = board && board.live ? board.id : null;
       if (board) renderBoard();
       if (board && board.live) startPoll(); else stopPoll();
+      if (allFinished(board)) autoStop(board.id);
+      else if (wasLive && board && !board.live && board.id === wasLive && !el("quiz").hidden) scheduleBack();
     }).catch(quizFail);
+  }
+
+  // A test ends by itself once everyone who joined has answered every
+  // question (not a task: no questions), and the screen goes back to the
+  // list BACK_S after any end; a click on the board keeps the results up.
+  var BACK_S = 10, backTimer = null, stopping = null;
+
+  function allFinished(b) {
+    return !!(b && b.live && b.n > 0 && b.students.length &&
+      b.students.every(function (r) { return r.answered >= b.n; }));
+  }
+
+  function autoStop(id) {
+    if (stopping === id) return;
+    stopping = id;
+    rpc("teacher_run_stop", { p_token: token, p_run: id }).then(refreshBoard).catch(quizFail);
+  }
+
+  function scheduleBack() {
+    cancelBack();
+    var left = BACK_S, title = board.title + ": baigta";
+    var tick = function () {
+      if (left <= 0) { backTimer = null; showPick(); return; }
+      el("quizTitle").textContent = title + " · testų sąrašas po " + left + " s";
+      left -= 1;
+      backTimer = setTimeout(tick, 1000);
+    };
+    tick();
+  }
+
+  function cancelBack() {
+    if (!backTimer) return;
+    clearTimeout(backTimer);
+    backTimer = null;
+    if (board && !board.live) el("quizTitle").textContent = board.title + ": baigta";
   }
 
   // 💤 once a student has been out of the browser this long (187). Tuning knob.
@@ -2199,6 +2239,8 @@
   el("quizBtn").addEventListener("click", openQuiz);
   el("quizClose").addEventListener("click", closeQuiz);
   el("quizNew").addEventListener("click", showPick);
+  el("quizBoard").addEventListener("click", cancelBack);
+  el("quizCsv").addEventListener("click", cancelBack);
 
   el("quizStop").addEventListener("click", function () {
     if (!confirm("Baigti testą? Neatsakyti klausimai liks neatsakyti.")) return;
