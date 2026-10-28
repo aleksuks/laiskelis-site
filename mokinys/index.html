@@ -1156,15 +1156,18 @@
     if (!c || c.found) return;
     var now = Date.now();
     var word = c.kind === "word";
-    var open = !word || now < gLocal.hideAt || now < gLocal.peekUntil;
+    // 7 kl. (214): the word never hides
+    var open = !word || c.keep || now < gLocal.hideAt || now < gLocal.peekUntil;
     el("gCard").className = "wcard" + (word ? " word" : "") + (open ? "" : " hidden");
-    el("gKind").textContent = !word ? "Tavo užuomina. Perskaityk ją rusiškai ir rask žodį." :
+    el("gKind").textContent = !word ? (/[а-яё]/i.test(c.text) ? "Tavo užuomina. Perskaityk ją rusiškai ir rask žodį." :
+      "Tavo užuomina lietuviškai. Rask, kas turi šį žodį rusiškai.") :
+      c.keep ? "Tavo žodis. Perskaityk jį rusiškai ir rask porą." :
       open ? "Tavo žodis. Įsimink!" : "Prisimink savo žodį";
     el("gText").textContent = open ? c.text : "?";
     el("gPeek").hidden = open;
-    el("gTimer").hidden = !(word && open);
+    el("gTimer").hidden = !(word && open) || !!c.keep;
     if (gameTimer) clearTimeout(gameTimer);
-    if (word && open) {
+    if (word && open && !c.keep) {
       var until = Math.max(gLocal.hideAt, gLocal.peekUntil);
       var bar = el("gTimerBar");
       if (bar.dataset.until !== String(until)) {
