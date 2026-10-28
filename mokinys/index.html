@@ -355,7 +355,7 @@
         <button class="btn" id="gGo">Radome!</button>
       </form>
       <p id="gMsg" class="msg" hidden></p>
-      <p class="sub">Kalbėk tik rusiškai. Kortelės nerodyk: pasakyk ją.</p>
+      <p class="sub">Kalbėk tik rusiškai. Ekrano nerodyk: pasakyk.</p>
     </div>
     <div class="wcard found-card" id="gFound" hidden></div>
   </div>
@@ -1080,10 +1080,11 @@
 
   /* ---------- word game "Žodžių poros" (197) ---------- */
 
-  // The phone polls while a game is on (the board deals rounds). The card
-  // shows CARD_S seconds from when the server first sent it, also after a
-  // reload, then hides: the student says it from memory. A peek shows it
-  // PEEK_S seconds and counts on the board (the class total, no names).
+  // The phone polls while a game is on (the board deals rounds). A word
+  // card shows CARD_S seconds from when the server first sent it, also after
+  // a reload, then hides: the student says the word from memory. A peek
+  // shows it PEEK_S seconds and counts on the board (the class total, no
+  // names). A clue (a whole sentence) stays on screen: it is read aloud.
   var CARD_S = 8, PEEK_S = 3, GAME_POLL_MS = 2500;   // tuning knobs
   var game = null, gamePoll = null, gameTimer = null;
   var gLocal = { round: -1, hideAt: 0, peekUntil: 0 };
@@ -1126,14 +1127,16 @@
     var c = game && game.card;
     if (!c || c.found) return;
     var now = Date.now();
-    var open = now < gLocal.hideAt || now < gLocal.peekUntil;
-    el("gCard").className = "wcard" + (c.kind === "word" ? " word" : "") + (open ? "" : " hidden");
-    el("gKind").textContent = open ? (c.kind === "word" ? "Tavo žodis. Įsimink!" : "Tavo užuomina. Įsimink!") : "Prisimink savo kortelę";
+    var word = c.kind === "word";
+    var open = !word || now < gLocal.hideAt || now < gLocal.peekUntil;
+    el("gCard").className = "wcard" + (word ? " word" : "") + (open ? "" : " hidden");
+    el("gKind").textContent = !word ? "Tavo užuomina. Perskaityk ją rusiškai ir rask žodį." :
+      open ? "Tavo žodis. Įsimink!" : "Prisimink savo žodį";
     el("gText").textContent = open ? c.text : "?";
     el("gPeek").hidden = open;
-    el("gTimer").hidden = !open;
+    el("gTimer").hidden = !(word && open);
     if (gameTimer) clearTimeout(gameTimer);
-    if (open) {
+    if (word && open) {
       var until = Math.max(gLocal.hideAt, gLocal.peekUntil);
       var bar = el("gTimerBar");
       if (bar.dataset.until !== String(until)) {
