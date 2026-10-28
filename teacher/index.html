@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281500">
+<link rel="stylesheet" href="style.css?v=202610281600">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -201,6 +201,7 @@
       <button class="btn quiet" type="button" data-mode="intro">Susipažinti</button>
       <button class="btn quiet" type="button" data-mode="pairs">Poros</button>
       <button class="btn quiet" type="button" data-mode="fade">Lenta</button>
+      <button class="btn quiet" type="button" data-mode="top">Lyderiai</button>
     </span>
     <button class="btn" type="button" id="wordsStop" hidden>Baigti</button>
     <button class="btn quiet" type="button" id="wordsNew" hidden>Kiti žodžiai</button>
@@ -221,6 +222,7 @@
     <div class="wall" id="wall"></div>
   </div>
   <div class="fade-grid" id="fadeGrid" hidden></div>
+  <div class="leaders" id="wordsTop" hidden></div>
 </div>
 
 <!-- ---------- PINs: shown once, when issued ---------- -->
@@ -2474,7 +2476,8 @@
     wgStopAuto();
     wg.mode = mode;
     var game = wg.board && wg.board.live;
-    if (game && mode !== "pairs" && wg.board.phase === "pairs") {
+    // the leaderboard mid-round leaves the cards out
+    if (game && mode !== "pairs" && mode !== "top" && wg.board.phase === "pairs") {
       rpc("teacher_word_phase", { p_token: token, p_game: wg.board.id, p_phase: "screen" }).catch(wordsFail);
       wg.board.phase = "screen";
     }
@@ -2487,6 +2490,7 @@
     if (mode === "fade") { wg.step = 0; wg.open = {}; }
     if (mode === "pairs" && game && (wg.board.phase !== "pairs" || !wg.board.round)) return dealRound();
     if (game) wgStartPoll(); else wgStopPoll();
+    if (mode === "top") return refreshWords();
     renderWords();
   }
 
@@ -2523,6 +2527,7 @@
     el("wordsIntro").hidden = m !== "intro";
     el("wordsPairs").hidden = m !== "pairs";
     el("fadeGrid").hidden = m !== "fade";
+    el("wordsTop").hidden = m !== "top";
     el("wordsModes").hidden = !game;
     el("wordsModes").querySelectorAll("button").forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.mode === m));
@@ -2530,7 +2535,7 @@
     el("wordsStop").hidden = !game;
     el("wordsNew").hidden = m === "pick" || game;
     el("wordsBack").hidden = !(m === "intro" || m === "fade");
-    el("wordsNext").hidden = m === "pick";
+    el("wordsNext").hidden = m === "pick" || m === "top";
     el("wordsAuto").hidden = el("wordsHard").hidden = m !== "fade";
     el("wordsHard").setAttribute("aria-pressed", String(wg.hard));
     el("wordsNext").textContent = m === "pairs" ? "Kitas raundas" : "Toliau";
@@ -2538,6 +2543,7 @@
     el("wordsCount").textContent =
       m === "intro" ? (wg.page + 1) + " / " + Math.ceil(n / INTRO_PACK) :
       m === "pairs" ? "Raundas " + wg.board.round :
+      m === "top" ? (wg.board.round ? wg.board.round + " raund." : "") :
       m === "fade" ? (wg.step < FADE_STEPS ? "Raidės dingsta: " + wg.step + " / " + FADE_STEPS : "Tik užuominos") : "";
   }
 
@@ -2547,6 +2553,55 @@
     if (wg.mode === "intro") renderIntro();
     else if (wg.mode === "pairs") renderPairs();
     else if (wg.mode === "fade") renderFade();
+    else if (wg.mode === "top") renderTop();
+  }
+
+  // Lyderiai: a pair found and no wrong code ranks on top, fewest peeks
+  // first; then those with wrong codes, fewest first, then peeks; then
+  // those who found nothing. Ties: more pairs found (203).
+  function renderTop() {
+    var b = wg.board;
+    var short = shortNames(wg.cls.students);
+    var rows = Object.keys(b.totals || {}).map(function (id) {
+      var t = b.totals[id];
+      return { id: id, found: t[0], wrong: t[1], peeks: t[2] };
+    });
+    // 0 clean, 1 wrong codes, 2 nothing found and nothing wrong
+    function tier(r) { return r.wrong ? 1 : r.found ? 0 : 2; }
+    var HEADS = ["Be klaidų", "Su klaidingais kodais", "Dar neradę poros"];
+    rows.sort(function (x, y) {
+      return tier(x) - tier(y) || x.wrong - y.wrong || x.peeks - y.peeks ||
+        y.found - x.found || (short[x.id] || "").localeCompare(short[y.id] || "", "lt");
+    });
+    var MEDALS = ["🥇", "🥈", "🥉"];
+    var frag = document.createDocumentFragment();
+    function head(text, t) {
+      var h = document.createElement("h3");
+      h.className = "t" + (t || 0);
+      h.textContent = text;
+      frag.appendChild(h);
+    }
+    var place = 0, prev = null;
+    rows.forEach(function (r, i) {
+      if (i === 0 || tier(rows[i - 1]) !== tier(r)) head(HEADS[tier(r)], tier(r));
+      // same numbers, same place
+      if (!prev || prev.wrong !== r.wrong || prev.peeks !== r.peeks || prev.found !== r.found) place = i + 1;
+      prev = r;
+      var row = document.createElement("div");
+      row.className = "leader" + (tier(r) ? " bad" : "");
+      var pl = document.createElement("span");
+      pl.className = "place";
+      pl.textContent = !tier(r) && place <= 3 ? MEDALS[place - 1] : place + ".";
+      var name = document.createElement("b");
+      name.textContent = short[r.id] || "?";
+      var stats = document.createElement("span");
+      stats.className = "stats";
+      stats.textContent = "žvilgsniai " + r.peeks + " · klaidos " + r.wrong + " · poros " + r.found;
+      row.append(pl, name, stats);
+      frag.appendChild(row);
+    });
+    if (!rows.length) head("Dar niekas nežaidė");
+    el("wordsTop").replaceChildren(frag);
   }
 
   function renderIntro() {
@@ -2822,7 +2877,8 @@
       wg.board.live = false;
       wg.cls.live_game = null;
       wgStopPoll();
-      if (wg.mode === "pairs" || wg.mode === "intro") showWordPick(); else renderWords();
+      setWordsMode("top");
+      Sound.fanfare();
     }).catch(wordsFail);
   });
 
