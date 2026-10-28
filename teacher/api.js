@@ -19,6 +19,7 @@ const ERRORS = {
   teacher_student_denied: "Prisijunk iš naujo.",
   teacher_quiz_closed: "Testas baigtas.",
   teacher_quiz_live: "Dabar vyksta testas.",
+  teacher_word_few: "Prisijungė per mažai telefonų: reikia bent dviejų.",
   feedback_empty: "Parašyk bent į vieną laukelį.",
   feedback_closed: "Atsiliepimų rinkimas jau baigtas.",
   feedback_full: "Šį kartą atsakymų jau surinkta pakankamai.",

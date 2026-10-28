@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610201800">
+<link rel="stylesheet" href="style.css?v=202610281000">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -35,6 +35,7 @@
       <button class="tool" id="wheelBtn" type="button"><img src="art/tool-wheel.png" alt="">Ratas</button>
       <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
       <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
+      <button class="tool" id="wordsBtn" type="button"><img src="art/tool-quiz.png" alt="">Žodžiai<span class="live-dot" id="wordsDot" hidden></span></button>
       <button class="tool" id="fbBtn" type="button"><img src="art/tool-feedback.png" alt="">Atsiliepimai<span class="live-dot" id="fbDot" hidden></span></button>
     </div>
     <div class="tools minor" id="toolsMinor">
@@ -187,6 +188,41 @@
   </div>
 </div>
 
+<!-- ---------- word game "Žodžių poros" (197): pick a set, then intro / pairs / fading board ---------- -->
+<div class="full" id="words" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="wordsTitle"></h2>
+    <span class="live-count" id="wordsCount"></span>
+    <button class="btn quiet" type="button" id="wordsBack" aria-label="Atgal" hidden>←</button>
+    <button class="btn" type="button" id="wordsNext" hidden>Toliau</button>
+    <button class="btn quiet" type="button" id="wordsAuto" aria-pressed="false" hidden>Auto</button>
+    <button class="btn quiet" type="button" id="wordsHard" aria-pressed="false" hidden>Sunkiausi</button>
+    <span class="seg" id="wordsModes" hidden>
+      <button class="btn quiet" type="button" data-mode="intro">Susipažinti</button>
+      <button class="btn quiet" type="button" data-mode="pairs">Poros</button>
+      <button class="btn quiet" type="button" data-mode="fade">Lenta</button>
+    </span>
+    <button class="btn" type="button" id="wordsStop" hidden>Baigti</button>
+    <button class="btn quiet" type="button" id="wordsNew" hidden>Kiti žodžiai</button>
+    <button class="btn quiet" type="button" id="wordsClose">Uždaryti</button>
+  </div>
+  <p id="wordsError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="quiz-pick" id="wordsPick"></div>
+  <div class="words-stage" id="wordsIntro" hidden>
+    <aside class="join">
+      <img src="../mokinys/qr.svg" alt="QR kodas: laiskelis.lt/mokinys">
+      <p>laiskelis.lt/mokinys</p>
+      <p class="joined" id="wordsJoined"></p>
+    </aside>
+    <div class="intro-list" id="introList"></div>
+  </div>
+  <div class="words-stage" id="wordsPairs" hidden>
+    <aside class="pair-side" id="pairSide"></aside>
+    <div class="wall" id="wall"></div>
+  </div>
+  <div class="fade-grid" id="fadeGrid" hidden></div>
+</div>
+
 <!-- ---------- PINs: shown once, when issued ---------- -->
 <div class="full" id="pins" hidden>
   <div class="bar">
@@ -304,7 +340,7 @@
 
 <div class="toast" id="toast" role="status" hidden><span id="toastText"></span><button type="button" id="toastUndo">Atšaukti</button></div>
 
-<script src="api.js?v=202610151450"></script>
+<script src="api.js?v=202610281000"></script>
 <script src="sound.js?v=202610151450"></script>
 <script src="insights.js?v=202610151450"></script>
 <script>
@@ -2025,7 +2061,7 @@
         b.addEventListener("click", function () {
           b.disabled = true;
           rpc("teacher_run_start", { p_token: token, p_class: quizClass.id, p_quiz: q.id })
-            .then(refreshBoard)
+            .then(function () { quizClass.live_game = null; return refreshBoard(); })
             .catch(quizFail)
             .then(function () { b.disabled = false; });
         });
@@ -2153,7 +2189,10 @@
     else if (!el("quiz").hidden && board && board.live) refreshBoard();
   });
 
-  function renderLiveDot() { el("liveDot").hidden = !(current && current.live_run); }
+  function renderLiveDot() {
+    el("liveDot").hidden = !(current && current.live_run);
+    el("wordsDot").hidden = !(current && current.live_game);
+  }
 
   el("quizBtn").addEventListener("click", openQuiz);
   el("quizClose").addEventListener("click", closeQuiz);
@@ -2324,6 +2363,416 @@
     else if (step.q !== undefined && /^[1-4]$/.test(e.key)) pickLive(step.q, Number(e.key) - 1);
   });
 
+  /* ---------- word game "Žodžių poros" (197) ---------- */
+
+  // Susipažinti: the set five words at a time, phones wait. Poros: each round
+  // every phone holds half of a pair (the word or a Russian clue), the card
+  // hides on the phone after a few seconds, partners type each other's code;
+  // a word goes up on the wall once its pair finds each other. Lenta: the
+  // words lose letters step by step while the class reads them aloud. "Tik
+  // lenta" on a set opens the board alone (a warm-up, no phones).
+  var WORDS_POLL_MS = 2000;
+  var INTRO_PACK = 5, FADE_STEPS = 5, FADE_AUTO_MS = 7000, HARD_N = 10;   // tuning knobs
+  var wg = null;       // { cls, set, stats, board, mode, page, step, open, hard, seen }
+  var wgPoll = null, wgAuto = null;
+
+  function wordsFail(err) {
+    if (err && err.code === "teacher_denied") { closeWords(); return signOut(); }
+    el("wordsError").textContent = err.message;
+    el("wordsError").hidden = false;
+  }
+
+  function openWords() {
+    wg = { cls: current, mode: "pick", page: 0, step: 0, open: {}, hard: false, seen: null };
+    el("wordsError").hidden = true;
+    openFull(el("words"));
+    rpc("teacher_word_board", { p_token: token, p_class: wg.cls.id }).then(function (b) {
+      if (b && b.live) { useBoard(b); setWordsMode(b.phase === "pairs" ? "pairs" : "intro"); }
+      else showWordPick();
+    }).catch(wordsFail);
+  }
+
+  function closeWords() {
+    wgStopPoll();
+    wgStopAuto();
+    closeFull(el("words"));
+    wg = null;
+    renderLiveDot();
+  }
+
+  function useBoard(b) {
+    wg.board = b;
+    wg.set = b ? b.set : wg.set;
+    wg.cls.live_game = b && b.live ? b.id : null;
+  }
+
+  function showWordPick() {
+    wg.mode = "pick";
+    wg.board = null;
+    wgStopPoll();
+    wgStopAuto();
+    renderWordsBar();
+    el("wordsPick").replaceChildren();
+    rpc("teacher_word_sets_for", { p_token: token, p_grade: wg.cls.grade }).then(function (list) {
+      if (!list.length) {
+        var none = document.createElement("p");
+        none.className = "pick-head";
+        none.textContent = "Šiai klasei žodžių rinkinių dar nėra";
+        el("wordsPick").appendChild(none);
+      }
+      list.forEach(function (s) {
+        var card = document.createElement("div");
+        card.className = "quiz-card";
+        var h = document.createElement("h3");
+        h.textContent = s.title;
+        var meta = document.createElement("p");
+        meta.className = "skill";
+        meta.textContent = s.topic + " · " + s.n + " žodž.";
+        var play = document.createElement("button");
+        play.className = "btn";
+        play.type = "button";
+        play.textContent = "Poros telefonais";
+        play.addEventListener("click", function () {
+          play.disabled = true;
+          rpc("teacher_word_start", { p_token: token, p_class: wg.cls.id, p_set: s.id })
+            .then(function () { return rpc("teacher_word_board", { p_token: token, p_class: wg.cls.id }); })
+            .then(function (b) {
+              useBoard(b);
+              wg.cls.live_run = null;
+              renderLiveDot();
+              wg.page = 0;
+              setWordsMode("intro");
+            })
+            .catch(wordsFail)
+            .then(function () { play.disabled = false; });
+        });
+        var board = document.createElement("button");
+        board.className = "btn quiet";
+        board.type = "button";
+        board.textContent = "Tik lenta";
+        board.addEventListener("click", function () {
+          rpc("teacher_word_set", { p_token: token, p_set: s.id, p_class: wg.cls.id }).then(function (full) {
+            wg.set = full;
+            wg.stats = full.stats;
+            wg.step = 0;
+            wg.open = {};
+            setWordsMode("fade");
+          }).catch(wordsFail);
+        });
+        var row = document.createElement("div");
+        row.className = "quiz-go";
+        row.append(play, board);
+        card.append(h, meta, row);
+        el("wordsPick").appendChild(card);
+      });
+    }).catch(wordsFail);
+  }
+
+  // Intro and the fading board are on the big screen only: the phones say
+  // "look at the board" (phase 'screen'). Poros deals a round if none is out.
+  function setWordsMode(mode) {
+    wgStopAuto();
+    wg.mode = mode;
+    var game = wg.board && wg.board.live;
+    if (game && mode !== "pairs" && wg.board.phase === "pairs") {
+      rpc("teacher_word_phase", { p_token: token, p_game: wg.board.id, p_phase: "screen" }).catch(wordsFail);
+      wg.board.phase = "screen";
+    }
+    if (mode === "fade" && game) {
+      // stats for "Sunkiausi": this class, all games with the set so far
+      rpc("teacher_word_set", { p_token: token, p_set: wg.set.id, p_class: wg.cls.id })
+        .then(function (full) { wg.stats = full.stats; if (wg.mode === "fade") renderFade(); })
+        .catch(wordsFail);
+    }
+    if (mode === "fade") { wg.step = 0; wg.open = {}; }
+    if (mode === "pairs" && game && (wg.board.phase !== "pairs" || !wg.board.round)) return dealRound();
+    if (game) wgStartPoll(); else wgStopPoll();
+    renderWords();
+  }
+
+  function dealRound() {
+    el("wordsNext").disabled = true;
+    return rpc("teacher_word_deal", { p_token: token, p_game: wg.board.id })
+      .then(function () { wg.seen = null; return refreshWords(); })
+      .then(function () { wg.mode = "pairs"; wgStartPoll(); renderWords(); })
+      .catch(wordsFail)
+      .then(function () { el("wordsNext").disabled = false; });
+  }
+
+  function refreshWords() {
+    if (!wg || !wg.board) return Promise.resolve();
+    return rpc("teacher_word_board", { p_token: token, p_class: wg.cls.id }).then(function (b) {
+      if (!wg) return;
+      useBoard(b);
+      if (!b || !b.live) wgStopPoll();
+      if (wg.mode !== "fade") renderWords();
+    }).catch(wordsFail);
+  }
+
+  function wgStartPoll() { if (!wgPoll && !document.hidden) wgPoll = setInterval(refreshWords, WORDS_POLL_MS); }
+  function wgStopPoll() { if (wgPoll) { clearInterval(wgPoll); wgPoll = null; } }
+  function wgStopAuto() {
+    if (wgAuto) { clearInterval(wgAuto); wgAuto = null; }
+    el("wordsAuto").setAttribute("aria-pressed", "false");
+  }
+
+  function renderWordsBar() {
+    var m = wg.mode, game = !!(wg.board && wg.board.live);
+    el("wordsTitle").textContent = m === "pick" ? "Žodžiai: " + wg.cls.grade + " klasė" : wg.set.title;
+    el("wordsPick").hidden = m !== "pick";
+    el("wordsIntro").hidden = m !== "intro";
+    el("wordsPairs").hidden = m !== "pairs";
+    el("fadeGrid").hidden = m !== "fade";
+    el("wordsModes").hidden = !game;
+    el("wordsModes").querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.mode === m));
+    });
+    el("wordsStop").hidden = !game;
+    el("wordsNew").hidden = m === "pick" || game;
+    el("wordsBack").hidden = !(m === "intro" || m === "fade");
+    el("wordsNext").hidden = m === "pick";
+    el("wordsAuto").hidden = el("wordsHard").hidden = m !== "fade";
+    el("wordsHard").setAttribute("aria-pressed", String(wg.hard));
+    el("wordsNext").textContent = m === "pairs" ? "Kitas raundas" : "Toliau";
+    var n = wg.set ? wg.set.words.length : 0;
+    el("wordsCount").textContent =
+      m === "intro" ? (wg.page + 1) + " / " + Math.ceil(n / INTRO_PACK) :
+      m === "pairs" ? "Raundas " + wg.board.round :
+      m === "fade" ? (wg.step < FADE_STEPS ? "Raidės dingsta: " + wg.step + " / " + FADE_STEPS : "Tik užuominos") : "";
+  }
+
+  function renderWords() {
+    if (!wg) return;
+    renderWordsBar();
+    if (wg.mode === "intro") renderIntro();
+    else if (wg.mode === "pairs") renderPairs();
+    else if (wg.mode === "fade") renderFade();
+  }
+
+  function renderIntro() {
+    var words = wg.set.words;
+    el("wordsJoined").textContent = "Telefonų: " + (wg.board ? wg.board.players : 0);
+    var frag = document.createDocumentFragment();
+    words.slice(wg.page * INTRO_PACK, (wg.page + 1) * INTRO_PACK).forEach(function (w) {
+      var row = document.createElement("div");
+      row.className = "intro-row";
+      var ru = document.createElement("span");
+      ru.className = "ru";
+      ru.textContent = w.w;
+      var lt = document.createElement("span");
+      lt.className = "lt";
+      lt.textContent = w.lt;
+      var ex = document.createElement("span");
+      ex.className = "ex";
+      ex.textContent = w.ex;
+      row.append(ru, lt, ex);
+      frag.appendChild(row);
+    });
+    el("introList").replaceChildren(frag);
+  }
+
+  // The wall: a word shows once it has been found in this game; this round's
+  // words are "?" until their pair (or trio) has all found each other.
+  function renderPairs() {
+    var b = wg.board;
+    var words = wg.set.words;
+    var short = shortNames(wg.cls.students);
+    var now = {}, done = 0, searching = [];
+    b.groups.forEach(function (g) {
+      var all = g.members.every(function (m) { return m.found; });
+      now[g.word] = { group: g, all: all };
+      if (all) done++;
+      g.members.forEach(function (m) { if (!m.found) searching.push(short[m.id] || "?"); });
+    });
+
+    // a group that just found each other: a sound; the whole round: a fanfare
+    var newly = [];
+    if (wg.seen && wg.seen.round === b.round) {
+      Object.keys(now).forEach(function (w) { if (now[w].all && !wg.seen.done[w]) newly.push(Number(w)); });
+    }
+    var finished = b.groups.length && done === b.groups.length;
+    var wasFinished = wg.seen && wg.seen.round === b.round && wg.seen.finished;
+    wg.seen = { round: b.round, finished: finished, done: {} };
+    Object.keys(now).forEach(function (w) { if (now[w].all) wg.seen.done[w] = true; });
+
+    var frag = document.createDocumentFragment();
+    words.forEach(function (w, i) {
+      var t = document.createElement("div");
+      var cur = now[i];
+      var ever = b.found[i] > 0;
+      t.className = "wtile" + (cur ? (cur.all ? " found" : " hunt") : ever ? " known" : "") +
+        (newly.indexOf(i) >= 0 ? " fresh" : "");
+      var word = document.createElement("b");
+      word.textContent = cur && !cur.all ? "?" : ever ? w.w : "";
+      t.appendChild(word);
+      if (cur && cur.all) {
+        cur.group.sides.forEach(function (s) {
+          if (s < 0) return;
+          var c = document.createElement("small");
+          c.textContent = w.clues[s];
+          t.appendChild(c);
+        });
+      }
+      if (ever) {
+        var dots = document.createElement("i");
+        dots.className = "tally";
+        dots.textContent = "•".repeat(Math.min(b.found[i], 8));
+        t.appendChild(dots);
+      }
+      frag.appendChild(t);
+    });
+    el("wall").replaceChildren(frag);
+
+    var r = b.rounds[b.round - 1] || { peeks: 0, wrong: 0 };
+    var prev = b.rounds[b.round - 2];
+    var side = document.createDocumentFragment();
+    function fact(big, label, note) {
+      var p = document.createElement("div");
+      p.className = "pfact";
+      var n = document.createElement("b");
+      n.textContent = big;
+      var s = document.createElement("span");
+      s.textContent = label;
+      p.append(n, s);
+      if (note) { var m = document.createElement("small"); m.textContent = note; p.appendChild(m); }
+      side.appendChild(p);
+    }
+    fact(done + " / " + b.groups.length, "poros rado viena kitą");
+    fact(r.peeks, "žvilgsniai", prev ? "praeitą raundą " + prev.peeks : "");
+    fact(r.wrong, "klaidingi kodai");
+    var who = document.createElement("p");
+    who.className = "hunting";
+    who.textContent = searching.length ? "Dar ieško: " + searching.sort().join(", ") : "";
+    side.appendChild(who);
+    var phones = document.createElement("p");
+    phones.className = "phones";
+    phones.textContent = "Telefonų: " + b.players + " · laiskelis.lt/mokinys";
+    side.appendChild(phones);
+    el("pairSide").replaceChildren(side);
+
+    if (newly.length && !finished) Sound.right();
+    if (finished && !wasFinished && wg.seen && b.round) {
+      Sound.fanfare();
+      confetti(el("wall"));
+    }
+  }
+
+  // The fading board. Each word loses letters in its own fixed order, the
+  // first letter last; at the end only the clue is left. A click on a card
+  // shows that word whole until clicked again.
+  function fadeOrder(units, seed) {
+    var idx = [];
+    units.forEach(function (u, i) { if (/[а-яё]/i.test(u)) idx.push(i); });
+    var first = idx.shift();
+    var x = seed * 9301 + 49297;
+    for (var i = idx.length - 1; i > 0; i--) {
+      x = (x * 9301 + 49297) % 233280;
+      var j = Math.floor(x / 233280 * (i + 1));
+      var t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+    }
+    if (first !== undefined) idx.push(first);
+    return idx;
+  }
+
+  function fadeWords() {
+    var list = wg.set.words.map(function (w, i) { return { w: w, i: i }; });
+    if (!wg.hard || !wg.stats) return list;
+    // trouble per round dealt; never dealt counts as hard too
+    function score(i) { var s = wg.stats[i]; return s.dealt ? s.trouble / s.dealt : 1; }
+    return list.slice().sort(function (a, b) { return score(b.i) - score(a.i); }).slice(0, HARD_N);
+  }
+
+  function renderFade() {
+    renderWordsBar();
+    var frag = document.createDocumentFragment();
+    fadeWords().forEach(function (o) {
+      var w = o.w;
+      var units = w.w.match(/[^́]́?/g) || [];
+      var order = fadeOrder(units, o.i + 1);
+      var gone = {};
+      var k = wg.open[o.i] ? 0 : Math.round(order.length * Math.min(wg.step, FADE_STEPS) / FADE_STEPS);
+      order.slice(0, k).forEach(function (u) { gone[u] = true; });
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "fcard" + (wg.open[o.i] ? " open" : "");
+      var word = document.createElement("b");
+      units.forEach(function (u, i) {
+        var s = document.createElement("span");
+        if (gone[i]) { s.className = "gap"; s.textContent = "_"; } else s.textContent = u;
+        word.appendChild(s);
+      });
+      var clue = document.createElement("small");
+      clue.textContent = w.clues[1];
+      card.append(word, clue);
+      card.addEventListener("click", function () {
+        wg.open[o.i] = !wg.open[o.i];
+        renderFade();
+      });
+      frag.appendChild(card);
+    });
+    el("fadeGrid").replaceChildren(frag);
+  }
+
+  function wordsStep(d) {
+    if (!wg) return;
+    if (wg.mode === "intro") {
+      var pages = Math.ceil(wg.set.words.length / INTRO_PACK);
+      if (d > 0 && wg.page === pages - 1) return setWordsMode("pairs");
+      wg.page = Math.max(0, Math.min(pages - 1, wg.page + d));
+      renderWords();
+    } else if (wg.mode === "fade") {
+      wg.step = Math.max(0, Math.min(FADE_STEPS, wg.step + d));
+      if (d > 0) wg.open = {};
+      if (wg.step === FADE_STEPS) wgStopAuto();
+      renderFade();
+    } else if (wg.mode === "pairs" && d > 0) {
+      dealRound();
+    }
+  }
+
+  el("wordsBtn").addEventListener("click", openWords);
+  el("wordsClose").addEventListener("click", closeWords);
+  el("wordsNew").addEventListener("click", showWordPick);
+  el("wordsNext").addEventListener("click", function () { wordsStep(1); });
+  el("wordsBack").addEventListener("click", function () { wordsStep(-1); });
+  el("wordsModes").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-mode]");
+    if (b && b.dataset.mode !== wg.mode) setWordsMode(b.dataset.mode);
+  });
+  el("wordsAuto").addEventListener("click", function () {
+    if (wgAuto) return wgStopAuto();
+    el("wordsAuto").setAttribute("aria-pressed", "true");
+    wgAuto = setInterval(function () { wordsStep(1); }, FADE_AUTO_MS);
+  });
+  el("wordsHard").addEventListener("click", function () {
+    wg.hard = !wg.hard;
+    renderFade();
+  });
+  el("wordsStop").addEventListener("click", function () {
+    if (!confirm("Baigti žaidimą? Telefonai grįš į pradžią.")) return;
+    rpc("teacher_word_stop", { p_token: token, p_game: wg.board.id }).then(function () {
+      wg.board.live = false;
+      wg.cls.live_game = null;
+      wgStopPoll();
+      if (wg.mode === "pairs" || wg.mode === "intro") showWordPick(); else renderWords();
+    }).catch(wordsFail);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!wg || el("words").hidden || !el("wheel").hidden || e.target.closest("textarea, input")) return;
+    if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") {
+      if (wg.mode === "pick" || e.target.closest("button") && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      if (wg.mode === "pairs") return;   // a new round only by the button: a stray Space would cut one short
+      wordsStep(1);
+    } else if (e.key === "ArrowLeft") wordsStep(-1);
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) wgStopPoll();
+    else if (wg && !el("words").hidden && wg.board && wg.board.live) { refreshWords(); wgStartPoll(); }
+  });
+
   /* ---------- PINs ---------- */
 
   var shownPins = {};          // student id -> PIN, only while the sheet is open
@@ -2400,6 +2849,7 @@
     if (e.key !== "Escape") return;
     if (!el("wheel").hidden) return el("wheelClose").click();
     if (!el("quiz").hidden) return closeQuiz();
+    if (!el("words").hidden) return closeWords();
     if (!el("live").hidden) return el("liveClose").click();
     if (!el("pins").hidden) return el("pinsClose").click();
     if (!el("lessons").hidden) return el("lessonsClose").click();

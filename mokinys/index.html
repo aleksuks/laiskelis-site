@@ -247,6 +247,24 @@
   .fb { border: 3px solid var(--blue); border-radius: 18px; padding: 14px 16px; }
   .fb textarea { min-height: 90px; font-weight: 400; }
   .fb-done { text-align: center; }
+
+  /* word game (197): one half of a pair, hidden after a few seconds */
+  .wcard { background: #fff; border: 3px solid var(--blue); border-radius: 18px; padding: 26px 20px; min-height: 170px; display: flex; flex-direction: column; justify-content: center; gap: 10px; text-align: center; }
+  .wcard .kind { font-size: 15px; color: var(--ink-dim); }
+  .wcard .text { font-size: 26px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+  .wcard.word .text { font-size: 38px; color: var(--blue); }
+  .wcard.hidden { border-style: dashed; border-color: var(--frame); }
+  .wcard.hidden .text { font-family: var(--marker); font-size: 72px; color: var(--frame-dark); }
+  .codes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  .mycode { text-align: center; }
+  .mycode small { display: block; color: var(--ink-dim); font-size: 15px; }
+  .mycode b { font-size: 48px; line-height: 1; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+  .codes input { font-size: 32px; text-align: center; letter-spacing: 0.1em; }
+  .codes .btn { grid-column: 1 / -1; }
+  .found-card { border-color: var(--green); background: #eef8f1; }
+  .found-card .text { color: var(--green); }
+  .found-card .lt { color: var(--ink-dim); }
+  .found-card .clue { font-size: 18px; }
 </style>
 </head>
 <body>
@@ -312,8 +330,8 @@
     <p id="statsError" class="msg" hidden></p>
     <!-- No polling here (spec): the student taps when the teacher starts. -->
     <div class="waiting">
-      <p><b>Aktyvaus testo nėra.</b> Kai bus, paspausk&nbsp;čia:</p>
-      <button class="btn" type="button" id="checkQuiz">Įeiti į testą</button>
+      <p><b>Aktyvaus testo ar žaidimo nėra.</b> Kai bus, paspausk&nbsp;čia:</p>
+      <button class="btn" type="button" id="checkQuiz">Įeiti</button>
       <p class="note" id="quizNote" role="status" hidden>Testas dar neprasidėjo. Palauk mokytojos ženklo.</p>
     </div>
     <div class="screen" id="skills"></div>
@@ -322,6 +340,24 @@
       <button type="button" id="newPinBtn">Naujas PIN</button>
       <button type="button" id="logout">Atsijungti</button>
     </div>
+  </div>
+
+  <div id="game" class="screen" hidden>
+    <div class="top"><span id="gRound"></span><span class="top-right"><button class="sound-btn" id="gSound" type="button"><img id="gSoundArt" alt=""></button></span></div>
+    <div class="waiting" id="gWait"><p class="note" id="gWaitText"></p></div>
+    <div class="screen" id="gPlay">
+      <div class="wcard" id="gCard"><div class="kind" id="gKind"></div><div class="text" id="gText"></div></div>
+      <div class="timer" id="gTimer"><i id="gTimerBar"></i></div>
+      <button class="btn quiet" type="button" id="gPeek">Žvilgtelėti</button>
+      <form class="codes" id="gMatch">
+        <div class="mycode"><small>Tavo kodas</small><b id="gCode"></b></div>
+        <label>Poros kodas<input type="text" id="gPartner" inputmode="numeric" maxlength="2" autocomplete="off" required></label>
+        <button class="btn" id="gGo">Radome!</button>
+      </form>
+      <p id="gMsg" class="msg" hidden></p>
+      <p class="sub">Kalbėk tik rusiškai. Kortelės nerodyk: pasakyk ją.</p>
+    </div>
+    <div class="wcard found-card" id="gFound" hidden></div>
   </div>
 
   <div id="pinView" class="screen" hidden>
@@ -341,7 +377,7 @@
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView"];
+  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView", "game"];
   var TOKEN_KEY = "mokinys.token";
 
   var QUESTION_SECONDS = 30;   // per question; a timeout counts as wrong
@@ -488,6 +524,7 @@
   }
 
   function showLogin(message) {
+    stopGamePoll();
     clearTimers();
     el("loginError").textContent = message || "";
     el("loginError").hidden = !message;
@@ -538,9 +575,13 @@
     return rpc("teacher_student_state", { p_token: token }).then(function (res) {
       run = res.run;
       sendAway();   // reopened after closing the browser: no longer away
+      if (res.game) { game = res.game; showGame(); return; }
+      game = null;
+      stopGamePoll();
       if (run) route(); else openStats();
     }).catch(function (err) {
       if (signedOut(err)) return;
+      if (screen === "game") return;   // a missed poll: the next one tries again
       if (screen === "stats") statsError(err.message); else showLogin(err.message);
     });
   }
@@ -1023,7 +1064,7 @@
 
   // Coming back to the tab is the moment a quiz may have started.
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && token && screen === "stats") refresh();
+    if (!document.hidden && token && (screen === "stats" || screen === "game")) refresh();
     if (!document.hidden && screen === "login") checkGuestOpen();
   });
 
@@ -1036,6 +1077,137 @@
       JSON.stringify({ t: token, r: run.id, a: document.hidden }));
   }
   document.addEventListener("visibilitychange", sendAway);
+
+  /* ---------- word game "Žodžių poros" (197) ---------- */
+
+  // The phone polls while a game is on (the board deals rounds). The card
+  // shows CARD_S seconds from when the server first sent it, also after a
+  // reload, then hides: the student says it from memory. A peek shows it
+  // PEEK_S seconds and counts on the board (the class total, no names).
+  var CARD_S = 8, PEEK_S = 3, GAME_POLL_MS = 2500;   // tuning knobs
+  var game = null, gamePoll = null, gameTimer = null;
+  var gLocal = { round: -1, hideAt: 0, peekUntil: 0 };
+
+  function startGamePoll() {
+    if (!gamePoll) gamePoll = setInterval(function () { if (!document.hidden) refresh(); }, GAME_POLL_MS);
+  }
+  function stopGamePoll() {
+    if (gamePoll) { clearInterval(gamePoll); gamePoll = null; }
+    if (gameTimer) { clearTimeout(gameTimer); gameTimer = null; }
+  }
+
+  function showGame() {
+    clearTimers();
+    startGamePoll();
+    var c = game.card;
+    if (game.round !== gLocal.round || (c && !gLocal.hideAt)) {
+      if (game.round !== gLocal.round && c && screen === "game") Sound.pop();
+      gLocal = { round: game.round, hideAt: c ? Date.now() + Math.max(0, CARD_S - c.shown_s) * 1000 : 0, peekUntil: 0 };
+      el("gPartner").value = "";
+      el("gMsg").hidden = true;
+    }
+    el("gRound").textContent = game.round ? "Raundas " + game.round : "Žodžių poros";
+    var waiting = game.phase !== "pairs" || !c;
+    el("gWait").hidden = !waiting;
+    el("gPlay").hidden = waiting || c.found;
+    el("gFound").hidden = waiting || !c.found;
+    if (waiting) {
+      el("gWaitText").textContent = game.phase !== "pairs" ? "👀 Žiūrėk į ekraną." : "Palauk kito raundo: tuoj gausi kortelę.";
+    } else if (c.found) {
+      renderFound(c.pair);
+    } else {
+      el("gCode").textContent = c.code;
+      renderCard();
+    }
+    if (screen !== "game") show("game");
+  }
+
+  function renderCard() {
+    var c = game && game.card;
+    if (!c || c.found) return;
+    var now = Date.now();
+    var open = now < gLocal.hideAt || now < gLocal.peekUntil;
+    el("gCard").className = "wcard" + (c.kind === "word" ? " word" : "") + (open ? "" : " hidden");
+    el("gKind").textContent = open ? (c.kind === "word" ? "Tavo žodis. Įsimink!" : "Tavo užuomina. Įsimink!") : "Prisimink savo kortelę";
+    el("gText").textContent = open ? c.text : "?";
+    el("gPeek").hidden = open;
+    el("gTimer").hidden = !open;
+    if (gameTimer) clearTimeout(gameTimer);
+    if (open) {
+      var until = Math.max(gLocal.hideAt, gLocal.peekUntil);
+      var bar = el("gTimerBar");
+      if (bar.dataset.until !== String(until)) {
+        bar.dataset.until = until;
+        bar.style.transition = "none";
+        bar.style.transform = "scaleX(1)";
+        void bar.offsetWidth;
+        bar.style.transition = "transform " + (until - now) / 1000 + "s linear";
+        bar.style.transform = "scaleX(0)";
+      }
+      gameTimer = setTimeout(renderCard, until - now + 50);
+    }
+  }
+
+  function renderFound(p) {
+    var box = el("gFound");
+    box.replaceChildren();
+    var head = document.createElement("div");
+    head.className = "kind";
+    head.textContent = "Radote vienas kitą! Jūsų pora:";
+    var w = document.createElement("div");
+    w.className = "text";
+    w.textContent = p.w;
+    var lt = document.createElement("div");
+    lt.className = "lt";
+    lt.textContent = p.lt;
+    box.append(head, w, lt);
+    (p.clues || []).forEach(function (t) {
+      var c = document.createElement("div");
+      c.className = "clue";
+      c.textContent = t;
+      box.appendChild(c);
+    });
+    var wait = document.createElement("div");
+    wait.className = "kind";
+    wait.textContent = "Palauk kito raundo.";
+    box.appendChild(wait);
+  }
+
+  el("gPeek").addEventListener("click", function () {
+    gLocal.peekUntil = Date.now() + PEEK_S * 1000;
+    renderCard();
+    rpc("teacher_student_word_peek", { p_token: token, p_game: game.id }).catch(function (err) { signedOut(err); });
+  });
+
+  el("gMatch").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var code = parseInt(el("gPartner").value, 10);
+    el("gMsg").hidden = true;
+    if (!(code >= 10 && code <= 99)) { gameMsg("Kodas – du skaitmenys nuo 10 iki 99."); return; }
+    if (code === game.card.code) { gameMsg("Tai tavo kodas. Įrašyk poros kodą."); return; }
+    el("gGo").disabled = true;
+    rpc("teacher_student_word_match", { p_token: token, p_game: game.id, p_code: code }).then(function (res) {
+      if (res === "ok") { Sound.right(); return refresh(); }
+      el("gPartner").value = "";
+      if (res === "wrong") { Sound.wrong(); gameMsg("Ne jūsų pora. Ieškok toliau!"); }
+      else gameMsg("Tokio kodo šiame raunde nėra. Patikrink skaičių.");
+    }).catch(function (err) {
+      if (!signedOut(err)) refresh();
+    }).then(function () { el("gGo").disabled = false; });
+  });
+
+  function gameMsg(text) {
+    el("gMsg").textContent = text;
+    el("gMsg").hidden = false;
+  }
+
+  function renderGameSound() {
+    var on = Sound.enabled();
+    el("gSoundArt").src = "../teacher/art/tool-sound-" + (on ? "on" : "off") + ".png";
+    el("gSound").setAttribute("aria-label", on ? "Išjungti garsą" : "Įjungti garsą");
+  }
+  el("gSound").addEventListener("click", function () { Sound.toggle(); renderGameSound(); renderSound(); Sound.pop(); });
+  renderGameSound();
 
   /* ---------- new PIN ---------- */
 
