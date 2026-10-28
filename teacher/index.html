@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281000">
+<link rel="stylesheet" href="style.css?v=202610281300">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2622,6 +2622,7 @@
       frag.appendChild(t);
     });
     el("wall").replaceChildren(frag);
+    fitWords(el("wall"));
 
     var r = b.rounds[b.round - 1] || { peeks: 0, wrong: 0 };
     var prev = b.rounds[b.round - 2];
@@ -2711,7 +2712,24 @@
       frag.appendChild(card);
     });
     el("fadeGrid").replaceChildren(frag);
+    fitWords(el("fadeGrid"));
   }
+
+  // A word longer than its tile (коллекционировать) shrinks until it fits;
+  // phrases still wrap between words.
+  function fitWords(scope) {
+    var bs = scope.querySelectorAll(".wtile b, .fcard b");
+    var i, ratio = [];
+    for (i = 0; i < bs.length; i++) bs[i].style.removeProperty("font-size");
+    for (i = 0; i < bs.length; i++) ratio.push(bs[i].clientWidth / bs[i].scrollWidth);
+    for (i = 0; i < bs.length; i++) {
+      if (ratio[i] < 1) bs[i].style.fontSize = (parseFloat(getComputedStyle(bs[i]).fontSize) * ratio[i] * 0.97).toFixed(1) + "px";
+    }
+  }
+  new ResizeObserver(function () {
+    if (wg && wg.mode === "pairs") fitWords(el("wall"));
+    if (wg && wg.mode === "fade") fitWords(el("fadeGrid"));
+  }).observe(el("words"));
 
   function wordsStep(d) {
     if (!wg) return;
