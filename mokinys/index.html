@@ -351,6 +351,7 @@
       <div class="timer" id="gTimer"><i id="gTimerBar"></i></div>
       <p class="verdict ok" id="gProgress" hidden></p>
       <button class="btn quiet" type="button" id="gPeek">Žvilgtelėti</button>
+      <button class="btn quiet" type="button" id="gLt" hidden>Lietuviškai</button>
       <form class="codes" id="gMatch">
         <div class="mycode"><small>Tavo kodas</small><b id="gCode"></b></div>
         <label>Poros kodas<input type="text" id="gPartner" inputmode="numeric" maxlength="2" autocomplete="off" required></label>
@@ -1159,11 +1160,16 @@
     // 7 kl. (214): the word never hides
     var open = !word || c.keep || now < gLocal.hideAt || now < gLocal.peekUntil;
     el("gCard").className = "wcard" + (word ? " word" : "") + (open ? "" : " hidden");
-    el("gKind").textContent = !word ? (/[а-яё]/i.test(c.text) ? "Tavo užuomina. Perskaityk ją rusiškai ir rask žodį." :
+    // I g (216): the clue can be switched to Lithuanian for the rest of the game
+    var lt = !word && c.lt && ltGame() === game.id;
+    el("gLt").hidden = !(!word && c.lt);
+    el("gLt").textContent = lt ? "Rusiškai" : "Lietuviškai";
+    el("gKind").textContent = lt ? "Tavo užuomina lietuviškai. Rask, kas turi šį žodį rusiškai." :
+      !word ? (/[а-яё]/i.test(c.text) ? "Tavo užuomina. Perskaityk ją rusiškai ir rask žodį." :
       "Tavo užuomina lietuviškai. Rask, kas turi šį žodį rusiškai.") :
       c.keep ? "Tavo žodis. Perskaityk jį rusiškai ir rask porą." :
       open ? "Tavo žodis. Įsimink!" : "Prisimink savo žodį";
-    el("gText").textContent = open ? c.text : "?";
+    el("gText").textContent = lt ? c.lt : open ? c.text : "?";
     el("gPeek").hidden = open;
     el("gTimer").hidden = !(word && open) || !!c.keep;
     if (gameTimer) clearTimeout(gameTimer);
@@ -1206,6 +1212,17 @@
     wait.textContent = "Palauk kito raundo.";
     box.appendChild(wait);
   }
+
+  function ltGame() {
+    try { return localStorage.getItem("mokinys.wordLt"); } catch (e) { return null; }
+  }
+  el("gLt").addEventListener("click", function () {
+    try {
+      if (ltGame() === game.id) localStorage.removeItem("mokinys.wordLt");
+      else localStorage.setItem("mokinys.wordLt", game.id);
+    } catch (e) {}
+    renderCard();
+  });
 
   el("gPeek").addEventListener("click", function () {
     gLocal.peekUntil = Date.now() + PEEK_S * 1000;
