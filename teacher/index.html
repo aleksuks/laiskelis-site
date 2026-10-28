@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281400">
+<link rel="stylesheet" href="style.css?v=202610281500">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2591,7 +2591,10 @@
     }
     var finished = b.groups.length && done === b.groups.length;
     var wasFinished = wg.seen && wg.seen.round === b.round && wg.seen.finished;
-    wg.seen = { round: b.round, finished: finished, done: {} };
+    // a wrong code anywhere in the room since the last poll: the fail sound on the board
+    var wrongNow = (b.rounds[b.round - 1] || { wrong: 0 }).wrong;
+    var wrongMore = wg.seen && wg.seen.round === b.round && wrongNow > wg.seen.wrong;
+    wg.seen = { round: b.round, finished: finished, done: {}, wrong: wrongNow };
     Object.keys(now).forEach(function (w) { if (now[w].all) wg.seen.done[w] = true; });
 
     var frag = document.createDocumentFragment();
@@ -2650,7 +2653,8 @@
     side.appendChild(phones);
     el("pairSide").replaceChildren(side);
 
-    if (newly.length && !finished) Sound.right();
+    if (wrongMore) Sound.wrong();
+    else if (newly.length && !finished) Sound.right();
     if (finished && !wasFinished && wg.seen && b.round) {
       Sound.fanfare();
       confetti(el("wall"));
@@ -2658,7 +2662,8 @@
   }
 
   // One line per phone, newest news on top: found / wrong code / peek /
-  // left (the phone stopped polling). Ages are server seconds (200).
+  // left (the phone stopped polling). Ages are server seconds (200). On the
+  // right the game's points: +1 a pair found, −1 a wrong code (202).
   var JUST_S = 20;   // "ką tik" for this long. Tuning knob.
 
   function statusList(b, short) {
@@ -2693,7 +2698,11 @@
       li.className = r.cls + (r.age !== null && r.age >= 0 && r.age <= 5 ? " fresh" : "");
       var n = document.createElement("b");
       n.textContent = short[r.id] || "?";
-      li.append(n, " " + r.text);
+      var pts = document.createElement("span");
+      var v = (b.points || {})[r.id] || 0;
+      pts.className = "pts" + (v < 0 ? " neg" : "");
+      pts.textContent = v > 0 ? "+" + v : String(v);
+      li.append(n, " " + r.text, pts);
       box.appendChild(li);
     });
     return box;

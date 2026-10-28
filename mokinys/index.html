@@ -68,6 +68,7 @@
   .top b { color: var(--ink); }
   #qScore { color: var(--green); font-weight: 700; margin-right: 6px; }
   #qNum, #qScore { white-space: nowrap; }
+  #gPoints { font-weight: 700; margin-right: 6px; font-variant-numeric: tabular-nums; }
   @media (max-width: 374px) { #qNum .wide { display: none; } }
   .sound-btn img { width: 30px; height: 30px; }
   /* framed like the mood screen's buttons, so it reads as one to tap */
@@ -343,7 +344,7 @@
   </div>
 
   <div id="game" class="screen" hidden>
-    <div class="top"><span id="gRound"></span><span class="top-right"><button class="sound-btn" id="gSound" type="button"><img id="gSoundArt" alt=""></button></span></div>
+    <div class="top"><span id="gRound"></span><span class="top-right"><span id="gPoints"></span><button class="sound-btn" id="gSound" type="button"><img id="gSoundArt" alt=""></button></span></div>
     <div class="waiting" id="gWait"><p class="note" id="gWaitText"></p></div>
     <div class="screen" id="gPlay">
       <div class="wcard" id="gCard"><div class="kind" id="gKind"></div><div class="text" id="gText"></div></div>
@@ -1124,6 +1125,9 @@
       el("gMsg").hidden = true;
     }
     el("gRound").textContent = game.round ? "Raundas " + game.round : "Žodžių poros";
+    // +1 a pair found, −1 a wrong code (202)
+    el("gPoints").textContent = game.round ? "Taškai: " + (game.points || 0) : "";
+    el("gPoints").style.color = (game.points || 0) < 0 ? "var(--red)" : "var(--green)";
     var waiting = game.phase !== "pairs" || !c;
     el("gWait").hidden = !waiting;
     el("gPlay").hidden = waiting || c.found;
@@ -1208,7 +1212,7 @@
     rpc("teacher_student_word_match", { p_token: token, p_game: game.id, p_code: code }).then(function (res) {
       if (res === "ok") { Sound.right(); return refresh(); }
       el("gPartner").value = "";
-      if (res === "wrong") { Sound.wrong(); gameMsg("Ne jūsų pora. Ieškok toliau!"); }
+      if (res === "wrong") { Sound.wrong(); gameMsg("Ne jūsų pora: −1 taškas. Ieškok toliau!"); refresh(); }
       else gameMsg("Tokio kodo šiame raunde nėra. Patikrink skaičių.");
     }).catch(function (err) {
       if (!signedOut(err)) refresh();
