@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281800">
+<link rel="stylesheet" href="style.css?v=202610281900">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2488,13 +2488,37 @@
         .catch(wordsFail);
     }
     if (mode === "fade") { wg.step = 0; wg.open = {}; }
-    if (mode === "pairs" && game && (wg.board.phase !== "pairs" || !wg.board.round)) return dealRound();
+    if (mode === "pairs" && game && (wg.board.phase !== "pairs" || !wg.board.round)) return requestRound();
     if (game) wgStartPoll(); else wgStopPoll();
     if (mode === "top") return refreshWords();
     renderWords();
   }
 
+  // A new round waits until every phone of the game is back (207): the
+  // board says who we're waiting for and deals by itself once they are;
+  // "Tęsti be jų" leaves them out (dead battery) until they poll again.
+  function missingPhones() {
+    var b = wg.board;
+    return (b && b.phones || []).filter(function (p) { return !p.skipped && p.seen_s > b.present_s; })
+      .map(function (p) { return p.id; });
+  }
+
+  function requestRound() {
+    if (wg.dealing) return Promise.resolve();
+    return refreshWords().then(function () {
+      if (!wg || !wg.board || !wg.board.live) return;
+      wg.mode = "pairs";
+      wg.waiting = missingPhones().length > 0;
+      if (!wg.waiting) return dealRound();
+      wgStartPoll();
+      renderWords();
+    });
+  }
+
   function dealRound() {
+    if (wg.dealing) return Promise.resolve();
+    wg.dealing = true;
+    wg.waiting = false;
     el("wordsNext").disabled = true;
     return rpc("teacher_word_deal", { p_token: token, p_game: wg.board.id })
       .then(function (round) {
@@ -2510,7 +2534,7 @@
         return refreshWords().then(function () { wg.mode = "pairs"; wgStartPoll(); renderWords(); });
       })
       .catch(wordsFail)
-      .then(function () { el("wordsNext").disabled = false; });
+      .then(function () { if (wg) wg.dealing = false; el("wordsNext").disabled = false; });
   }
 
   function refreshWords() {
@@ -2518,7 +2542,8 @@
     return rpc("teacher_word_board", { p_token: token, p_class: wg.cls.id }).then(function (b) {
       if (!wg) return;
       useBoard(b);
-      if (!b || !b.live) wgStopPoll();
+      if (!b || !b.live) { wgStopPoll(); wg.waiting = false; }
+      if (wg.waiting && !wg.dealing && !missingPhones().length) { dealRound(); return; }
       if (wg.mode !== "fade") renderWords();
     }).catch(wordsFail);
   }
@@ -2704,6 +2729,7 @@
       }
       frag.appendChild(t);
     });
+    if (wg.waiting) frag.insertBefore(waitBanner(short), frag.firstChild);
     el("wall").replaceChildren(frag);
     fitWords(el("wall"));
 
@@ -2740,6 +2766,28 @@
       Sound.fanfare();
       confetti(el("wall"));
     }
+  }
+
+  function waitBanner(short) {
+    var ids = missingPhones();
+    var box = document.createElement("div");
+    box.className = "wait-banner";
+    var h = document.createElement("b");
+    h.textContent = "Laukiame: " + ids.map(function (id) { return short[id] || "?"; }).sort().join(", ");
+    var p = document.createElement("span");
+    p.textContent = "Kitas raundas prasidės, kai visi grįš.";
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn quiet";
+    go.textContent = "Tęsti be jų";
+    go.addEventListener("click", function () {
+      go.disabled = true;
+      rpc("teacher_word_skip", { p_token: token, p_game: wg.board.id, p_students: missingPhones() })
+        .then(dealRound)
+        .catch(wordsFail);
+    });
+    box.append(h, p, go);
+    return box;
   }
 
   // One line per phone, newest news on top: found / wrong code / peek /
@@ -2881,7 +2929,7 @@
       if (wg.step === FADE_STEPS) wgStopAuto();
       renderFade();
     } else if (wg.mode === "pairs" && d > 0) {
-      dealRound();
+      requestRound();
     }
   }
 
