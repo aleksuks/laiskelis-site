@@ -621,8 +621,8 @@ button.pin:hover { color: var(--ink); }
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 32px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 28px;
   padding: 8px 24px 24px;
 }
 
@@ -632,12 +632,21 @@ button.pin:hover { color: var(--ink); }
 .intro-row .lt { align-self: center; font-size: clamp(20px, 2vw, 44px); color: var(--ink-dim); }
 .intro-row .ex { grid-column: 1 / -1; font-size: clamp(18px, 1.6vw, 34px); }
 
-.pair-side { display: flex; flex-direction: column; gap: 18px; }
-.pfact { display: grid; }
-.pfact b { font-family: var(--marker); font-size: 72px; line-height: 0.9; color: var(--blue); font-variant-numeric: tabular-nums; }
-.pfact span { font-weight: 700; }
-.pfact small { color: var(--ink-dim); font-size: 15px; }
-.pair-side .hunting { margin: 0; font-size: 18px; }
+.pair-side { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.pfacts { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 8px; }
+.pfact { display: grid; align-content: start; }
+.pfact b { font-family: var(--marker); font-size: 52px; line-height: 0.9; color: var(--blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pfact span { font-weight: 700; font-size: 15px; }
+.pfact small { color: var(--ink-dim); font-size: 13px; }
+.status-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; font-size: 18px; line-height: 1.25; }
+.status-list li { padding: 4px 8px; border-radius: 8px; border-left: 5px solid var(--frame); }
+.status-list li.ok { border-color: var(--green); color: var(--green); }
+.status-list li.bad { border-color: var(--red); color: var(--red); }
+.status-list li.peek { border-color: #b67a0c; color: #8a5b00; }
+.status-list li.gone { border-color: var(--frame-dark); color: var(--ink-dim); font-style: italic; }
+.status-list li.hunt { color: var(--ink-dim); }
+.status-list li b { color: var(--ink); }
+.status-list li.fresh { background: #fff6d6; }
 .pair-side .phones { margin: auto 0 0; color: var(--ink-dim); font-size: 15px; }
 
 .wall {

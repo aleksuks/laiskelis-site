@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610281300">
+<link rel="stylesheet" href="style.css?v=202610281400">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -2577,12 +2577,11 @@
     var b = wg.board;
     var words = wg.set.words;
     var short = shortNames(wg.cls.students);
-    var now = {}, done = 0, searching = [];
+    var now = {}, done = 0;
     b.groups.forEach(function (g) {
       var all = g.members.every(function (m) { return m.found; });
       now[g.word] = { group: g, all: all };
       if (all) done++;
-      g.members.forEach(function (m) { if (!m.found) searching.push(short[m.id] || "?"); });
     });
 
     // a group that just found each other: a sound; the whole round: a fanfare
@@ -2636,15 +2635,15 @@
       s.textContent = label;
       p.append(n, s);
       if (note) { var m = document.createElement("small"); m.textContent = note; p.appendChild(m); }
-      side.appendChild(p);
+      facts.appendChild(p);
     }
-    fact(done + " / " + b.groups.length, "poros rado viena kitą");
-    fact(r.peeks, "žvilgsniai", prev ? "praeitą raundą " + prev.peeks : "");
-    fact(r.wrong, "klaidingi kodai");
-    var who = document.createElement("p");
-    who.className = "hunting";
-    who.textContent = searching.length ? "Dar ieško: " + searching.sort().join(", ") : "";
-    side.appendChild(who);
+    var facts = document.createElement("div");
+    facts.className = "pfacts";
+    side.appendChild(facts);
+    fact(done + " / " + b.groups.length, "poros");
+    fact(r.peeks, "žvilgsniai", prev ? "praeitą kartą " + prev.peeks : "");
+    fact(r.wrong, "klaidos");
+    side.appendChild(statusList(b, short));
     var phones = document.createElement("p");
     phones.className = "phones";
     phones.textContent = "Telefonų: " + b.players + " · laiskelis.lt/mokinys";
@@ -2656,6 +2655,48 @@
       Sound.fanfare();
       confetti(el("wall"));
     }
+  }
+
+  // One line per phone, newest news on top: found / wrong code / peek /
+  // left (the phone stopped polling). Ages are server seconds (200).
+  var JUST_S = 20;   // "ką tik" for this long. Tuning knob.
+
+  function statusList(b, short) {
+    var rows = {};
+    function put(id, age, text, cls) {
+      var r = rows[id];
+      if (!r || (age !== null && (r.age === null || age < r.age))) rows[id] = { id: id, age: age, text: text, cls: cls };
+    }
+    b.groups.forEach(function (g) {
+      g.members.forEach(function (m) {
+        put(m.id, null, "ieško poros", "hunt");
+        if (m.found_s !== null) put(m.id, m.found_s, "rado porininką", "ok");
+        if (m.wrong_s !== null) put(m.id, m.wrong_s, m.wrong_s <= JUST_S ? "ką tik bandė klaidingai"
+          : "bandė klaidingai" + (m.wrong > 1 ? " jau " + m.wrong + " kartą" : ""), "bad");
+        if (m.peek_s !== null) put(m.id, m.peek_s, "žvilgtelėjo į žodį" + (m.peeks > 1 ? " jau " + m.peeks + " kartą" : ""), "peek");
+      });
+    });
+    b.phones.forEach(function (p) {
+      if (p.seen_s > b.present_s) { rows[p.id] = { id: p.id, age: -1, text: "atsijungė", cls: "gone" }; return; }
+      if (!rows[p.id]) put(p.id, null, "laukia kito raundo", "hunt");
+    });
+    var list = Object.keys(rows).map(function (k) { return rows[k]; });
+    list.sort(function (x, y) {
+      if (x.age === null || y.age === null) return (x.age === null) - (y.age === null) ||
+        (short[x.id] || "").localeCompare(short[y.id] || "", "lt");
+      return x.age - y.age;
+    });
+    var box = document.createElement("ul");
+    box.className = "status-list";
+    list.forEach(function (r) {
+      var li = document.createElement("li");
+      li.className = r.cls + (r.age !== null && r.age >= 0 && r.age <= 5 ? " fresh" : "");
+      var n = document.createElement("b");
+      n.textContent = short[r.id] || "?";
+      li.append(n, " " + r.text);
+      box.appendChild(li);
+    });
+    return box;
   }
 
   // The fading board. Each word loses letters in its own fixed order, the

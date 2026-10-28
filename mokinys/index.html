@@ -1089,17 +1089,33 @@
   var game = null, gamePoll = null, gameTimer = null;
   var gLocal = { round: -1, hideAt: 0, peekUntil: 0 };
 
+  // The screen stays on during the game: a phone that locks stops polling,
+  // misses the next deal and then joins late (201). The lock drops by
+  // itself when the page is hidden; showGame asks again on the next poll.
+  var wakeLock = null;
+  function keepAwake() {
+    if (wakeLock || !navigator.wakeLock || document.hidden) return;
+    wakeLock = true;
+    navigator.wakeLock.request("screen").then(function (l) {
+      wakeLock = l;
+      l.addEventListener("release", function () { wakeLock = null; });
+    }).catch(function () { wakeLock = null; });
+  }
+
   function startGamePoll() {
     if (!gamePoll) gamePoll = setInterval(function () { if (!document.hidden) refresh(); }, GAME_POLL_MS);
   }
   function stopGamePoll() {
     if (gamePoll) { clearInterval(gamePoll); gamePoll = null; }
     if (gameTimer) { clearTimeout(gameTimer); gameTimer = null; }
+    if (wakeLock && wakeLock.release) wakeLock.release().catch(function () {});
+    wakeLock = null;
   }
 
   function showGame() {
     clearTimers();
     startGamePoll();
+    keepAwake();
     var c = game.card;
     if (game.round !== gLocal.round || (c && !gLocal.hideAt)) {
       if (game.round !== gLocal.round && c && screen === "game") Sound.pop();
