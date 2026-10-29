@@ -1438,6 +1438,13 @@
             return [DAY_FMT.format(new Date(r.at)) + " · " + r.title, r.correct + "/" + r.n, gradeFor(r.correct, r.n)];
           }), true));
         }
+        // Word-pair games (233): +1 a pair found, −1 a wrong code, as on the board.
+        if (x.stats.pairs && x.stats.pairs.length) {
+          d.appendChild(historyTable(["Poros", "Rasta", "Klaidos", "Taškai", "Pažymys"], x.stats.pairs.slice().reverse().map(function (g) {
+            var pts = g.found - g.wrong;
+            return [DAY_FMT.format(new Date(g.at)) + " · " + g.title, g.found + "/" + g.cards, g.wrong, pts, gradeFor(Math.max(0, pts), g.cards)];
+          }), true));
+        }
         var rm = document.createElement("button");
         rm.type = "button";
         rm.className = "btn quiet lesson-delete";
