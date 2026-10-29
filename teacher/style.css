@@ -730,3 +730,39 @@ button.pin:hover { color: var(--ink); }
   .words-stage { grid-template-columns: 1fr; }
   .words-stage .join { display: none; }
 }
+
+/* ---------- drawing game "Piešiu ir spėju" (218) ---------- */
+
+.draw-stage { grid-template-columns: 260px minmax(0, 1fr); }
+.dmain { display: flex; flex-direction: column; gap: 18px; min-height: 0; overflow-y: auto; }
+.dhead { font-family: var(--marker); font-size: clamp(36px, 3.6vw, 72px); line-height: 1; margin: 0; color: var(--blue); }
+.dhow { font-size: clamp(18px, 1.5vw, 30px); margin: 0; max-width: 46em; }
+.dclock { font-family: var(--marker); font-size: clamp(80px, 12vw, 220px); line-height: 0.9; font-variant-numeric: tabular-nums; color: var(--ink); }
+.dclock.low { color: var(--red); }
+.dchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.dchip { font-size: clamp(18px, 1.5vw, 30px); padding: 4px 14px; border-radius: 999px; border: 2px solid var(--frame); color: var(--ink-dim); background: #fff; }
+.dchip.on { border-color: var(--green); color: var(--green); font-weight: 700; }
+.dreveal { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 4vw; align-items: center; min-height: 0; }
+.dreveal svg.drawing { height: min(72vh, 52vw); width: auto; aspect-ratio: 1; }
+svg.drawing { display: block; background: #fff; border: 3px solid var(--frame); border-radius: 14px; }
+.dside { display: flex; flex-direction: column; gap: 1.2vh; min-width: 0; }
+.dside p { margin: 0; overflow-wrap: anywhere; }
+.dnum { color: var(--ink-dim); font-size: clamp(16px, 1.3vw, 26px); }
+.dguess { font-size: clamp(30px, 3.4vw, 72px); font-weight: 700; line-height: 1.1; }
+.dby { color: var(--ink-dim); font-size: clamp(18px, 1.5vw, 30px); }
+.dru { margin-top: 2vh !important; font-size: clamp(26px, 2.6vw, 56px); font-weight: 700; line-height: 1.15; color: var(--blue); }
+.dlt { font-size: clamp(22px, 2vw, 42px); color: var(--green); font-weight: 700; }
+.dpts { font-family: var(--marker); font-size: clamp(40px, 4vw, 84px); line-height: 1; color: var(--green); }
+.dpts.zero { color: var(--ink-dim); }
+.dside .btn { align-self: flex-start; }
+.dgallery { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; overflow-y: auto; align-content: start; }
+.dgallery figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.dgallery svg.drawing { width: 100%; height: auto; aspect-ratio: 1; }
+.dgallery figcaption { display: flex; flex-direction: column; font-size: 15px; }
+.dgallery figcaption b { color: var(--blue); }
+.dgallery figcaption span { color: var(--ink-dim); }
+@media (max-width: 800px) {
+  .draw-stage { grid-template-columns: 1fr; }
+  .dreveal { grid-template-columns: 1fr; }
+  .dreveal svg.drawing { width: 100%; height: auto; }
+}

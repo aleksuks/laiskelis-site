@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610282100">
+<link rel="stylesheet" href="style.css?v=202610291200">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -36,6 +36,7 @@
       <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
       <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
       <button class="tool" id="wordsBtn" type="button"><img src="art/tool-quiz.png" alt="">Žodžiai<span class="live-dot" id="wordsDot" hidden></span></button>
+      <button class="tool" id="drawBtn" type="button"><img src="art/markers.png" alt="">Piešimas</button>
       <button class="tool" id="fbBtn" type="button"><img src="art/tool-feedback.png" alt="">Atsiliepimai<span class="live-dot" id="fbDot" hidden></span></button>
     </div>
     <div class="tools minor" id="toolsMinor">
@@ -225,6 +226,25 @@
   <div class="leaders" id="wordsTop" hidden></div>
 </div>
 
+<!-- ---------- drawing game "Piešiu ir spėju" (218): draw a Russian prompt, guess in Lithuanian ---------- -->
+<div class="full" id="drawGame" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="drawTitle"></h2>
+    <span class="live-count" id="drawCount"></span>
+    <button class="btn quiet" type="button" id="drawBack" aria-label="Atgal" hidden>←</button>
+    <button class="btn" type="button" id="drawNext" hidden>Toliau</button>
+    <button class="btn quiet" type="button" id="drawMore" hidden>+30 s</button>
+    <button class="btn quiet" type="button" id="drawLeaders" hidden>Lyderiai</button>
+    <button class="btn" type="button" id="drawStop" hidden>Baigti</button>
+    <button class="btn quiet" type="button" id="drawNew" hidden>Kitas rinkinys</button>
+    <button class="btn quiet" type="button" id="drawClose">Uždaryti</button>
+  </div>
+  <p id="drawError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="quiz-pick" id="drawPick"></div>
+  <div class="words-stage draw-stage" id="drawStage" hidden></div>
+  <div class="leaders" id="drawTop" hidden></div>
+</div>
+
 <!-- ---------- PINs: shown once, when issued ---------- -->
 <div class="full" id="pins" hidden>
   <div class="bar">
@@ -345,6 +365,7 @@
 <script src="api.js?v=202610281000"></script>
 <script src="sound.js?v=202610151450"></script>
 <script src="insights.js?v=202610151450"></script>
+<script src="draw.js?v=202610291200"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -3009,6 +3030,406 @@
   document.addEventListener("visibilitychange", function () {
     if (document.hidden) wgStopPoll();
     else if (wg && !el("words").hidden && wg.board && wg.board.live) { refreshWords(); wgStartPoll(); }
+  });
+
+  /* ---------- drawing game "Piešiu ir spėju" (218) ---------- */
+
+  // Phones join (lobby), everyone draws a Russian prompt (a word of the set,
+  // or a sentence with a classmate in it), every drawing goes to another
+  // phone to be guessed in Lithuanian, then the board shows them one by one:
+  // drawing and guess first, the answer on the next click. The board keeps
+  // the clock and moves on by itself when the time is up or everyone is
+  // done. Prompts and drawings reach this screen only in the reveal.
+  var DRAW_POLL_MS = 2000;   // tuning knob
+  var dg = null;             // { cls, board, mode: pick|game|top, step, open, moving }
+  var dgPoll = null;
+
+  function drawFail(err) {
+    if (err && err.code === "teacher_denied") { closeDraw(); return signOut(); }
+    el("drawError").textContent = err.code === "teacher_draw_empty" ? "Dar niekas nieko nenupiešė." : err.message;
+    el("drawError").hidden = false;
+  }
+
+  function openDraw() {
+    dg = { cls: current, mode: "pick", step: 0, open: false };
+    el("drawError").hidden = true;
+    openFull(el("drawGame"));
+    rpc("teacher_draw_board", { p_token: token, p_class: dg.cls.id }).then(function (b) {
+      if (b && b.live) { dg.board = b; dg.mode = "game"; dgStartPoll(); renderDraw(); }
+      else showDrawPick();
+    }).catch(drawFail);
+  }
+
+  function closeDraw() {
+    dgStopPoll();
+    closeFull(el("drawGame"));
+    dg = null;
+  }
+
+  function showDrawPick() {
+    dg.mode = "pick";
+    dg.board = null;
+    dgStopPoll();
+    renderDraw();
+    el("drawPick").replaceChildren();
+    rpc("teacher_draw_sets_for", { p_token: token, p_grade: dg.cls.grade }).then(function (list) {
+      if (!list.length) {
+        var none = document.createElement("p");
+        none.className = "pick-head";
+        none.textContent = "Šiai klasei žodžių rinkinių dar nėra";
+        el("drawPick").appendChild(none);
+      }
+      list.forEach(function (s) {
+        var card = document.createElement("div");
+        card.className = "quiz-card";
+        var h = document.createElement("h3");
+        h.textContent = s.title;
+        var meta = document.createElement("p");
+        meta.className = "skill";
+        meta.textContent = s.topic + " · " + s.n + " žodž." + (s.sentences ? " · " + s.sentences + " sakinių su vardais" : "");
+        var row = document.createElement("div");
+        row.className = "quiz-go";
+        [["mix", "Žodžiai ir sakiniai"], ["words", "Tik žodžiai"], ["sentences", "Tik sakiniai"]].forEach(function (m, i) {
+          if (m[0] !== "words" && !s.sentences) return;
+          var b = document.createElement("button");
+          b.className = "btn" + (i ? " quiet" : "");
+          b.type = "button";
+          b.textContent = m[1];
+          b.addEventListener("click", function () {
+            b.disabled = true;
+            rpc("teacher_draw_start", { p_token: token, p_class: dg.cls.id, p_set: s.id, p_mode: m[0] })
+              .then(function () {
+                dg.cls.live_run = dg.cls.live_game = null;
+                renderLiveDot();
+                dg.mode = "game";
+                dg.board = { phase: "lobby" };
+                return refreshDraw();
+              })
+              .then(dgStartPoll)
+              .catch(drawFail)
+              .then(function () { b.disabled = false; });
+          });
+          row.appendChild(b);
+        });
+        card.append(h, meta, row);
+        el("drawPick").appendChild(card);
+      });
+    }).catch(drawFail);
+  }
+
+  function refreshDraw() {
+    if (!dg) return Promise.resolve();
+    return rpc("teacher_draw_board", { p_token: token, p_class: dg.cls.id }).then(function (b) {
+      if (!dg) return;
+      var was = dg.board && dg.board.phase + ":" + dg.board.round;
+      dg.board = b;
+      if (!b || !b.live) dgStopPoll();
+      if (b && was !== b.phase + ":" + b.round) { dg.step = 0; dg.open = false; }
+      autoAdvance();
+      renderDraw();
+    }).catch(drawFail);
+  }
+
+  function dgStartPoll() { if (!dgPoll && !document.hidden) dgPoll = setInterval(refreshDraw, DRAW_POLL_MS); }
+  function dgStopPoll() { if (dgPoll) { clearInterval(dgPoll); dgPoll = null; } }
+
+  function present() {
+    var b = dg.board;
+    return (b.phones || []).filter(function (p) { return p.seen_s <= b.present_s; });
+  }
+
+  // The round moves on by itself: drawing when everyone pressed "Baigiau"
+  // or the time is up (+2 s for the last saves), guessing when every
+  // drawing has a guess or the time is up.
+  function autoAdvance() {
+    var b = dg.board;
+    if (!b || !b.live || dg.moving) return;
+    var cards = b.cards || [];
+    if (b.phase === "draw" && cards.length &&
+        (b.left_s <= -2 || cards.every(function (c) { return c.done; }))) {
+      if (cards.some(function (c) { return c.strokes > 0; })) setDrawPhase("guess");
+    } else if (b.phase === "guess") {
+      var asked = cards.filter(function (c) { return c.guesser; });
+      if (b.left_s <= -1 || asked.length && asked.every(function (c) { return c.guessed; })) setDrawPhase("reveal");
+    }
+  }
+
+  function setDrawPhase(phase) {
+    if (dg.moving) return;
+    dg.moving = true;
+    return rpc("teacher_draw_phase", { p_token: token, p_game: dg.board.id, p_phase: phase })
+      .then(function () { if (phase === "reveal") Sound.fanfare(); else Sound.pop(); return refreshDraw(); })
+      .catch(drawFail)
+      .then(function () { if (dg) dg.moving = false; });
+  }
+
+  function dealDraw() {
+    if (dg.moving) return;
+    dg.moving = true;
+    el("drawNext").disabled = true;
+    return rpc("teacher_draw_deal", { p_token: token, p_game: dg.board.id })
+      .then(function () { Sound.pop(); return refreshDraw(); })
+      .catch(drawFail)
+      .then(function () { if (dg) dg.moving = false; el("drawNext").disabled = false; });
+  }
+
+  // The bar's main button: what comes next in this phase.
+  function drawNext() {
+    var b = dg.board;
+    if (dg.mode === "top") { dg.mode = "game"; return renderDraw(); }
+    if (b.phase === "lobby") return dealDraw();
+    if (b.phase === "draw") return setDrawPhase("guess");
+    if (b.phase === "guess") return setDrawPhase("reveal");
+    if (b.phase === "reveal") {
+      var shown = revealCards();
+      if (dg.step < shown.length) return revealStep(1);
+      return dealDraw();
+    }
+  }
+
+  function revealCards() { return (dg.board.cards || []).filter(function (c) { return c.drawing && c.drawing.strokes && c.drawing.strokes.length; }); }
+
+  // Each drawing two clicks: the drawing and its guess, then the answer.
+  function revealStep(d) {
+    var n = revealCards().length;
+    if (d > 0 && dg.step >= n) return;
+    if (d > 0) {
+      if (!dg.open) dg.open = true;
+      else { dg.step++; dg.open = false; }
+    } else {
+      if (dg.open) dg.open = false;
+      else if (dg.step > 0) { dg.step--; dg.open = true; }
+    }
+    dg.step = Math.min(dg.step, n);
+    if (dg.open) Sound.chime();
+    renderDraw();
+  }
+
+  function renderDraw() {
+    if (!dg) return;
+    var b = dg.board, m = dg.mode, live = b && b.live;
+    var phase = m === "game" && b ? b.phase : m;
+    el("drawTitle").textContent = m === "pick" ? "Piešiu ir spėju: " + dg.cls.grade + " klasė" :
+      (b && b.set ? b.set.title : "Piešiu ir spėju") + (b && b.round ? " · " + b.round + " raundas" : "");
+    el("drawPick").hidden = m !== "pick";
+    el("drawStage").hidden = m !== "game";
+    el("drawTop").hidden = m !== "top";
+    el("drawStop").hidden = !live;
+    el("drawNew").hidden = m === "pick" || live;
+    el("drawLeaders").hidden = m === "pick" || m === "top";
+    el("drawMore").hidden = !(live && m === "game" && (phase === "draw" || phase === "guess"));
+    el("drawBack").hidden = !(m === "game" && phase === "reveal");
+    el("drawNext").hidden = m === "pick" || (!live && m !== "top");
+    var shown = phase === "reveal" ? revealCards().length : 0;
+    el("drawNext").textContent = m === "top" ? "Atgal į žaidimą" : phase === "lobby" ? "Piešti!" :
+      phase === "draw" ? "Spėti →" : phase === "guess" ? "Rodyti →" :
+      dg.step < shown ? (dg.open ? "Kitas piešinys →" : "Atsakymas") : "Kitas raundas";
+    var left = b && b.left_s !== undefined ? Math.max(0, b.left_s) : 0;
+    el("drawCount").textContent = m !== "game" || !b ? "" :
+      phase === "draw" || phase === "guess" ? "⏱ " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") :
+      phase === "lobby" ? "Telefonų: " + present().length : "";
+    if (m === "game" && b) {
+      if (phase === "lobby") renderDrawLobby();
+      else if (phase === "draw" || phase === "guess") renderDrawProgress();
+      else renderDrawReveal();
+    }
+    if (m === "top") renderDrawTop();
+  }
+
+  function drawChip(text, cls) {
+    var c = document.createElement("span");
+    c.className = "dchip" + (cls ? " " + cls : "");
+    c.textContent = text;
+    return c;
+  }
+
+  function joinAside(text) {
+    var aside = document.createElement("aside");
+    aside.className = "join";
+    var img = document.createElement("img");
+    img.src = "../mokinys/qr.svg";
+    img.alt = "QR kodas: laiskelis.lt/mokinys";
+    var p = document.createElement("p");
+    p.textContent = "laiskelis.lt/mokinys";
+    var j = document.createElement("p");
+    j.className = "joined";
+    j.textContent = text;
+    aside.append(img, p, j);
+    return aside;
+  }
+
+  function renderDrawLobby() {
+    var b = dg.board, names = b.names || {};
+    var main = document.createElement("div");
+    main.className = "dmain";
+    var h = document.createElement("h3");
+    h.className = "dhead";
+    h.textContent = "Prisijunkite telefonais!";
+    var how = document.createElement("p");
+    how.className = "dhow";
+    how.textContent = "Gausite žodį ar sakinį rusiškai (kartais su klasioko vardu!) ir jį nupiešite. " +
+      "Tada spėsite, ką nupiešė kitas, lietuviškai. Taškai ir spėjusiam, ir piešusiam.";
+    var chips = document.createElement("div");
+    chips.className = "dchips";
+    present().forEach(function (p) { chips.appendChild(drawChip(names[p.id] || "?", "on")); });
+    main.append(h, how, chips);
+    el("drawStage").replaceChildren(joinAside("Telefonų: " + present().length), main);
+  }
+
+  function renderDrawProgress() {
+    var b = dg.board, names = b.names || {}, drawing = b.phase === "draw";
+    var cards = b.cards || [];
+    var main = document.createElement("div");
+    main.className = "dmain";
+    var h = document.createElement("h3");
+    h.className = "dhead";
+    var done = drawing ? cards.filter(function (c) { return c.done; }).length
+      : cards.filter(function (c) { return c.guessed; }).length;
+    var of = drawing ? cards.length : cards.filter(function (c) { return c.guesser; }).length;
+    h.textContent = drawing ? "Piešiam! Baigė " + done + " iš " + of : "Spėjam lietuviškai! Atsakė " + done + " iš " + of;
+    var timer = document.createElement("div");
+    timer.className = "dclock" + (b.left_s <= 10 ? " low" : "");
+    var left = Math.max(0, b.left_s);
+    timer.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+    var chips = document.createElement("div");
+    chips.className = "dchips";
+    cards.forEach(function (c) {
+      var who = drawing ? c.id : c.guesser;
+      if (!who) return;
+      var ok = drawing ? c.done : c.guessed;
+      chips.appendChild(drawChip((ok ? "✓ " : drawing && c.strokes ? "✏️ " : "… ") + (names[who] || "?"), ok ? "on" : ""));
+    });
+    main.append(h, timer, chips);
+    el("drawStage").replaceChildren(joinAside("Telefonų: " + present().length), main);
+  }
+
+  function promptText(c, ru) {
+    if (!c.prompt) return "";
+    if (c.kind === "word") return ru ? c.prompt.w : c.prompt.lt;
+    return Draw.fill(ru ? c.prompt.ru : c.prompt.lt, c.name, ru);
+  }
+
+  function renderDrawReveal() {
+    var b = dg.board, names = b.names || {}, list = revealCards();
+    if (dg.step >= list.length) return renderDrawGallery(list);
+    var c = list[dg.step];
+    var stage = document.createElement("div");
+    stage.className = "dreveal";
+    var pic = Draw.svg(c.drawing);
+    var side = document.createElement("div");
+    side.className = "dside";
+    var n = document.createElement("p");
+    n.className = "dnum";
+    n.textContent = (dg.step + 1) + " / " + list.length + " · piešė " + (names[c.id] || "?");
+    var g = document.createElement("p");
+    g.className = "dguess";
+    g.textContent = c.guess ? "„" + c.guess + "“" : "(niekas nespėjo)";
+    var gb = document.createElement("p");
+    gb.className = "dby";
+    gb.textContent = c.guesser ? "spėjo " + (names[c.guesser] || "?") : "";
+    side.append(n, g, gb);
+    if (dg.open) {
+      var ru = document.createElement("p");
+      ru.className = "dru";
+      ru.textContent = promptText(c, true);
+      var lt = document.createElement("p");
+      lt.className = "dlt";
+      lt.textContent = promptText(c, false);
+      var pts = document.createElement("p");
+      pts.className = "dpts" + (c.points ? "" : " zero");
+      pts.textContent = "+" + c.points + " iš " + c.keys_n + (c.points ? " abiem" : "");
+      side.append(ru, lt, pts);
+      if (c.guess) {
+        var ok = document.createElement("button");
+        ok.className = "btn quiet";
+        ok.type = "button";
+        ok.textContent = c.accepted ? "Atšaukti įskaitymą" : "Įskaityti visą";
+        ok.addEventListener("click", function () {
+          ok.disabled = true;
+          rpc("teacher_draw_accept", { p_token: token, p_game: b.id, p_round: b.round, p_student: c.id, p_ok: !c.accepted })
+            .then(function () { if (!c.accepted) Sound.coin(); return refreshDraw(); })
+            .catch(drawFail);
+        });
+        side.appendChild(ok);
+      }
+    }
+    stage.append(pic, side);
+    el("drawStage").replaceChildren(stage);
+  }
+
+  // After the last one: every drawing of the round at a glance.
+  function renderDrawGallery(list) {
+    var b = dg.board, names = b.names || {};
+    var grid = document.createElement("div");
+    grid.className = "dgallery";
+    list.forEach(function (c) {
+      var f = document.createElement("figure");
+      var cap = document.createElement("figcaption");
+      var ru = document.createElement("b");
+      ru.textContent = promptText(c, true);
+      var who = document.createElement("span");
+      who.textContent = (names[c.id] || "?") + " · „" + (c.guess || "—") + "“ · +" + c.points;
+      cap.append(ru, who);
+      f.append(Draw.svg(c.drawing), cap);
+      grid.appendChild(f);
+    });
+    el("drawStage").replaceChildren(grid);
+  }
+
+  function renderDrawTop() {
+    var b = dg.board, names = b ? b.names || {} : {}, pts = b ? b.points || {} : {};
+    var rows = Object.keys(pts).map(function (id) { return { id: id, score: pts[id] }; });
+    rows.sort(function (x, y) { return y.score - x.score || (names[x.id] || "").localeCompare(names[y.id] || "", "lt"); });
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (r) {
+      var row = document.createElement("div");
+      row.className = "leader";
+      var name = document.createElement("b");
+      name.textContent = names[r.id] || "?";
+      var stats = document.createElement("span");
+      stats.className = "stats";
+      var pts = document.createElement("span");
+      pts.className = "score";
+      pts.textContent = r.score;
+      row.append(name, stats, pts);
+      frag.appendChild(row);
+    });
+    if (!rows.length) {
+      var h = document.createElement("h3");
+      h.textContent = "Taškų dar nėra";
+      frag.appendChild(h);
+    }
+    el("drawTop").replaceChildren(frag);
+  }
+
+  el("drawBtn").addEventListener("click", openDraw);
+  el("drawClose").addEventListener("click", closeDraw);
+  el("drawNew").addEventListener("click", showDrawPick);
+  el("drawNext").addEventListener("click", drawNext);
+  el("drawBack").addEventListener("click", function () { revealStep(-1); });
+  el("drawLeaders").addEventListener("click", function () { dg.mode = "top"; renderDraw(); });
+  el("drawMore").addEventListener("click", function () {
+    rpc("teacher_draw_more", { p_token: token, p_game: dg.board.id }).then(refreshDraw).catch(drawFail);
+  });
+  el("drawStop").addEventListener("click", function () {
+    if (!confirm("Baigti žaidimą?")) return;
+    rpc("teacher_draw_stop", { p_token: token, p_game: dg.board.id }).then(function () {
+      dg.mode = "top";
+      Sound.fanfare();
+      return refreshDraw();
+    }).catch(drawFail);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!dg || el("drawGame").hidden || !el("wheel").hidden || e.target.closest("textarea, input")) return;
+    if (!dg.board || dg.mode !== "game" || dg.board.phase !== "reveal") return;
+    if (e.key === "ArrowRight" || e.key === " " && !e.target.closest("button")) { e.preventDefault(); revealStep(1); }
+    else if (e.key === "ArrowLeft") revealStep(-1);
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) dgStopPoll();
+    else if (dg && !el("drawGame").hidden && dg.board && dg.board.live) { refreshDraw(); dgStartPoll(); }
   });
 
   /* ---------- PINs ---------- */

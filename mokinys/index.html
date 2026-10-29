@@ -266,6 +266,30 @@
   .found-card .text { color: var(--green); }
   .found-card .lt { color: var(--ink-dim); }
   .found-card .clue { font-size: 18px; }
+
+  /* drawing game (218): the crayon pad of the letters app, a guess, the reveal */
+  .dprompt { background: #fff; border: 3px solid var(--blue); border-radius: 18px; padding: 14px 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+  .dprompt .kind { font-size: 15px; color: var(--ink-dim); }
+  .dprompt .text { font-size: 26px; font-weight: 700; line-height: 1.25; color: var(--blue); overflow-wrap: anywhere; }
+  .dprompt .lt { color: var(--ink-dim); font-size: 17px; }
+  .dprompt .linkish { align-self: center; border: 0; background: none; color: var(--blue); text-decoration: underline; font: inherit; font-size: 15px; padding: 4px 8px; min-height: 36px; }
+  .dpad { width: 100%; aspect-ratio: 1; display: block; background: #fff; border: 3px solid var(--frame); border-radius: 14px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .dpad.locked { opacity: 0.7; border-style: dashed; }
+  svg.drawing { width: 100%; aspect-ratio: 1; display: block; background: #fff; border: 3px solid var(--frame); border-radius: 14px; }
+  .dtray { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .dtray button { min-width: 40px; min-height: 40px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--frame); padding: 0; }
+  .dtray button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--ink); }
+  .dtray .tool { border-radius: 12px; background: #fff; color: var(--ink); font: inherit; font-size: 15px; padding: 0 10px; border: 0; }
+  .dtray .nib { display: grid; place-items: center; background: #fff; }
+  .dtray .nib i { display: block; border-radius: 50%; background: var(--ink); }
+  .dtime { font-weight: 700; color: var(--ink); }
+  .dtime.low { color: var(--red); }
+  .dres { background: #fff; border: 3px solid var(--frame); border-radius: 18px; padding: 12px 14px; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 4px 12px; align-items: start; }
+  .dres svg.drawing { grid-row: span 4; border-width: 2px; border-radius: 10px; }
+  .dres .kind { font-size: 14px; color: var(--ink-dim); }
+  .dres .ru { font-weight: 700; color: var(--blue); }
+  .dres .pts { font-family: var(--marker); font-size: 28px; line-height: 1; color: var(--green); }
+  .dres .pts.zero { color: var(--ink-dim); }
 </style>
 </head>
 <body>
@@ -363,6 +387,33 @@
     <div class="wcard found-card" id="gFound" hidden></div>
   </div>
 
+  <!-- drawing game "Piešiu ir spėju" (218) -->
+  <div id="draw" class="screen" hidden>
+    <div class="top"><span id="dRound"></span><span class="top-right"><span class="dtime" id="dTime"></span><span id="dPoints"></span></span></div>
+    <div class="waiting" id="dWait"><p class="note" id="dWaitText"></p></div>
+    <div class="screen" id="dDraw" hidden>
+      <div class="dprompt">
+        <div class="kind" id="dKind"></div>
+        <div class="text" id="dText"></div>
+        <div class="lt" id="dLt" hidden></div>
+        <button class="linkish" type="button" id="dLtBtn">Ką tai reiškia?</button>
+      </div>
+      <svg class="dpad" id="dPad" aria-label="Piešimo lapas"></svg>
+      <div class="dtray" id="dTray"></div>
+      <button class="btn" type="button" id="dDone">Baigiau</button>
+      <p class="sub">Jokių raidžių ir skaičių: tik piešinys!</p>
+    </div>
+    <form class="screen" id="dGuess" hidden>
+      <div class="dprompt"><div class="kind">Ką nupiešė klasiokas?</div><div class="text">Parašyk lietuviškai</div></div>
+      <div id="dTheirs"></div>
+      <label>Tavo spėjimas<input type="text" id="dGuessText" maxlength="200" autocomplete="off" spellcheck="false" required></label>
+      <button class="btn" id="dSend">Siųsti</button>
+      <p class="verdict ok" id="dSent" hidden></p>
+    </form>
+    <div class="screen" id="dReveal" hidden></div>
+    <p id="dMsg" class="msg" hidden></p>
+  </div>
+
   <div id="pinView" class="screen" hidden>
     <h1>Tavo naujas PIN</h1>
     <p class="newpin" id="newPin"></p>
@@ -377,10 +428,11 @@
 <script src="../teacher/api.js"></script>
 <script src="../teacher/sound.js"></script>
 <script src="../teacher/insights.js"></script>
+<script src="../teacher/draw.js"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView", "game"];
+  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView", "game", "draw"];
   var TOKEN_KEY = "mokinys.token";
 
   var QUESTION_SECONDS = 30;   // per question; a timeout counts as wrong
@@ -578,13 +630,15 @@
     return rpc("teacher_student_state", { p_token: token }).then(function (res) {
       run = res.run;
       sendAway();   // reopened after closing the browser: no longer away
+      if (res.draw) { game = null; draw = res.draw; showDraw(); return; }
+      draw = null;
       if (res.game) { game = res.game; showGame(); return; }
       game = null;
       stopGamePoll();
       if (run) route(); else openStats();
     }).catch(function (err) {
       if (signedOut(err)) return;
-      if (screen === "game") return;   // a missed poll: the next one tries again
+      if (screen === "game" || screen === "draw") return;   // a missed poll: the next one tries again
       if (screen === "stats") statsError(err.message); else showLogin(err.message);
     });
   }
@@ -1067,7 +1121,7 @@
 
   // Coming back to the tab is the moment a quiz may have started.
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && token && (screen === "stats" || screen === "game")) refresh();
+    if (!document.hidden && token && (screen === "stats" || screen === "game" || screen === "draw")) refresh();
     if (!document.hidden && screen === "login") checkGuestOpen();
   });
 
@@ -1259,6 +1313,263 @@
   }
   el("gSound").addEventListener("click", function () { Sound.toggle(); renderGameSound(); renderSound(); Sound.pop(); });
   renderGameSound();
+
+  /* ---------- drawing game "Piešiu ir spėju" (218) ---------- */
+
+  // The board runs the clock and moves the phases; the phone polls (the
+  // word game's poll) and shows the phase. Draw: the Russian prompt over
+  // the crayon pad, every finished stroke saved (one save in flight, the
+  // newest wins), the pad locks when the time is up. Guess: a classmate's
+  // drawing, the guess in Lithuanian, changeable until the reveal. Reveal:
+  // what happened to both; the board shows the rest.
+  var draw = null;
+  var dLocal = { key: "", deadline: 0, saving: false, dirty: false, doneAfter: false, tick: null, lt: false, sent: "" };
+  var dPad = Draw.pad(el("dPad"), { onChange: function () { dLocal.dirty = true; saveDrawing(false); } });
+
+  (function tray() {
+    var t = el("dTray");
+    Draw.CRAYONS.forEach(function (c, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.style.background = c;
+      b.dataset.crayon = i;
+      b.setAttribute("aria-label", "Spalva " + (i + 1));
+      b.setAttribute("aria-pressed", String(i === 0));
+      t.appendChild(b);
+    });
+    Draw.WIDTHS.forEach(function (w, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "nib";
+      b.dataset.width = w;
+      b.setAttribute("aria-label", ["Plonas", "Vidutinis", "Storas"][i]);
+      b.setAttribute("aria-pressed", String(i === 1));
+      var dot = document.createElement("i");
+      dot.style.width = dot.style.height = Math.max(6, w * 1.4) + "px";
+      b.appendChild(dot);
+      t.appendChild(b);
+    });
+    [["erase", "Trintukas"], ["undo", "↶ Atgal"], ["clear", "Išvalyti"]].forEach(function (a) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tool";
+      b.dataset.act = a[0];
+      b.textContent = a[1];
+      if (a[0] === "erase") b.setAttribute("aria-pressed", "false");
+      t.appendChild(b);
+    });
+    t.addEventListener("click", function (e) {
+      var b = e.target.closest("button");
+      if (!b) return;
+      var press = function (sel, on) {
+        t.querySelectorAll(sel).forEach(function (x) { x.setAttribute("aria-pressed", String(x === on)); });
+      };
+      if (b.dataset.crayon !== undefined) {
+        dPad.crayon(Number(b.dataset.crayon));
+        dPad.tool("draw");
+        press("[data-crayon]", b);
+        press("[data-act=erase]", null);
+      } else if (b.dataset.width) {
+        dPad.width(Number(b.dataset.width));
+        press("[data-width]", b);
+      } else if (b.dataset.act === "erase") {
+        var on = b.getAttribute("aria-pressed") !== "true";
+        dPad.tool(on ? "erase" : "draw");
+        b.setAttribute("aria-pressed", String(on));
+      } else if (b.dataset.act === "undo") dPad.undo();
+      else if (b.dataset.act === "clear" && dPad.count() && confirm("Išvalyti visą piešinį?")) dPad.clear();
+    });
+  })();
+
+  function leftS() { return Math.ceil((dLocal.deadline - Date.now()) / 1000); }
+
+  function showDraw() {
+    clearTimers();
+    startGamePoll();
+    keepAwake();
+    var d = draw, round = d.id + ":" + d.round, key = round + ":" + d.phase;
+    dLocal.deadline = Date.now() + d.left_s * 1000;
+    if (key !== dLocal.key) {
+      var newRound = dLocal.key.split(":").slice(0, 2).join(":") !== round;
+      if (dLocal.key && screen === "draw" && d.phase !== "lobby") Sound.pop();
+      dLocal.key = key;
+      el("dMsg").hidden = true;
+      if (d.phase === "draw" && newRound) {
+        // a new round, or a reload mid-round: the pad starts from what the server has
+        dPad.set(d.mine && d.mine.drawing);
+        dLocal.lt = false;
+        dLocal.dirty = false;
+      }
+      if (d.phase === "guess") {
+        dLocal.sent = d.theirs && d.theirs.guess || "";
+        el("dGuessText").value = dLocal.sent;
+      }
+    }
+    el("dRound").textContent = d.round ? "Raundas " + d.round : "Piešiu ir spėju";
+    el("dPoints").textContent = d.round ? " · Taškai: " + d.points : "";
+    var phase = d.phase === "draw" && !d.mine ? "late" : d.phase === "guess" && !d.theirs ? "rest" : d.phase;
+    el("dWait").hidden = !(phase === "lobby" || phase === "late" || phase === "rest");
+    el("dDraw").hidden = phase !== "draw";
+    el("dGuess").hidden = phase !== "guess";
+    el("dReveal").hidden = phase !== "reveal";
+    el("dWaitText").textContent = phase === "lobby" ? "✅ Prisijungei. Žiūrėk į ekraną: tuoj piešim!" :
+      phase === "late" ? "Šis raundas jau baigiasi. Palauk kito: tuoj piešim!" :
+      "Šį kartą tau piešinio neliko. Palauk: tuoj pamatysim visus spėjimus.";
+    if (phase === "draw") renderDrawCard();
+    if (phase === "guess") renderGuess();
+    if (phase === "reveal") renderReveal();
+    if (screen !== "draw") show("draw");
+    tickDraw();
+  }
+
+  function renderDrawCard() {
+    var m = draw.mine, sentence = m.kind === "sentence";
+    el("dKind").textContent = sentence ? "Nupiešk šį sakinį (kad atpažintų ir klasioką!):" : "Nupiešk šį žodį:";
+    el("dText").textContent = Draw.fill(m.prompt.ru, m.name, true);
+    el("dLt").textContent = Draw.fill(m.prompt.lt, m.name, false);
+    el("dLt").hidden = !dLocal.lt;
+    el("dLtBtn").textContent = dLocal.lt ? "Slėpti vertimą" : "Ką tai reiškia?";
+    el("dDone").textContent = m.done && !dLocal.dirty ? "✓ Atiduota (gali dar taisyti)" : "Baigiau";
+  }
+
+  function renderGuess() {
+    var box = el("dTheirs");
+    if (box.dataset.key !== dLocal.key) {
+      box.dataset.key = dLocal.key;
+      box.replaceChildren(Draw.svg(draw.theirs.drawing));
+    }
+    el("dSent").hidden = !dLocal.sent;
+    el("dSent").textContent = "✓ Išsiųsta: „" + dLocal.sent + "“. Gali pataisyti, kol baigsis laikas.";
+  }
+
+  function resultCard(title, drawing, lines, points, of) {
+    var card = document.createElement("div");
+    card.className = "dres";
+    card.appendChild(Draw.svg(drawing));
+    var h = document.createElement("div");
+    h.className = "kind";
+    h.textContent = title;
+    card.appendChild(h);
+    lines.forEach(function (l) {
+      var p = document.createElement("div");
+      p.className = l[0];
+      p.textContent = l[1];
+      card.appendChild(p);
+    });
+    var pts = document.createElement("div");
+    pts.className = "pts" + (points ? "" : " zero");
+    pts.textContent = "+" + (points || 0) + " iš " + of;
+    card.appendChild(pts);
+    return card;
+  }
+
+  function renderReveal() {
+    var box = el("dReveal"), key = dLocal.key + ":" + draw.points;
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    var frag = document.createDocumentFragment();
+    var note = document.createElement("p");
+    note.className = "note";
+    note.textContent = "👀 Žiūrėk į ekraną!";
+    frag.appendChild(note);
+    var m = draw.mine, t = draw.theirs;
+    if (m) {
+      frag.appendChild(resultCard("Tavo piešinys", m.drawing, [
+        ["ru", Draw.fill(m.prompt.ru, m.name, true)],
+        ["", m.guess ? (m.guesser || "Klasiokas") + " spėjo: „" + m.guess + "“" : "Niekas nespėjo"],
+      ], m.points, m.keys_n));
+    }
+    if (t) {
+      frag.appendChild(resultCard("Tavo spėjimas", t.drawing, [
+        ["", t.guess ? "„" + t.guess + "“" : "Nespėjai"],
+        ["ru", "Teisingai: " + Draw.fill(t.prompt.lt, t.name, false)],
+        ["kind", "Piešė " + (t.by || "klasiokas") + ": " + Draw.fill(t.prompt.ru, t.name, true)],
+      ], t.points, t.keys_n));
+    }
+    box.replaceChildren(frag);
+  }
+
+  // The clock, from the board's time and re-read on every poll. At zero the
+  // pad locks and the last strokes go out.
+  function tickDraw() {
+    if (dLocal.tick) { clearTimeout(dLocal.tick); dLocal.tick = null; }
+    var timed = draw && screen === "draw" && (draw.phase === "draw" && draw.mine || draw.phase === "guess" && draw.theirs);
+    if (!timed) {
+      el("dTime").textContent = "";
+      dPad.lock(false);
+      el("dPad").classList.remove("locked");
+      return;
+    }
+    var s = Math.max(0, leftS()), over = s <= 0;
+    el("dTime").textContent = "⏱ " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    el("dTime").classList.toggle("low", s <= 10);
+    if (draw.phase === "draw") {
+      if (over && !el("dPad").classList.contains("locked") && dLocal.dirty) saveDrawing(false);
+      dPad.lock(over);
+      el("dPad").classList.toggle("locked", over);
+      el("dDone").disabled = over;
+    } else {
+      el("dSend").disabled = over;
+    }
+    if (!over) dLocal.tick = setTimeout(tickDraw, 500);
+  }
+
+  // One save in flight; strokes drawn meanwhile go out in the next one.
+  function saveDrawing(done) {
+    if (!draw || draw.phase !== "draw" || !draw.mine) return;
+    if (done) dLocal.doneAfter = true;
+    if (dLocal.saving) { dLocal.dirty = true; return; }
+    dLocal.saving = true;
+    dLocal.dirty = false;
+    var finish = dLocal.doneAfter, game = draw.id;
+    dLocal.doneAfter = false;
+    rpc("teacher_student_draw_save", { p_token: token, p_game: game, p_drawing: dPad.get(), p_done: finish })
+      .then(function () {
+        if (draw && draw.mine) draw.mine.done = finish;
+        if (draw && draw.phase === "draw" && draw.mine && screen === "draw") renderDrawCard();
+      })
+      .catch(function (err) {
+        if (signedOut(err)) return;
+        if (err.code !== "teacher_quiz_closed") drawMsg(err.message);
+      })
+      .then(function () {
+        dLocal.saving = false;
+        if ((dLocal.dirty || dLocal.doneAfter) && draw && draw.id === game) saveDrawing(false);
+      });
+  }
+
+  el("dDone").addEventListener("click", function () {
+    if (!dPad.count()) { drawMsg("Pirma ką nors nupiešk!"); return; }
+    el("dMsg").hidden = true;
+    Sound.pop();
+    saveDrawing(true);
+  });
+
+  el("dLtBtn").addEventListener("click", function () {
+    dLocal.lt = !dLocal.lt;
+    renderDrawCard();
+  });
+
+  el("dGuess").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var text = el("dGuessText").value.trim();
+    if (!text) return;
+    if (/[а-яё]/i.test(text)) { drawMsg("Spėk lietuviškai, ne rusiškai!"); return; }
+    el("dSend").disabled = true;
+    el("dMsg").hidden = true;
+    rpc("teacher_student_draw_guess", { p_token: token, p_game: draw.id, p_guess: text }).then(function () {
+      Sound.right();
+      dLocal.sent = text;
+      renderGuess();
+    }).catch(function (err) {
+      if (!signedOut(err)) drawMsg(err.code === "teacher_quiz_closed" ? "Laikas baigėsi." : err.message);
+    }).then(function () { el("dSend").disabled = leftS() <= 0; });
+  });
+
+  function drawMsg(text) {
+    el("dMsg").textContent = text;
+    el("dMsg").hidden = false;
+  }
 
   /* ---------- new PIN ---------- */
 
