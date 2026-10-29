@@ -36,7 +36,7 @@
       <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
       <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
       <button class="tool" id="wordsBtn" type="button"><img src="art/tool-quiz.png" alt="">Žodžiai<span class="live-dot" id="wordsDot" hidden></span></button>
-      <button class="tool" id="drawBtn" type="button"><img src="art/markers.png" alt="">Piešimas</button>
+      <button class="tool" id="gamesBtn" type="button"><img src="art/markers.png" alt="">Žaidimai</button>
       <button class="tool" id="fbBtn" type="button"><img src="art/tool-feedback.png" alt="">Atsiliepimai<span class="live-dot" id="fbDot" hidden></span></button>
     </div>
     <div class="tools minor" id="toolsMinor">
@@ -224,6 +224,16 @@
   </div>
   <div class="fade-grid" id="fadeGrid" hidden></div>
   <div class="leaders" id="wordsTop" hidden></div>
+</div>
+
+<!-- ---------- Žaidimai: the class games, one card each ---------- -->
+<div class="full" id="games" hidden>
+  <div class="bar">
+    <h2 class="full-title">Žaidimai</h2>
+    <button class="btn quiet" type="button" id="gamesClose">Uždaryti</button>
+  </div>
+  <p id="gamesError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="quiz-pick" id="gamesPick"></div>
 </div>
 
 <!-- ---------- drawing game "Piešiu ir spėju" (218): draw a Russian prompt, guess in Lithuanian ---------- -->
@@ -3588,7 +3598,49 @@
     })(t0);
   }
 
-  el("drawBtn").addEventListener("click", openDraw);
+  /* ---------- Žaidimai ---------- */
+
+  // The class games behind one tray button: a card per game; a game the
+  // class has going says so and its button goes straight back in.
+  var GAMES = [
+    { title: "Piešiu ir spėju", open: openDraw, board: "teacher_draw_board",
+      text: "Kiekvienas gauna žodį ar sakinį rusiškai (kartais su klasioko vardu) ir jį nupiešia telefonu. " +
+            "Kitas spėja lietuviškai, o per peržiūrą mokytoja skiria 1–5 taškus. Pabaigoje apdovanojimai." },
+  ];
+
+  function openGames() {
+    var cls = current;
+    el("gamesError").hidden = true;
+    el("gamesPick").replaceChildren();
+    openFull(el("games"));
+    GAMES.forEach(function (g) {
+      var card = document.createElement("div");
+      card.className = "quiz-card";
+      var h = document.createElement("h3");
+      h.textContent = g.title;
+      var p = document.createElement("p");
+      p.className = "skill";
+      p.textContent = g.text;
+      var go = document.createElement("button");
+      go.className = "btn";
+      go.type = "button";
+      go.textContent = "Žaisti";
+      go.addEventListener("click", function () { closeFull(el("games")); g.open(); });
+      var row = document.createElement("div");
+      row.className = "quiz-go";
+      row.appendChild(go);
+      card.append(h, p, row);
+      el("gamesPick").appendChild(card);
+      rpc(g.board, { p_token: token, p_class: cls.id }).then(function (b) {
+        if (b && b.live) go.textContent = "Vyksta: tęsti";
+      }).catch(function (err) {
+        if (err && err.code === "teacher_denied") { closeFull(el("games")); signOut(); }
+      });
+    });
+  }
+
+  el("gamesBtn").addEventListener("click", openGames);
+  el("gamesClose").addEventListener("click", function () { closeFull(el("games")); });
   el("drawClose").addEventListener("click", closeDraw);
   el("drawNew").addEventListener("click", showDrawPick);
   el("drawNext").addEventListener("click", drawNext);
