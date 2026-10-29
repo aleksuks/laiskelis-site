@@ -153,6 +153,11 @@ var Draw = (function () {
     var live = null, liveNode = null, pointer = null, rubBase = null;
     node.setAttribute("viewBox", "0 0 " + SIZE + " " + SIZE);
     node.style.touchAction = "none";
+    // iPhone Safari ignores touch-action on an SVG and scrolls the page instead of drawing:
+    // the touches themselves must be cancelled (non-passive, or Safari ignores that too).
+    function noScroll(e) { if (!locked) e.preventDefault(); }
+    node.addEventListener("touchstart", noScroll, { passive: false });
+    node.addEventListener("touchmove", noScroll, { passive: false });
 
     function changed() { if (opts && opts.onChange) opts.onChange(get()); }
     function get() { return { v: 1, w: SIZE, h: SIZE, strokes: strokes }; }
