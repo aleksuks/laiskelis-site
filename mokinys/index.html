@@ -274,6 +274,7 @@
   .dprompt .lt { color: var(--ink-dim); font-size: 17px; }
   .dprompt .linkish { align-self: center; border: 0; background: none; color: var(--blue); text-decoration: underline; font: inherit; font-size: 15px; padding: 4px 8px; min-height: 36px; }
   .dpad { width: 100%; aspect-ratio: 1; display: block; background: #fff; border: 3px solid var(--frame); border-radius: 14px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .dpadbox { touch-action: none; -webkit-touch-callout: none; overscroll-behavior: contain; }
   .dpad.locked { opacity: 0.7; border-style: dashed; }
   svg.drawing { width: 100%; aspect-ratio: 1; display: block; background: #fff; border: 3px solid var(--frame); border-radius: 14px; }
   .dtray { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
@@ -397,7 +398,7 @@
         <div class="lt" id="dLt" hidden></div>
         <button class="linkish" type="button" id="dLtBtn">Lietuviškai</button>
       </div>
-      <svg class="dpad" id="dPad" aria-label="Piešimo lapas"></svg>
+      <div class="dpadbox"><svg class="dpad" id="dPad" aria-label="Piešimo lapas"></svg></div>
       <div class="dtray" id="dTray"></div>
       <button class="btn" type="button" id="dDone">Baigiau</button>
     </div>
@@ -425,7 +426,7 @@
 <script src="../teacher/api.js"></script>
 <script src="../teacher/sound.js"></script>
 <script src="../teacher/insights.js"></script>
-<script src="../teacher/draw.js?v=202610291230"></script>
+<script src="../teacher/draw.js?v=202610291300"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
