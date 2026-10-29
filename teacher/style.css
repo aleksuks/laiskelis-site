@@ -766,3 +766,68 @@ svg.drawing { display: block; background: #fff; border: 3px solid var(--frame); 
   .dreveal { grid-template-columns: 1fr; }
   .dreveal svg.drawing { width: 100%; height: auto; }
 }
+
+/* the teacher's 1–5 in the reveal (220) */
+.dscore { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 1vh; }
+.dscore span { font-size: clamp(16px, 1.3vw, 26px); color: var(--ink-dim); min-width: 11em; }
+.dscore button { width: clamp(44px, 3.6vw, 68px); height: clamp(44px, 3.6vw, 68px); border-radius: 50%; border: 3px solid var(--frame); background: #fff; font-family: var(--marker); font-size: clamp(26px, 2.2vw, 44px); font-weight: 700; line-height: 1; color: var(--ink-dim); cursor: pointer; }
+.dscore button[aria-pressed="true"] { border-color: var(--point); background: var(--point); color: var(--ink); }
+.dscore button.now { transform: scale(1.12); box-shadow: 0 0 0 3px var(--ink); }
+
+/* ---------- the ceremony: the letters app's weekly winners on the projector ---------- */
+
+#drawTop.leaders { padding: 0; gap: 0; overflow: hidden; }
+.cer { --ink-w: #2B1D14; --red-w: #B23A2B; position: relative; flex: 1; min-height: 100%; overflow: hidden; background: #FBF4E4; color: var(--ink-w); display: flex; flex-direction: column; }
+.cer-bunting { position: absolute; top: 2px; left: -20px; width: calc(100% + 40px); height: auto; transform-origin: 50% 0; animation: cerSway 2.6s ease-in-out infinite alternate; pointer-events: none; z-index: 2; }
+.cer-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: max(12vh, calc(13vw + 10px)) 4vw 3vh; gap: 1vh; min-height: 0; }
+.cer-scrap { position: absolute; left: 0; top: 0; margin: -10px 0 0 -7px; pointer-events: none; z-index: 5; will-change: transform; }
+
+.cer-trophy { position: relative; display: grid; place-items: center; height: 30vh; }
+.cer-trophy img { width: 22vh; height: 22vh; display: block; }
+.cer-glow { position: absolute; display: grid; place-items: center; animation: cerGrow 700ms cubic-bezier(0.34, 1.56, 0.64, 1) var(--d, 0ms) both; pointer-events: none; }
+.cer-glow img { width: 46vh; height: 46vh; animation: cerBoil 500ms steps(1) infinite; }
+.cer-glow.small img { width: 28vh; height: 28vh; }
+.cer-kicker { font-family: var(--marker); font-size: clamp(30px, 3vw, 60px); margin: 0; }
+.cer .cer-title { font-family: var(--marker); font-size: clamp(64px, 7vw, 140px); line-height: 1; color: var(--red-w); margin: 0; }
+.cer-sub { font-size: clamp(18px, 1.5vw, 30px); color: rgba(43, 29, 20, 0.62); margin: 0.6vh 0 0; }
+.cer .cer-head { font-family: var(--marker); font-size: clamp(40px, 4vw, 80px); line-height: 1; margin: 0 0 3vh; color: var(--ink-w); }
+
+.cer-podium { display: flex; align-items: flex-end; justify-content: center; gap: 1.2vw; width: min(92vw, 1200px); }
+.cer-col { width: min(26vw, 340px); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.cer-crate { position: relative; width: 100%; transform-origin: 50% 100%; animation: cerUp 650ms linear var(--d, 0ms) both; }
+.cer-crate img { display: block; width: 100%; height: auto; }
+.cer-num { position: absolute; inset: 0; text-align: center; padding-top: 4%; font-family: var(--marker); font-size: clamp(36px, 4vw, 80px); line-height: 1; opacity: 0.75; }
+.p1 .cer-num { font-size: clamp(52px, 5.6vw, 110px); }
+.cer-who { display: flex; flex-direction: column; align-items: center; margin-bottom: 1vh; width: 100%; }
+.cer-medalbox { position: relative; display: grid; place-items: center; height: 15vh; width: 100%; }
+.cer-medal { width: 11vh; height: 11vh; display: block; transform-origin: 50% 0; animation: cerSwing 1100ms linear var(--d2, 0ms) both; }
+.p1 .cer-medal { width: 14vh; height: 14vh; }
+.cer-names { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 100%; }
+.cer-names b { font-weight: 700; font-size: clamp(22px, 2.2vw, 46px); line-height: 1.15; overflow-wrap: anywhere; }
+.p1 .cer-names b { font-size: clamp(28px, 2.9vw, 60px); color: var(--red-w); }
+.cer-score { font-family: var(--marker); font-size: clamp(22px, 2vw, 40px); color: rgba(43, 29, 20, 0.62); }
+.cer-more { font-size: clamp(16px, 1.3vw, 26px); }
+
+.cer-list { list-style: none; margin: 2vh 0 0; padding: 0; columns: 2; column-gap: 5vw; width: min(90vw, 1300px); }
+.cer-list li { break-inside: avoid; display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto; align-items: baseline; gap: 0.6em; font-size: clamp(22px, 2vw, 40px); padding: 0.25em 0.3em; border-bottom: 2px dashed rgba(43, 29, 20, 0.18); }
+.cer-list li:nth-child(-n+3) b { color: var(--red-w); }
+.cer-rank { font-family: var(--marker); color: rgba(43, 29, 20, 0.62); }
+.cer-pts { font-family: var(--marker); font-weight: 700; font-size: 1.3em; line-height: 1; }
+
+/* motion: as the reanimated hooks there (useDrop, useSpringUp, useSwing, useFadeUp, Sunburst) */
+.cer-drop { animation: cerDrop 380ms cubic-bezier(0.55, 0, 0.9, 0.35) var(--d, 0ms) both; transform-origin: 50% 100%; }
+.cer-squash { animation: cerSquash 670ms linear var(--d, 0ms) both; transform-origin: 50% 100%; }
+.cer-medalbox .cer-squash .cer-medal { --d2: calc(var(--d, 0ms) + 60ms); }
+.cer-fade { animation: cerFade 420ms cubic-bezier(0.23, 1, 0.32, 1) var(--d, 0ms) both; }
+.cer-swing-in { transform-origin: 50% 0; animation: cerTitle 1100ms linear var(--d, 0ms) both; }
+@keyframes cerDrop { 0% { opacity: 0; transform: translateY(-60vh) scale(0.9, 1.18); } 1% { opacity: 1; } 100% { transform: translateY(0) scale(1); } }
+@keyframes cerSquash { 0% { transform: none; } 10% { transform: scale(1.2, 0.78); } 30% { transform: scale(0.94, 1.08); } 50% { transform: scale(1.04, 0.96); } 72% { transform: scale(0.99, 1.01); } 100% { transform: none; } }
+@keyframes cerUp { 0% { opacity: 1; transform: scaleY(0) scaleX(1.12); } 45% { transform: scaleY(1.14) scaleX(0.98); } 65% { transform: scaleY(0.94); } 82% { transform: scaleY(1.03); } 100% { transform: none; } }
+@keyframes cerSwing { 0% { opacity: 0; transform: rotate(-70deg); } 8% { opacity: 1; } 30% { transform: rotate(18deg); } 50% { transform: rotate(-22deg); } 68% { transform: rotate(-1deg); } 84% { transform: rotate(-12deg); } 100% { transform: rotate(-8deg); } }
+@keyframes cerTitle { 0% { opacity: 0; transform: rotate(-24deg); } 8% { opacity: 1; } 30% { transform: rotate(8deg); } 52% { transform: rotate(-9deg); } 72% { transform: rotate(-1deg); } 100% { transform: rotate(-3deg); } }
+@keyframes cerFade { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: none; } }
+@keyframes cerGrow { 0% { opacity: 0; transform: scale(0.4); } 100% { opacity: 1; transform: none; } }
+@keyframes cerBoil { 0% { transform: none; } 25% { transform: rotate(4deg) scale(1.015); } 50% { transform: rotate(-3deg) scale(0.99); } 75% { transform: rotate(2deg) scale(1.01); } }
+@keyframes cerSway { 0% { transform: rotate(-1.2deg); } 100% { transform: rotate(1.2deg); } }
+.cer.still *, .cer.still { animation: none !important; }
+@media (max-width: 800px) { .cer-list { columns: 1; } }

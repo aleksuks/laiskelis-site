@@ -1442,7 +1442,7 @@
     el("dSent").textContent = "✓ Išsiųsta: „" + dLocal.sent + "“. Gali pataisyti, kol baigsis laikas.";
   }
 
-  function resultCard(title, drawing, lines, points, of) {
+  function resultCard(title, drawing, lines, points) {
     var card = document.createElement("div");
     card.className = "dres";
     card.appendChild(Draw.svg(drawing));
@@ -1456,9 +1456,10 @@
       p.textContent = l[1];
       card.appendChild(p);
     });
+    // the teacher's 1–5, given on the board while the class watches (220)
     var pts = document.createElement("div");
     pts.className = "pts" + (points ? "" : " zero");
-    pts.textContent = "+" + (points || 0) + " iš " + of;
+    pts.textContent = points ? "+" + points + " iš 5" : "Mokytoja dar vertina…";
     card.appendChild(pts);
     return card;
   }
@@ -1477,14 +1478,14 @@
       frag.appendChild(resultCard("Tavo piešinys", m.drawing, [
         ["ru", Draw.fill(m.prompt.ru, m.name, true)],
         ["", m.guess ? (m.guesser || "Klasiokas") + " spėjo: „" + m.guess + "“" : "Niekas nespėjo"],
-      ], m.points, m.keys_n));
+      ], m.points));
     }
     if (t) {
       frag.appendChild(resultCard("Tavo spėjimas", t.drawing, [
         ["", t.guess ? "„" + t.guess + "“" : "Nespėjai"],
         ["ru", "Teisingai: " + Draw.fill(t.prompt.lt, t.name, false)],
         ["kind", "Piešė " + (t.by || "klasiokas") + ": " + Draw.fill(t.prompt.ru, t.name, true)],
-      ], t.points, t.keys_n));
+      ], t.points));
     }
     box.replaceChildren(frag);
   }

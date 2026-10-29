@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202610291200">
+<link rel="stylesheet" href="style.css?v=202610291500">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -365,7 +365,7 @@
 <script src="api.js?v=202610281000"></script>
 <script src="sound.js?v=202610151450"></script>
 <script src="insights.js?v=202610151450"></script>
-<script src="draw.js?v=202610291200"></script>
+<script src="draw.js?v=202610291500"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -3062,6 +3062,7 @@
 
   function closeDraw() {
     dgStopPoll();
+    cerClear();
     closeFull(el("drawGame"));
     dg = null;
   }
@@ -3176,7 +3177,11 @@
   // The bar's main button: what comes next in this phase.
   function drawNext() {
     var b = dg.board;
-    if (dg.mode === "top") { dg.mode = "game"; return renderDraw(); }
+    if (dg.mode === "top") {
+      if (dg.beat < CER_BEATS - 1) { dg.beat++; return renderDraw(); }
+      dg.mode = "game";
+      return renderDraw();
+    }
     if (b.phase === "lobby") return dealDraw();
     if (b.phase === "draw") return setDrawPhase("guess");
     if (b.phase === "guess") return setDrawPhase("reveal");
@@ -3214,14 +3219,15 @@
     el("drawPick").hidden = m !== "pick";
     el("drawStage").hidden = m !== "game";
     el("drawTop").hidden = m !== "top";
+    if (m !== "top") dg.cerKey = null;
     el("drawStop").hidden = !live;
     el("drawNew").hidden = m === "pick" || live;
     el("drawLeaders").hidden = m === "pick" || m === "top";
     el("drawMore").hidden = !(live && m === "game" && (phase === "draw" || phase === "guess"));
-    el("drawBack").hidden = !(m === "game" && phase === "reveal");
-    el("drawNext").hidden = m === "pick" || (!live && m !== "top");
+    el("drawBack").hidden = !(m === "game" && phase === "reveal" || m === "top" && dg.beat > 0);
+    el("drawNext").hidden = m === "pick" || (!live && !(m === "top" && dg.beat < CER_BEATS - 1));
     var shown = phase === "reveal" ? revealCards().length : 0;
-    el("drawNext").textContent = m === "top" ? "Atgal į žaidimą" : phase === "lobby" ? "Piešti!" :
+    el("drawNext").textContent = m === "top" ? (dg.beat < CER_BEATS - 1 ? "Toliau" : "Atgal į žaidimą") : phase === "lobby" ? "Piešti!" :
       phase === "draw" ? "Spėti →" : phase === "guess" ? "Rodyti →" :
       dg.step < shown ? (dg.open ? "Kitas piešinys →" : "Atsakymas") : "Kitas raundas";
     var left = b && b.left_s !== undefined ? Math.max(0, b.left_s) : 0;
@@ -3233,7 +3239,7 @@
       else if (phase === "draw" || phase === "guess") renderDrawProgress();
       else renderDrawReveal();
     }
-    if (m === "top") renderDrawTop();
+    if (m === "top") renderCeremony();
   }
 
   function drawChip(text, cls) {
@@ -3335,26 +3341,38 @@
       var lt = document.createElement("p");
       lt.className = "dlt";
       lt.textContent = promptText(c, false);
-      var pts = document.createElement("p");
-      pts.className = "dpts" + (c.points ? "" : " zero");
-      pts.textContent = "+" + c.points + " iš " + c.keys_n + (c.points ? " abiem" : "");
-      side.append(ru, lt, pts);
-      if (c.guess) {
-        var ok = document.createElement("button");
-        ok.className = "btn quiet";
-        ok.type = "button";
-        ok.textContent = c.accepted ? "Atšaukti įskaitymą" : "Įskaityti visą";
-        ok.addEventListener("click", function () {
-          ok.disabled = true;
-          rpc("teacher_draw_accept", { p_token: token, p_game: b.id, p_round: b.round, p_student: c.id, p_ok: !c.accepted })
-            .then(function () { if (!c.accepted) Sound.coin(); return refreshDraw(); })
-            .catch(drawFail);
-        });
-        side.appendChild(ok);
-      }
+      side.append(ru, lt, scoreRow(c, "draw", "Piešinys: " + (names[c.id] || "?"), c.draw_pts));
+      if (c.guesser) side.appendChild(scoreRow(c, "guess", "Spėjimas: " + (names[c.guesser] || "?"), c.guess_pts));
     }
     stage.append(pic, side);
     el("drawStage").replaceChildren(stage);
+  }
+
+  // The teacher's points, the class watching: 1–5 for the drawing and for
+  // the guess (220). The same number again takes it back.
+  function scoreRow(c, side, label, now) {
+    var row = document.createElement("div");
+    row.className = "dscore";
+    var l = document.createElement("span");
+    l.textContent = label;
+    row.appendChild(l);
+    [1, 2, 3, 4, 5].forEach(function (n) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = n;
+      b.setAttribute("aria-pressed", String(n <= now));
+      if (n === now) b.className = "now";
+      b.addEventListener("click", function () {
+        var pts = n === now ? 0 : n;
+        c[side + "_pts"] = pts;      // at once on the screen; the poll confirms
+        renderDraw();
+        if (pts) Sound.coin();
+        rpc("teacher_draw_score", { p_token: token, p_game: dg.board.id, p_student: c.id, p_side: side, p_pts: pts })
+          .then(refreshDraw).catch(drawFail);
+      });
+      row.appendChild(b);
+    });
+    return row;
   }
 
   // After the last one: every drawing of the round at a glance.
@@ -3368,7 +3386,8 @@
       var ru = document.createElement("b");
       ru.textContent = promptText(c, true);
       var who = document.createElement("span");
-      who.textContent = (names[c.id] || "?") + " · „" + (c.guess || "—") + "“ · +" + c.points;
+      who.textContent = (names[c.id] || "?") + " +" + c.draw_pts + " · „" + (c.guess || "—") + "“" +
+        (c.guesser ? " " + (names[c.guesser] || "?") + " +" + c.guess_pts : "");
       cap.append(ru, who);
       f.append(Draw.svg(c.drawing), cap);
       grid.appendChild(f);
@@ -3376,52 +3395,222 @@
     el("drawStage").replaceChildren(grid);
   }
 
-  function renderDrawTop() {
+  /* ---------- the ceremony (the letters app's weekly winners, components/winners-reveal.tsx) ---------- */
+
+  // A village fête on the projector: warm paper, painted bunting swaying
+  // across the top, the trophy dropping in on a painted glow, then the
+  // crates popping up out of the floor 3rd, 2nd, 1st, each name dropping
+  // onto its crate with a squash, its wax medal swinging in on a pin, and
+  // paper confetti bursting from first place. Then everyone's points, with
+  // confetti raining. Ties share a crate. The art is the letters app's
+  // (scripts/ui-art/leaderboard_art.py there), copied as art/podium-*.
+  // "Toliau" / → for the next beat, ← back; each beat replays from scratch.
+  var CER_BEATS = 3;                                  // intro, podium, everyone
+  var CER_AT = { 3: 1000, 2: 1800, 1: 2900 };         // crates, ms (as PODIUM_AT there)
+  var CER_DROP = 380, CER_GRAVITY = 900;
+  var cerTimers = [], cerFrame = null;
+
+  function startCeremony() {
+    dg.mode = "top";
+    dg.beat = 0;
+    dg.cerKey = null;
+    renderDraw();
+  }
+
+  function cerClear() {
+    cerTimers.forEach(clearTimeout);
+    cerTimers = [];
+    if (cerFrame) { cancelAnimationFrame(cerFrame); cerFrame = null; }
+  }
+  function cerLater(ms, f) { cerTimers.push(setTimeout(f, REDUCED.matches ? 0 : ms)); }
+
+  function node(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function art(name, cls) {
+    var i = node("img", cls);
+    i.src = "art/podium-" + name + ".png";
+    i.alt = "";
+    return i;
+  }
+  function delay(n, ms) { n.style.setProperty("--d", ms + "ms"); return n; }
+
+  // [{ place, score, names: [] }] for the top three scores above zero, and every row.
+  function cerRanks() {
     var b = dg.board, names = b ? b.names || {} : {}, pts = b ? b.points || {} : {};
-    var rows = Object.keys(pts).map(function (id) { return { id: id, score: pts[id] }; });
-    rows.sort(function (x, y) { return y.score - x.score || (names[x.id] || "").localeCompare(names[y.id] || "", "lt"); });
-    var frag = document.createDocumentFragment();
+    var rows = Object.keys(pts).map(function (id) { return { name: names[id] || "?", score: pts[id] }; });
+    rows.sort(function (x, y) { return y.score - x.score || x.name.localeCompare(y.name, "lt"); });
+    var places = [];
     rows.forEach(function (r) {
-      var row = document.createElement("div");
-      row.className = "leader";
-      var name = document.createElement("b");
-      name.textContent = names[r.id] || "?";
-      var stats = document.createElement("span");
-      stats.className = "stats";
-      var pts = document.createElement("span");
-      pts.className = "score";
-      pts.textContent = r.score;
-      row.append(name, stats, pts);
-      frag.appendChild(row);
+      if (r.score <= 0) return;
+      var last = places[places.length - 1];
+      if (last && last.score === r.score) last.names.push(r.name);
+      else if (places.length < 3) places.push({ place: places.length + 1, score: r.score, names: [r.name] });
     });
-    if (!rows.length) {
-      var h = document.createElement("h3");
-      h.textContent = "Taškų dar nėra";
-      frag.appendChild(h);
+    return { rows: rows, places: places };
+  }
+
+  function renderCeremony() {
+    var key = dg.beat + ":" + JSON.stringify(dg.board && dg.board.points);
+    if (dg.cerKey === key) return;    // a poll: leave the animation running
+    dg.cerKey = key;
+    cerClear();
+    var stage = node("div", "cer" + (REDUCED.matches ? " still" : ""));
+    var bunting = art("bunting", "cer-bunting");
+    stage.appendChild(bunting);
+    var body = node("div", "cer-body");
+    stage.appendChild(body);
+    var r = cerRanks();
+    if (dg.beat === 0) cerIntro(body);
+    else if (dg.beat === 1) cerPodium(body, stage, r.places);
+    else cerEveryone(body, stage, r.rows);
+    el("drawTop").replaceChildren(stage);
+  }
+
+  function cerIntro(body) {
+    var b = dg.board;
+    var top = node("div", "cer-trophy");
+    var glow = delay(node("div", "cer-glow"), 500);
+    glow.appendChild(art("glow"));
+    var trophy = delay(node("div", "cer-drop"), 150);
+    var squash = delay(node("div", "cer-squash"), 150 + CER_DROP);
+    squash.appendChild(art("trophy"));
+    trophy.appendChild(squash);
+    top.append(glow, trophy);
+    body.append(top,
+      delay(node("p", "cer-kicker cer-fade", "Piešiu ir spėju"), 700),
+      delay(node("h3", "cer-title cer-swing-in", "Apdovanojimai!"), 900),
+      delay(node("p", "cer-sub cer-fade", (b && b.set ? b.set.title.split(":")[0] + " · " : "") +
+        (b && b.round ? b.round + " raund." : "")), 1400));
+    cerLater(150 + CER_DROP, function () { Sound.clack(); });
+  }
+
+  function cerPodium(body, stage, places) {
+    body.appendChild(delay(node("h3", "cer-head cer-fade", "Geriausi piešėjai ir spėliotojai"), 100));
+    var row = node("div", "cer-podium");
+    [2, 1, 3].forEach(function (place) {
+      var p = places.filter(function (x) { return x.place === place; })[0];
+      var col = node("div", "cer-col p" + place);
+      var at = CER_AT[place];
+      if (p) {
+        var who = node("div", "cer-who");
+        var medalBox = node("div", "cer-medalbox");
+        if (place === 1) {
+          var glow = delay(node("div", "cer-glow small"), at + 420 + CER_DROP);
+          glow.appendChild(art("glow"));
+          medalBox.appendChild(glow);
+        }
+        var drop = delay(node("div", "cer-drop"), at + 420);
+        var squash = delay(node("div", "cer-squash"), at + 420 + CER_DROP);
+        squash.appendChild(art("medal-" + place, "cer-medal"));
+        drop.appendChild(squash);
+        medalBox.appendChild(drop);
+        who.appendChild(medalBox);
+        var names = delay(node("div", "cer-names cer-fade"), at + 420 + CER_DROP + 160);
+        p.names.slice(0, 4).forEach(function (n) { names.appendChild(node("b", "", n)); });
+        if (p.names.length > 4) names.appendChild(node("span", "cer-more", "+" + (p.names.length - 4)));
+        names.appendChild(node("span", "cer-score", p.score + " tšk."));
+        who.appendChild(names);
+        col.appendChild(who);
+        cerLater(at + 420 + CER_DROP, function () {
+          if (place === 1) {
+            Sound.fanfare();
+            var box = medalBox.getBoundingClientRect(), s = stage.getBoundingClientRect();
+            confetti(stage, box.left - s.left + box.width / 2, box.top - s.top + box.height / 2, 56, false);
+          } else Sound.clack();
+        });
+      }
+      var crate = delay(node("div", "cer-crate"), at);
+      crate.append(art("pedestal-" + place), node("span", "cer-num", place));
+      col.appendChild(crate);
+      row.appendChild(col);
+    });
+    body.appendChild(row);
+    if (!places.length) body.appendChild(node("p", "cer-sub", "Taškų dar niekas negavo."));
+  }
+
+  function cerEveryone(body, stage, rows) {
+    body.appendChild(delay(node("h3", "cer-title cer-swing-in", "Visi taškai"), 100));
+    var list = node("ol", "cer-list");
+    var rank = 0, prev = null;
+    rows.forEach(function (r, i) {
+      if (r.score !== prev) { rank = i + 1; prev = r.score; }
+      var li = delay(node("li", "cer-fade"), 200 + i * 60);
+      li.append(node("span", "cer-rank", rank + "."), node("b", "", r.name), node("span", "cer-pts", r.score));
+      list.appendChild(li);
+    });
+    body.appendChild(list);
+    cerLater(300, function () { confetti(stage, 0, 0, 70, true); });
+  }
+
+  // Paper scraps with a little physics, as Confetti / Piece there: a burst
+  // from a point, or a rain from the top edge.
+  function confetti(stage, ox, oy, count, rain) {
+    if (REDUCED.matches) return;
+    var w = stage.clientWidth, seed = rain ? 4242 : 7;
+    var random = function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    var round = [3, 7, 11], flat = [0, 1, 2, 4, 5, 6, 8, 9, 10];
+    var pieces = [];
+    for (var i = 0; i < count; i++) {
+      var angle = -Math.PI / 2 + (random() * 2 - 1) * 1.15;
+      var speed = rain ? 40 + random() * 60 : 520 + random() * 560;
+      var isRound = random() < 0.25, size = (isRound ? 14 : 13 + random() * 7) * 1.4;
+      var img = art("confetti-" + (isRound ? round[i % 3] : flat[i % 9]), "cer-scrap");
+      img.style.width = size + "px";
+      img.style.height = (isRound ? size : size * 20 / 14) + "px";
+      stage.appendChild(img);
+      pieces.push({
+        img: img, x0: rain ? random() * w : ox, y0: rain ? -40 - random() * 220 : oy,
+        vx: Math.cos(angle) * speed, vy: rain ? 60 + random() * 80 : Math.sin(angle) * speed,
+        spin: (random() * 2 - 1) * 540, flutter: 5 + random() * 7,
+        life: rain ? 3.4 + random() * 1.4 : 2.2 + random() * 1, lag: random() * (rain ? 1.2 : 0.09),
+      });
     }
-    el("drawTop").replaceChildren(frag);
+    var t0 = performance.now();
+    (function frame(now) {
+      var alive = false;
+      pieces.forEach(function (p) {
+        var t = (now - t0) / 1000 - p.lag;
+        if (t < 0) { alive = true; p.img.style.opacity = 0; return; }
+        var k = t / p.life;
+        if (k >= 1) { if (p.img.parentNode) p.img.remove(); return; }
+        alive = true;
+        var drag = 1 / (1 + t * 1.6), g = rain ? CER_GRAVITY * 0.18 : CER_GRAVITY;
+        var x = p.x0 + p.vx * t * drag + Math.sin(t * p.flutter * 0.5) * 12;
+        var y = p.y0 + p.vy * t + 0.5 * g * t * t;
+        p.img.style.opacity = k > 0.85 ? (1 - k) / 0.15 : 1;
+        p.img.style.transform = "translate(" + x + "px," + y + "px) rotate(" + p.spin * t + "deg) scaleX(" + Math.cos(t * p.flutter) + ")";
+      });
+      cerFrame = alive ? requestAnimationFrame(frame) : null;
+    })(t0);
   }
 
   el("drawBtn").addEventListener("click", openDraw);
   el("drawClose").addEventListener("click", closeDraw);
   el("drawNew").addEventListener("click", showDrawPick);
   el("drawNext").addEventListener("click", drawNext);
-  el("drawBack").addEventListener("click", function () { revealStep(-1); });
-  el("drawLeaders").addEventListener("click", function () { dg.mode = "top"; renderDraw(); });
+  el("drawBack").addEventListener("click", function () {
+    if (dg.mode === "top") { dg.beat = Math.max(0, dg.beat - 1); renderDraw(); } else revealStep(-1);
+  });
+  el("drawLeaders").addEventListener("click", function () { startCeremony(); });
   el("drawMore").addEventListener("click", function () {
     rpc("teacher_draw_more", { p_token: token, p_game: dg.board.id }).then(refreshDraw).catch(drawFail);
   });
   el("drawStop").addEventListener("click", function () {
     if (!confirm("Baigti žaidimą?")) return;
-    rpc("teacher_draw_stop", { p_token: token, p_game: dg.board.id }).then(function () {
-      dg.mode = "top";
-      Sound.fanfare();
-      return refreshDraw();
-    }).catch(drawFail);
+    rpc("teacher_draw_stop", { p_token: token, p_game: dg.board.id }).then(refreshDraw).then(startCeremony).catch(drawFail);
   });
 
   document.addEventListener("keydown", function (e) {
     if (!dg || el("drawGame").hidden || !el("wheel").hidden || e.target.closest("textarea, input")) return;
+    if (dg.mode === "top" && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      e.preventDefault();
+      dg.beat = Math.max(0, Math.min(CER_BEATS - 1, dg.beat + (e.key === "ArrowRight" ? 1 : -1)));
+      return renderDraw();
+    }
     if (!dg.board || dg.mode !== "game" || dg.board.phase !== "reveal") return;
     if (e.key === "ArrowRight" || e.key === " " && !e.target.closest("button")) { e.preventDefault(); revealStep(1); }
     else if (e.key === "ArrowLeft") revealStep(-1);
