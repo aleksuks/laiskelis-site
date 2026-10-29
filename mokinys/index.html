@@ -555,7 +555,7 @@
     denied: "Neteisingas vardas arba PIN. Vardą ir pavardę rašyk taip, kaip dienyne.",
     locked: "Per daug bandymų. Palauk 15 minučių.",
     name: "Įrašyk savo vardą ir pavardę.",
-    no_quiz: "Testas dar neprasidėjo. Palauk, kol mokytoja jį pradės.",
+    no_quiz: "Testas ar žaidimas dar neprasidėjo. Palauk, kol mokytoja pradės.",
     full: "Prisijungė per daug svečių.",
   };
   var GUEST_KEY = "mokinys.guest";   // Loreta's student: any name, no PIN
@@ -1423,8 +1423,10 @@
   }
 
   function renderDrawCard() {
-    var m = draw.mine, sentence = m.kind === "sentence";
-    el("dKind").textContent = sentence ? "Nupiešk šį sakinį (kad atpažintų ir klasioką!):" : "Nupiešk šį žodį:";
+    var m = draw.mine;
+    // a sentence with a classmate, a phrase as it is (222), or a word
+    el("dKind").textContent = m.name ? "Nupiešk šį sakinį (kad atpažintų ir klasioką!):" :
+      m.kind === "sentence" ? "Nupiešk:" : "Nupiešk šį žodį:";
     el("dText").textContent = Draw.fill(m.prompt.ru, m.name, true);
     el("dLt").textContent = Draw.fill(m.prompt.lt, m.name, false);
     el("dLt").hidden = !dLocal.lt;
