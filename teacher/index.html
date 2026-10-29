@@ -3143,7 +3143,10 @@
     }).catch(drawFail);
   }
 
-  function dgStartPoll() { if (!dgPoll && !document.hidden) dgPoll = setInterval(refreshDraw, DRAW_POLL_MS); }
+  // No polling in the reveal: the phones only say "look at the screen" and the teacher's own
+  // clicks refresh it; every drawing in each poll is what took the database down (2026-10-29).
+  function dgTick() { if (!(dg && dg.board && dg.board.phase === "reveal")) refreshDraw(); }
+  function dgStartPoll() { if (!dgPoll && !document.hidden) dgPoll = setInterval(dgTick, DRAW_POLL_MS); }
   function dgStopPoll() { if (dgPoll) { clearInterval(dgPoll); dgPoll = null; } }
 
   function present() {
