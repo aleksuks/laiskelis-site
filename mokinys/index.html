@@ -393,20 +393,17 @@
     <div class="waiting" id="dWait"><p class="note" id="dWaitText"></p></div>
     <div class="screen" id="dDraw" hidden>
       <div class="dprompt">
-        <div class="kind" id="dKind"></div>
         <div class="text" id="dText"></div>
         <div class="lt" id="dLt" hidden></div>
-        <button class="linkish" type="button" id="dLtBtn">Ką tai reiškia?</button>
+        <button class="linkish" type="button" id="dLtBtn">Lietuviškai</button>
       </div>
       <svg class="dpad" id="dPad" aria-label="Piešimo lapas"></svg>
       <div class="dtray" id="dTray"></div>
       <button class="btn" type="button" id="dDone">Baigiau</button>
-      <p class="sub">Jokių raidžių ir skaičių: tik piešinys!</p>
     </div>
     <form class="screen" id="dGuess" hidden>
-      <div class="dprompt"><div class="kind">Ką nupiešė klasiokas?</div><div class="text">Parašyk lietuviškai</div></div>
       <div id="dTheirs"></div>
-      <label>Tavo spėjimas<input type="text" id="dGuessText" maxlength="200" autocomplete="off" spellcheck="false" required></label>
+      <input type="text" id="dGuessText" maxlength="200" autocomplete="off" spellcheck="false" required placeholder="Kas čia? Lietuviškai" aria-label="Kas čia? Lietuviškai">
       <button class="btn" id="dSend">Siųsti</button>
       <p class="verdict ok" id="dSent" hidden></p>
     </form>
@@ -1408,13 +1405,11 @@
     el("dRound").textContent = d.round ? "Raundas " + d.round : "Piešiu ir spėju";
     el("dPoints").textContent = d.round ? " · Taškai: " + d.points : "";
     var phase = d.phase === "draw" && !d.mine ? "late" : d.phase === "guess" && !d.theirs ? "rest" : d.phase;
-    el("dWait").hidden = !(phase === "lobby" || phase === "late" || phase === "rest");
+    el("dWait").hidden = !(phase === "lobby" || phase === "late" || phase === "rest" || phase === "reveal");
     el("dDraw").hidden = phase !== "draw";
     el("dGuess").hidden = phase !== "guess";
     el("dReveal").hidden = phase !== "reveal";
-    el("dWaitText").textContent = phase === "lobby" ? "✅ Prisijungei. Žiūrėk į ekraną: tuoj piešim!" :
-      phase === "late" ? "Šis raundas jau baigiasi. Palauk kito: tuoj piešim!" :
-      "Šį kartą tau piešinio neliko. Palauk: tuoj pamatysim visus spėjimus.";
+    el("dWaitText").textContent = "👀 Žiūrėk į ekraną.";
     if (phase === "draw") renderDrawCard();
     if (phase === "guess") renderGuess();
     if (phase === "reveal") renderReveal();
@@ -1424,14 +1419,11 @@
 
   function renderDrawCard() {
     var m = draw.mine;
-    // a sentence with a classmate, a phrase as it is (222), or a word
-    el("dKind").textContent = m.name ? "Nupiešk šį sakinį (kad atpažintų ir klasioką!):" :
-      m.kind === "sentence" ? "Nupiešk:" : "Nupiešk šį žodį:";
     el("dText").textContent = Draw.fill(m.prompt.ru, m.name, true);
     el("dLt").textContent = Draw.fill(m.prompt.lt, m.name, false);
     el("dLt").hidden = !dLocal.lt;
-    el("dLtBtn").textContent = dLocal.lt ? "Slėpti vertimą" : "Ką tai reiškia?";
-    el("dDone").textContent = m.done && !dLocal.dirty ? "✓ Atiduota (gali dar taisyti)" : "Baigiau";
+    el("dLtBtn").textContent = dLocal.lt ? "Rusiškai" : "Lietuviškai";
+    el("dDone").textContent = m.done && !dLocal.dirty ? "✓ Baigiau" : "Baigiau";
   }
 
   function renderGuess() {
@@ -1441,55 +1433,11 @@
       box.replaceChildren(Draw.svg(draw.theirs.drawing));
     }
     el("dSent").hidden = !dLocal.sent;
-    el("dSent").textContent = "✓ Išsiųsta: „" + dLocal.sent + "“. Gali pataisyti, kol baigsis laikas.";
-  }
-
-  function resultCard(title, drawing, lines, points) {
-    var card = document.createElement("div");
-    card.className = "dres";
-    card.appendChild(Draw.svg(drawing));
-    var h = document.createElement("div");
-    h.className = "kind";
-    h.textContent = title;
-    card.appendChild(h);
-    lines.forEach(function (l) {
-      var p = document.createElement("div");
-      p.className = l[0];
-      p.textContent = l[1];
-      card.appendChild(p);
-    });
-    // the teacher's 1–5, given on the board while the class watches (220)
-    var pts = document.createElement("div");
-    pts.className = "pts" + (points ? "" : " zero");
-    pts.textContent = points ? "+" + points + " iš 5" : "Mokytoja dar vertina…";
-    card.appendChild(pts);
-    return card;
+    el("dSent").textContent = "✓ Išsiųsta";
   }
 
   function renderReveal() {
-    var box = el("dReveal"), key = dLocal.key + ":" + draw.points;
-    if (box.dataset.key === key) return;
-    box.dataset.key = key;
-    var frag = document.createDocumentFragment();
-    var note = document.createElement("p");
-    note.className = "note";
-    note.textContent = "👀 Žiūrėk į ekraną!";
-    frag.appendChild(note);
-    var m = draw.mine, t = draw.theirs;
-    if (m) {
-      frag.appendChild(resultCard("Tavo piešinys", m.drawing, [
-        ["ru", Draw.fill(m.prompt.ru, m.name, true)],
-        ["", m.guess ? (m.guesser || "Klasiokas") + " spėjo: „" + m.guess + "“" : "Niekas nespėjo"],
-      ], m.points));
-    }
-    if (t) {
-      frag.appendChild(resultCard("Tavo spėjimas", t.drawing, [
-        ["", t.guess ? "„" + t.guess + "“" : "Nespėjai"],
-        ["ru", "Teisingai: " + Draw.fill(t.prompt.lt, t.name, false)],
-        ["kind", "Piešė " + (t.by || "klasiokas") + ": " + Draw.fill(t.prompt.ru, t.name, true)],
-      ], t.points));
-    }
-    box.replaceChildren(frag);
+    el("dReveal").replaceChildren();
   }
 
   // The clock, from the board's time and re-read on every poll. At zero the

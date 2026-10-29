@@ -3280,17 +3280,10 @@
     var b = dg.board, names = b.names || {};
     var main = document.createElement("div");
     main.className = "dmain";
-    var h = document.createElement("h3");
-    h.className = "dhead";
-    h.textContent = "Prisijunkite telefonais!";
-    var how = document.createElement("p");
-    how.className = "dhow";
-    how.textContent = "Gausite žodį ar sakinį rusiškai (kartais su klasioko vardu!) ir jį nupiešite. " +
-      "Tada spėsite, ką nupiešė kitas, lietuviškai. Taškai ir spėjusiam, ir piešusiam.";
     var chips = document.createElement("div");
     chips.className = "dchips";
     present().forEach(function (p) { chips.appendChild(drawChip(names[p.id] || "?", "on")); });
-    main.append(h, how, chips);
+    main.append(chips);
     el("drawStage").replaceChildren(joinAside("Telefonų: " + present().length), main);
   }
 
@@ -3304,7 +3297,7 @@
     var done = drawing ? cards.filter(function (c) { return c.done; }).length
       : cards.filter(function (c) { return c.guessed; }).length;
     var of = drawing ? cards.length : cards.filter(function (c) { return c.guesser; }).length;
-    h.textContent = drawing ? "Piešiam! Baigė " + done + " iš " + of : "Spėjam lietuviškai! Atsakė " + done + " iš " + of;
+    h.textContent = done + " / " + of;
     var timer = document.createElement("div");
     timer.className = "dclock" + (b.left_s <= 10 ? " low" : "");
     var left = Math.max(0, b.left_s);
@@ -3338,14 +3331,11 @@
     side.className = "dside";
     var n = document.createElement("p");
     n.className = "dnum";
-    n.textContent = (dg.step + 1) + " / " + list.length + " · piešė " + (names[c.id] || "?");
+    n.textContent = (dg.step + 1) + " / " + list.length;
     var g = document.createElement("p");
     g.className = "dguess";
-    g.textContent = c.guess ? "„" + c.guess + "“" : "(niekas nespėjo)";
-    var gb = document.createElement("p");
-    gb.className = "dby";
-    gb.textContent = c.guesser ? "spėjo " + (names[c.guesser] || "?") : "";
-    side.append(n, g, gb);
+    g.textContent = c.guess ? "„" + c.guess + "“" : "—";
+    side.append(n, g);
     if (dg.open) {
       var ru = document.createElement("p");
       ru.className = "dru";
@@ -3353,8 +3343,8 @@
       var lt = document.createElement("p");
       lt.className = "dlt";
       lt.textContent = promptText(c, false);
-      side.append(ru, lt, scoreRow(c, "draw", "Piešinys: " + (names[c.id] || "?"), c.draw_pts));
-      if (c.guesser) side.appendChild(scoreRow(c, "guess", "Spėjimas: " + (names[c.guesser] || "?"), c.guess_pts));
+      side.append(ru, lt, scoreRow(c, "draw", "🖍 " + (names[c.id] || "?"), c.draw_pts));
+      if (c.guesser) side.appendChild(scoreRow(c, "guess", "💬 " + (names[c.guesser] || "?"), c.guess_pts));
     }
     stage.append(pic, side);
     el("drawStage").replaceChildren(stage);
@@ -3483,7 +3473,6 @@
   }
 
   function cerIntro(body) {
-    var b = dg.board;
     var top = node("div", "cer-trophy");
     var glow = delay(node("div", "cer-glow"), 500);
     glow.appendChild(art("glow"));
@@ -3492,16 +3481,11 @@
     squash.appendChild(art("trophy"));
     trophy.appendChild(squash);
     top.append(glow, trophy);
-    body.append(top,
-      delay(node("p", "cer-kicker cer-fade", "Piešiu ir spėju"), 700),
-      delay(node("h3", "cer-title cer-swing-in", "Apdovanojimai!"), 900),
-      delay(node("p", "cer-sub cer-fade", (b && b.set ? b.set.title.split(":")[0] + " · " : "") +
-        (b && b.round ? b.round + " raund." : "")), 1400));
+    body.append(top, delay(node("h3", "cer-title cer-swing-in", "Apdovanojimai!"), 900));
     cerLater(150 + CER_DROP, function () { Sound.clack(); });
   }
 
   function cerPodium(body, stage, places) {
-    body.appendChild(delay(node("h3", "cer-head cer-fade", "Geriausi piešėjai ir spėliotojai"), 100));
     var row = node("div", "cer-podium");
     [2, 1, 3].forEach(function (place) {
       var p = places.filter(function (x) { return x.place === place; })[0];
@@ -3541,11 +3525,9 @@
       row.appendChild(col);
     });
     body.appendChild(row);
-    if (!places.length) body.appendChild(node("p", "cer-sub", "Taškų dar niekas negavo."));
   }
 
   function cerEveryone(body, stage, rows) {
-    body.appendChild(delay(node("h3", "cer-title cer-swing-in", "Visi taškai"), 100));
     var list = node("ol", "cer-list");
     var rank = 0, prev = null;
     rows.forEach(function (r, i) {
@@ -3606,8 +3588,7 @@
   // class has going says so and its button goes straight back in.
   var GAMES = [
     { title: "Piešiu ir spėju", open: openDraw, board: "teacher_draw_board",
-      text: "Kiekvienas gauna žodį ar sakinį rusiškai (kartais su klasioko vardu) ir jį nupiešia telefonu. " +
-            "Kitas spėja lietuviškai, o per peržiūrą mokytoja skiria 1–5 taškus. Pabaigoje apdovanojimai." },
+      text: "Piešia rusiškai, spėja lietuviškai." },
   ];
 
   function openGames() {
