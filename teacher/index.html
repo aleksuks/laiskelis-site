@@ -3064,7 +3064,9 @@
     dg = { cls: current, mode: "pick", step: 0, open: false };
     el("drawError").hidden = true;
     openFull(el("drawGame"));
-    rpc("teacher_draw_board", { p_token: token, p_class: dg.cls.id }).then(function (b) {
+    var args = boardArgs();
+    rpc("teacher_draw_board", args).then(function (b) {
+      b = keepPics(b, args);
       if (b && b.live) { dg.board = b; dg.mode = "game"; dgStartPoll(); renderDraw(); }
       else showDrawPick();
     }).catch(drawFail);
@@ -3130,10 +3132,32 @@
     }).catch(drawFail);
   }
 
+  // The drawings come once per round and are kept: the reveal refetches the board on every
+  // click, and 18 drawings each time was what dropped the connection (2026-10-29, 231).
+  function boardArgs() {
+    var b = dg.board, have = b && dg.pics && dg.pics.key === b.id + ":" + b.round;
+    return { p_token: token, p_class: dg.cls.id, p_drawings: !have };
+  }
+  function keepPics(b, args) {
+    if (!b || !b.cards) return b;
+    var key = b.id + ":" + b.round;
+    if (args.p_drawings) {
+      if (b.phase === "reveal" || !b.live) {
+        dg.pics = { key: key, by: {} };
+        b.cards.forEach(function (c) { dg.pics.by[c.id] = c.drawing; });
+      }
+    } else if (dg.pics && dg.pics.key === key) {
+      b.cards.forEach(function (c) { c.drawing = dg.pics.by[c.id] || null; });
+    }
+    return b;
+  }
+
   function refreshDraw() {
     if (!dg) return Promise.resolve();
-    return rpc("teacher_draw_board", { p_token: token, p_class: dg.cls.id }).then(function (b) {
+    var args = boardArgs();
+    return rpc("teacher_draw_board", args).then(function (b) {
       if (!dg) return;
+      b = keepPics(b, args);
       var was = dg.board && dg.board.phase + ":" + dg.board.round;
       dg.board = b;
       if (!b || !b.live) dgStopPoll();
@@ -3617,7 +3641,7 @@
       row.appendChild(go);
       card.append(h, p, row);
       el("gamesPick").appendChild(card);
-      rpc(g.board, { p_token: token, p_class: cls.id }).then(function (b) {
+      rpc(g.board, { p_token: token, p_class: cls.id, p_drawings: false }).then(function (b) {
         if (b && b.live) go.textContent = "Vyksta: tęsti";
       }).catch(function (err) {
         if (err && err.code === "teacher_denied") { closeFull(el("games")); signOut(); }
