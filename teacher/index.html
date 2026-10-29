@@ -3099,12 +3099,15 @@
         h.textContent = s.title;
         var meta = document.createElement("p");
         meta.className = "skill";
-        meta.textContent = s.topic + " · " + s.n + " žodž." + (s.sentences ? " · " + s.sentences + " sakinių ir frazių" : "");
+        var young = dg.cls.grade < 9 && s.sentences;   // grades 6-7 draw single words only (232)
+        meta.textContent = s.topic + " · " + (young ? s.sentences : s.n) + " žodž." +
+          (s.sentences && !young ? " · " + s.sentences + " sakinių ir frazių" : "");
         var row = document.createElement("div");
         row.className = "quiz-go";
         // "Pagal lygį": each phone a word, a phrase or a sentence with a classmate, weighted on
         // the student's quiz results (222); the other two fix the kind
-        [["mix", "Pagal mokinio lygį"], ["words", "Tik žodžiai"], ["sentences", "Tik sakiniai"]].forEach(function (m, i) {
+        (young ? [["mix", "Pradėti"]] :
+         [["mix", "Pagal mokinio lygį"], ["words", "Tik žodžiai"], ["sentences", "Tik sakiniai"]]).forEach(function (m, i) {
           if (m[0] !== "words" && !s.sentences) return;
           var b = document.createElement("button");
           b.className = "btn" + (i ? " quiet" : "");
