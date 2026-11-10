@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Failas</title>
+<style>
+  body { margin: 0; background: #e8e8e8; font: 16px system-ui, sans-serif; }
+  #msg { padding: 24px; text-align: center; }
+  #bar { position: sticky; top: 0; z-index: 2; display: flex; gap: 12px; align-items: center; padding: 8px 16px; background: #333; color: #fff; }
+  #bar button { font: inherit; padding: 6px 14px; cursor: pointer; }
+  #doc { padding: 16px 0; }
+  #doc > section.docx-wrapper { padding: 0 !important; background: transparent !important; }
+  @media print { #bar { display: none; } body { background: none; } #doc { padding: 0; } }
+</style>
+</head>
+<body>
+<div id="bar" hidden><span id="name"></span><button type="button" id="print">Spausdinti</button></div>
+<p id="msg">Kraunama…</p>
+<div id="doc"></div>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/docx-preview.min.js"></script>
+<script src="api.js?v=202610281000"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), path = q.get("p"), token = null;
+  try { token = localStorage.getItem("teacher.token"); } catch (e) {}
+  function fail(t) { document.getElementById("msg").textContent = t; }
+  if (!path || !token) return fail("Prisijunk prie mokytojo lentos ir bandyk dar kartą.");
+  var name = path.split("/").pop();
+  document.title = name;
+  rpc("teacher_material_get", { p_token: token, p_path: path }).then(function (r) {
+    if (!r) throw new Error("none");
+    var bin = atob(r.b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return docx.renderAsync(new Blob([bytes]), document.getElementById("doc"), null, { inWrapper: true, ignoreWidth: false });
+  }).then(function () {
+    document.getElementById("msg").hidden = true;
+    document.getElementById("name").textContent = name;
+    document.getElementById("bar").hidden = false;
+    document.getElementById("print").onclick = function () { window.print(); };
+  }).catch(function () { fail("Failo atidaryti nepavyko."); });
+})();
+</script>
+</body>
+</html>
