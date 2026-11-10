@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tėvų ataskaita</title>
+<style>
+  :root { --ink: #1d2433; --mute: #5b6579; --line: #cfd6e4; --bar: #e8ecf4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e8e8e8; color: var(--ink); font: 14px/1.4 "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #tools { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 16px; background: #333; color: #fff; }
+  #tools select, #tools button { font: inherit; padding: 6px 12px; }
+  #msg { padding: 24px; text-align: center; }
+  .page { width: 210mm; min-height: 297mm; margin: 16px auto; padding: 16mm 16mm 12mm; background: #fff; break-after: page; page-break-after: always; }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  h1 { margin: 0; font-size: 22px; }
+  .sub { color: var(--mute); margin: 2px 0 14px; }
+  .intro { margin: 0 0 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--mute); font-weight: 600; padding: 0 6px 4px; }
+  td { padding: 7px 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+  td.t { width: 38%; }
+  td.t b { display: block; }
+  td.t span { color: var(--mute); font-size: 12px; }
+  td.b { width: 34%; }
+  .bar { height: 12px; background: var(--bar); border-radius: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--c); }
+  td.l { width: 28%; font-weight: 600; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--c); }
+  .l-hi { --c: #2e8b57; } .l-mid { --c: #c8a415; } .l-lo { --c: #d9702b; } .l-none { --c: #9aa3b5; }
+  .foot { margin-top: 14px; color: var(--mute); font-size: 12px; }
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: none; }
+    #tools, #msg { display: none; }
+    .page { margin: 0; box-shadow: none; }
+    .bar, .bar i, .dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div id="tools" hidden>
+  <label>Mokinys <select id="who"></select></label>
+  <button type="button" id="print">Spausdinti / PDF</button>
+</div>
+<p id="msg">Kraunama…</p>
+<div id="pages"></div>
+<script src="api.js?v=202610281000"></script>
+<script>
+(function () {
+  // What each question type means for a parent (grade 6; other grades fall back to the type's name).
+  var GOALS = {
+    6: {
+      "Raidės ir skaitymas": "Rusiškos raidės ir jų garsai (Н, Р, В, С, Х, У, Ж, Ш…)",
+      "Pasisveikinimas": "Привет, Здравствуйте, До свидания, Доброе утро, Как дела?",
+      "Кто? Что?": "Klausimai Кто это? (žmogus) ir Что это? (daiktas)",
+      "он, она, они": "Jis, ji, jie: он, она, они",
+      "говорить": "Veiksmažodis говорить (kalbėti): я говорю, ты говоришь…",
+      "Klasės žodžiai": "Klasės daiktai: стол, парта, доска, окно, ручка, тетрадь…",
+      "в / на": "Kur? Prielinksniai в (viduje) ir на (ant)",
+      "Galūnė -е / -у": "Žodžio galūnė po в ir на: на столе, в шкафу",
+      "Kur yra? (под, над, рядом с)": "Kur kas yra: под столом, над доской, рядом с окном"
+    }
+  };
+  var LEVELS = [
+    { min: 85, cls: "l-hi", text: "Moka gerai" },
+    { min: 60, cls: "l-mid", text: "Beveik moka" },
+    { min: 0, cls: "l-lo", text: "Reikia kartoti" }
+  ];
+  var NONE = { cls: "l-none", text: "Dar neįvertinta" };
+
+  var q = new URLSearchParams(location.search), classId = q.get("class"), token = null;
+  try { token = localStorage.getItem("teacher.token"); } catch (e) {}
+  function fail(t) { document.getElementById("msg").textContent = t; }
+  if (!classId || !token) return fail("Prisijunk prie mokytojo lentos ir bandyk dar kartą.");
+
+  function h(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function level(c) {
+    if (!c || !c.total) return NONE;
+    var pct = Math.round(100 * c.right / c.total);
+    for (var i = 0; i < LEVELS.length; i++) if (pct >= LEVELS[i].min) return { cls: LEVELS[i].cls, text: LEVELS[i].text, pct: pct };
+  }
+
+  function page(res, st) {
+    var goals = GOALS[res.grade] || {};
+    var by = {};
+    st.cats.forEach(function (c) { by[c.cat] = c; });
+    var p = h("section", "page");
+    p.appendChild(h("h1", null, st.name));
+    p.appendChild(h("p", "sub", "Rusų kalba · " + res.class + " · " + new Intl.DateTimeFormat("lt-LT", { dateStyle: "long" }).format(new Date())));
+    var t = h("table");
+    var head = h("tr");
+    ["Tema", "", "Lygis"].forEach(function (x) { head.appendChild(h("th", null, x)); });
+    t.appendChild(head);
+    res.cats.forEach(function (cat) {
+      var lv = level(by[cat]);
+      var tr = h("tr");
+      var a = h("td", "t");
+      a.append(h("b", null, cat), h("span", null, goals[cat] || ""));
+      var b = h("td", "b");
+      var bar = h("div", "bar " + lv.cls), i = h("i");
+      i.style.width = (lv.pct || 0) + "%";
+      bar.appendChild(i);
+      b.appendChild(bar);
+      var l = h("td", "l " + lv.cls);
+      l.append(h("span", "dot"), document.createTextNode(lv.text));
+      tr.append(a, b, l);
+      t.appendChild(tr);
+    });
+    p.appendChild(t);
+    p.appendChild(h("p", "foot", "Lygis skaičiuojamas iš kartojimo testo atsakymų klasėje."));
+    return p;
+  }
+
+  function show(res, who) {
+    var box = document.getElementById("pages");
+    box.replaceChildren();
+    res.students.forEach(function (st, i) { if (who === "all" || who === String(i)) box.appendChild(page(res, st)); });
+  }
+
+  rpc("teacher_parent_report", { p_token: token, p_class: classId }).then(function (res) {
+    if (!res.students.length) return fail("Klasėje nėra mokinių.");
+    var sel = document.getElementById("who");
+    var all = h("option", null, "Visi (po puslapį)"); all.value = "all"; sel.appendChild(all);
+    res.students.forEach(function (st, i) { var o = h("option", null, st.name); o.value = String(i); sel.appendChild(o); });
+    sel.onchange = function () { show(res, sel.value); };
+    document.getElementById("print").onclick = function () { window.print(); };
+    document.getElementById("tools").hidden = false;
+    document.getElementById("msg").hidden = true;
+    show(res, "all");
+  }).catch(function () { fail("Ataskaitos įkelti nepavyko."); });
+})();
+</script>
+</body>
+</html>

@@ -284,6 +284,7 @@
 <div class="full" id="progress" hidden>
   <div class="bar">
     <h2 class="full-title" id="progressTitle">Mokiniai</h2>
+    <button class="btn quiet" type="button" id="progressReport">Tėvams (PDF)</button>
     <button class="btn quiet" type="button" id="progressAdd">Pridėti mokinių</button>
     <button class="btn quiet" type="button" id="progressClose">Uždaryti</button>
   </div>
@@ -1468,6 +1469,7 @@
   }
 
   el("progressBtn").addEventListener("click", openProgress);
+  el("progressReport").addEventListener("click", function () { window.open("report.html?class=" + encodeURIComponent(current.id), "_blank", "noopener"); });
   el("progressClose").addEventListener("click", function () { closeFull(el("progress")); });
   el("lessonsClose").addEventListener("click", function () { closeFull(el("lessons")); });
 
