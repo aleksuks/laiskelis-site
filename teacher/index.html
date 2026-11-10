@@ -1499,6 +1499,25 @@
 
   // Files from the Mokykla folder (179, filled by school-db/sync.py), newest first.
   // Names only: a link opens a Drive search for that exact name.
+  function openMaterial(f, a) {
+    a.classList.add("dim");
+    rpc("teacher_material_get", { p_token: token, p_path: f.path }).then(function (r) {
+      if (!r) throw new Error("none");
+      var bin = atob(r.b64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([bytes], { type: r.mime }));
+      var d = document.createElement("a");
+      d.href = url;
+      if (r.mime === "application/pdf") d.target = "_blank"; else d.download = f.name;
+      document.body.appendChild(d);
+      d.click();
+      d.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    }).catch(function () {
+      alert("Failo atidaryti nepavyko.");
+    }).then(function () { a.classList.remove("dim"); });
+  }
+
   function ovFiles(files, title) {
     var d = document.createElement("details");
     d.className = "ov-files";
@@ -1509,10 +1528,16 @@
     files.forEach(function (f) {
       var li = document.createElement("li");
       var a = document.createElement("a");
-      a.href = "https://drive.google.com/drive/search?q=" + encodeURIComponent('"' + f.name + '"');
-      a.target = "_blank";
-      a.rel = "noopener";
       a.textContent = f.name;
+      if (f.file) {
+        // Stored in the school database (sync.py): opens with the teacher token, no Drive login.
+        a.href = "#";
+        a.addEventListener("click", function (e) { e.preventDefault(); openMaterial(f, a); });
+      } else {
+        a.href = "https://drive.google.com/drive/search?q=" + encodeURIComponent('"' + f.name + '"');
+        a.target = "_blank";
+        a.rel = "noopener";
+      }
       li.append(ovCell(f.kind + (f.lesson ? " · " + f.lesson + " pam." : ""), "ov-kind"), a, ovCell(DAY_FMT.format(new Date(f.modified)), "ov-kind"));
       ul.appendChild(li);
     });
