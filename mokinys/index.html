@@ -627,6 +627,7 @@
   function refresh() {
     return rpc("teacher_student_state", { p_token: token }).then(function (res) {
       run = res.run;
+      if (run) run.order = scramble(run.content, run.id + "|" + res.name);
       sendAway();   // reopened after closing the browser: no longer away
       if (res.draw) { game = null; draw = res.draw; showDraw(); return; }
       draw = null;
@@ -647,8 +648,38 @@
     run.answers.forEach(function (a, i) { if (a !== null && a === run.correct[i]) s++; });
     return s;
   }
+  // Each phone gets its own question order, so a neighbour's screen doesn't help.
+  // Questions move only inside their part (the rule card still comes first);
+  // answers stay keyed by the quiz's own numbering. The order is seeded by run
+  // and student, so a reload resumes the same sequence.
+  function scramble(content, seed) {
+    var n = content.questions.length;
+    var cuts = [0, n];
+    (content.parts || []).forEach(function (p) { cuts.push(p.from, p.to); });
+    cuts = cuts.filter(function (c, k) { return c >= 0 && c <= n && cuts.indexOf(c) === k; })
+               .sort(function (a, b) { return a - b; });
+    var h = 2166136261;
+    for (var k = 0; k < seed.length; k++) h = Math.imul(h ^ seed.charCodeAt(k), 16777619);
+    function rand() {   // mulberry32
+      h = (h + 0x6D2B79F5) | 0;
+      var t = Math.imul(h ^ (h >>> 15), 1 | h);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    for (var s = 0; s + 1 < cuts.length; s++) {
+      for (var j = cuts[s + 1] - 1; j > cuts[s]; j--) {
+        var r = cuts[s] + Math.floor(rand() * (j - cuts[s] + 1));
+        var tmp = order[j]; order[j] = order[r]; order[r] = tmp;
+      }
+    }
+    return order;
+  }
+
+  // The next unanswered step, as a position in this phone's order.
   function firstOpen() {
-    for (var i = 0; i < run.answers.length; i++) if (run.answers[i] === null) return i;
+    for (var p = 0; p < run.order.length; p++) if (run.answers[run.order[p]] === null) return p;
     return -1;
   }
   function partStartingAt(i) {
@@ -782,15 +813,16 @@
     }
   }
 
-  function showQuestion(i) {
+  function showQuestion(pos) {
     clearTimers();
+    var i = run.order[pos];   // the quiz's own number, which answers are stored under
     current = i;
     var q = run.content.questions[i];
 
     var word = document.createElement("span");
     word.className = "wide";
     word.textContent = "Klausimas ";
-    el("qNum").replaceChildren(word, bold(i + 1), " iš " + total());
+    el("qNum").replaceChildren(word, bold(pos + 1), " iš " + total());
     renderScore();
     el("moodBtn").hidden = !!run.practice;
     if (!run.practice) el("moodBtn").replaceChildren(moodFace(run.mood));
@@ -1099,6 +1131,7 @@
       var n = res.content.questions.length;
       run = { practice: true, content: res.content, key: res.key,
               answers: new Array(n).fill(null), correct: new Array(n).fill(null) };
+      run.order = scramble(res.content, String(Math.random()));
       seenRule = {};
       current = -1;
       route();
