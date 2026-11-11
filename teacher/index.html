@@ -417,7 +417,7 @@
 <script src="api.js?v=202611111500"></script>
 <script src="sound.js?v=202610151450"></script>
 <script src="insights.js?v=202611111500"></script>
-<script src="plants.js?v=202611111700"></script>
+<script src="plants.js?v=202611111900"></script>
 <script src="draw.js?v=202610291300"></script>
 <script>
 (function () {
@@ -1558,7 +1558,7 @@
         if (r.at > rule.at) { rule.at = r.at; rule.lt = r.skill_lt || r.skill; }
         rule.who[st.id] = true;
       });
-      return { name: short[st.id] || st.name.split(" ")[0], goal: st.goal, by: by };
+      return { name: short[st.id] || st.name.split(" ")[0], goal: st.goal, kind: skKind(st), by: by };
     });
     return {
       students: students,
@@ -1670,7 +1670,7 @@
       cells.forEach(function (c, j) {
         var pot = document.createElement("div");
         pot.className = "sk-pot";
-        pot.innerHTML = skPlant(c.stage, rules[j].colour, c === weak, c.grew);   // numbers and constants only
+        pot.innerHTML = skPlant(c.stage, rules[j].colour, c === weak, c.grew, st.kind);   // numbers and constants only
         var name = document.createElement("span");
         name.textContent = rules[j].label.name;
         pot.appendChild(name);
@@ -1713,6 +1713,10 @@
     rpc("teacher_class_progress", { p_token: token, p_class: c.id }).then(function (res) {
       if (current !== c) return;
       skData = skBuild(res);
+      // fetch the painted plants while the rules are being picked, so they grow in whole
+      skData.students.forEach(function (st) {
+        for (var s = 1; s <= 4; s++) new Image().src = SK_ART + "flower-" + SK_KINDS[st.kind][0] + "-" + s + ".png";
+      });
       skRenderPick();
     }).catch(function (err) {
       if (err && err.code === "teacher_denied") { el("skills").hidden = true; return signOut(); }

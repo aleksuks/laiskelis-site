@@ -22,40 +22,36 @@ function skLabel(lt) {
   return m ? { name: m[1], ex: m[2] } : { name: lt, ex: "" };
 }
 
-// One pot. stage 0 = not tried yet (an empty outline), 1 seed … 4 in bloom.
-function skPlant(stage, colour, drop, grew) {
-  var stem = "#2f9a57", leaf = "#63c184";
-  var o = ' stroke="#22272b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"';
-  var pair = function (y, rx) {
-    return [-1, 1].map(function (side) {
-      var x = 50 + side * rx;
-      return '<ellipse cx="' + x + '" cy="' + y + '" rx="' + rx + '" ry="' + rx * 0.45 + '" fill="' + leaf + '"' + o +
-        ' transform="rotate(' + side * 24 + " " + x + " " + y + ')"/>';
-    }).join("");
-  };
-  var line = function (d) { return '<path d="' + d + '" fill="none" stroke="' + stem + '" stroke-width="5" stroke-linecap="round"/>'; };
-  var plant = "";
-  if (stage === 1) {
-    plant = '<path d="M50 96c0-6 3-9 7-10" fill="none" stroke="' + stem + '" stroke-width="4" stroke-linecap="round"/>' +
-      '<ellipse cx="49" cy="96" rx="8" ry="5.5" fill="#a9743f"' + o + "/>";
-  } else if (stage === 2) {
-    plant = line("M50 102C51 94 49 86 50 78") + pair(75, 10);
-  } else if (stage === 3) {
-    plant = line("M50 102C53 86 47 68 50 52") + pair(82, 13) + pair(65, 9) +
-      '<ellipse cx="50" cy="42" rx="9" ry="12" fill="' + leaf + '"' + o + "/>" +
-      '<path d="M44 37Q50 20 56 37Q50 33 44 37Z" fill="' + colour + '"' + o + "/>";
-  } else if (stage === 4) {
-    plant = line("M50 102C54 84 46 62 50 42") + pair(84, 14) + pair(66, 10);
-    for (var i = 0; i < 6; i++) {
-      var a = i * Math.PI / 3;
-      plant += '<circle cx="' + (50 + 12.5 * Math.sin(a)).toFixed(1) + '" cy="' + (31 - 12.5 * Math.cos(a)).toFixed(1) + '" r="9" fill="' + colour + '"' + o + "/>";
-    }
-    plant += '<circle cx="50" cy="31" r="7.5" fill="#f2c014"' + o + "/>";
-  }
-  var pot = stage
-    ? '<path d="M28 108h44l-6 35a4 4 0 0 1-4 3H38a4 4 0 0 1-4-3z" fill="' + colour + '"' + o + "/>" +
-      '<rect x="22" y="99" width="56" height="12" rx="4" fill="' + colour + '"' + o + "/>"
-    : '<path d="M28 111h44l-6 32a4 4 0 0 1-4 3H38a4 4 0 0 1-4-3zM22 99h56v12H22z" fill="none" stroke="#a3abaf" stroke-width="2.5" stroke-dasharray="5 6" stroke-linejoin="round"/>';
-  return '<svg viewBox="0 0 100 150" aria-hidden="true"><g class="sk-plant">' + plant + "</g>" + pot +
-    (drop ? SK_DROP : "") + (grew ? SK_GREW : "") + "</svg>";
+// The painted kinds (242), from letters-app scripts/ui-art/teacher_flowers.py.
+// The index is teacher_students.flower: append new kinds, never reorder.
+var SK_KINDS = [["ramune", "Ramunė"], ["tulpe", "Tulpė"], ["saulegraza", "Saulėgrąža"], ["aguona", "Aguona"],
+  ["rugiagele", "Rugiagėlė"], ["levanda", "Levanda"], ["pakalnute", "Pakalnutė"], ["roze", "Rožė"],
+  ["kaktusas", "Kaktusas"], ["bijunas", "Bijūnas"], ["ruta", "Rūta"], ["naslaite", "Našlaitė"]];
+// teacher/art/, wherever the page loading this file lives
+var SK_ART = (function () {
+  var src = document.currentScript && document.currentScript.src;
+  return src ? src.replace(/[^\/]*$/, "") + "art/" : "art/";
+})();
+
+// A student's kind: their own choice, or until they make one, a kind picked
+// from their id, so the board is mixed from the first day. st: { id, flower }.
+function skKind(st) {
+  if (st && st.flower != null && st.flower >= 0 && st.flower < SK_KINDS.length) return st.flower;
+  var h = 0, id = String((st && st.id) || "");
+  for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h) % SK_KINDS.length;
+}
+
+// One pot. stage 0 = not tried yet (an empty pot), 1 seed … 4 in bloom.
+// Two painted layers on one 100 x 150 frame: the flower, then the pot over
+// its foot. The pot's colour is the rule (one of SK_COLOURS), the flower is
+// the student's. The badges sit on the pot, clear of every kind's leaves.
+function skPlant(stage, colour, drop, grew, kind) {
+  var img = function (name) { return '<image href="' + SK_ART + name + '.png" width="100" height="150"/>'; };
+  var pot = Math.max(0, SK_COLOURS.indexOf(colour));
+  var k = SK_KINDS[kind] ? kind : 0;
+  return '<svg viewBox="0 0 100 150" aria-hidden="true">' +
+    (stage ? '<g class="sk-plant">' + img("flower-" + SK_KINDS[k][0] + "-" + stage) + "</g>" + img("pot-" + pot) : img("pot-empty")) +
+    (drop ? '<g transform="translate(0 58)">' + SK_DROP + "</g>" : "") +
+    (grew ? '<g transform="translate(0 52)">' + SK_GREW + "</g>" : "") + "</svg>";
 }

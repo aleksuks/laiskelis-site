@@ -131,6 +131,18 @@ No author/device columns anywhere student-facing.
   to "no results on the projected board" (the teacher's call): so no numbers,
   grades or ranking on it, alphabetical order, magnets taken off with × are
   left out.
+- **Flowers (2026-11-11, 242):** the plants are painted (letters-app
+  `scripts/ui-art/teacher_flowers.py`, exported to `teacher/art/`): twelve
+  kinds (`SK_KINDS` in `teacher/plants.js`), each in four stages
+  (`flower-<kind>-<1..4>.png`), standing in a pot per rule colour
+  (`pot-<i>.png`, the order of `SK_COLOURS`; `pot-empty.png` = not tried).
+  Two layers on one 100 x 150 frame, the pot over the flower's foot. Every
+  student picks their kind under "Mano gėlė" on /mokinys
+  (`teacher_student_flower_set`, any time, not guests); stored in
+  `teacher_students.flower` and returned by `teacher_stats_of`. Until they
+  pick, `skKind()` derives one from their id. Their own rule cards on
+  /mokinys use it too. New kinds are appended, never reordered (the index
+  is the stored id), and the RPC's bound goes up with them.
 - **Tray regrouped (2026-11-11, no migration):** the tray holds only what is
   used with the class on the big screen, one tap each: Ratas, Ekranas,
   Testas, Žaidimai (a card per game: Žodžių poros, Piešiu ir spėju), Lygiai,

@@ -198,6 +198,18 @@
   .rule-more h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink-dim); }
   .rule-more .rule { border-width: 1px; padding: 12px; font-size: 16px; }
 
+  /* The student's own flower on the class board (242): twelve painted kinds. */
+  .flower-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .flower-pick button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 2px 8px; border: 2px solid var(--frame); border-radius: 14px; background: #fff; font: inherit; font-size: 13px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .flower-pick button[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 2px var(--blue); }
+  .flower-pick svg { display: block; width: 100%; max-width: 76px; aspect-ratio: 2 / 3; overflow: visible; }
+  .flower-mine { display: flex; align-items: center; gap: 14px; background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 8px 14px; }
+  .flower-mine svg { display: block; width: 44px; height: 66px; overflow: visible; }
+  .flower-mine .txt { flex: 1; display: flex; flex-direction: column; }
+  .flower-mine small { color: var(--ink-dim); font-size: 15px; }
+  .flower-mine b { font-size: 20px; }
+  .flower-mine .btn { padding: 10px 16px; font-size: 16px; }
+
   /* right answers out of all; the tick is what the student's goal takes */
   .bar { position: relative; display: block; height: 10px; border-radius: 5px; background: #e3e6e4; }
   .bar i { display: block; height: 100%; border-radius: 5px; background: var(--blue); }
@@ -424,6 +436,7 @@
       <p class="note" id="quizNote" role="status" hidden>Testas dar neprasidėjo. Palauk mokytojos ženklo.</p>
     </div>
     <div class="screen" id="goalBox"></div>
+    <div class="screen" id="flowerBox"></div>
     <div class="screen" id="marksBox"></div>
     <div class="screen" id="skills"></div>
     <div class="screen" id="testsBox"></div>
@@ -492,7 +505,7 @@
 <script src="../teacher/api.js?v=202611111500"></script>
 <script src="../teacher/sound.js"></script>
 <script src="../teacher/insights.js?v=202611111500"></script>
-<script src="../teacher/plants.js?v=202611111700"></script>
+<script src="../teacher/plants.js?v=202611111900"></script>
 <script src="../teacher/draw.js?v=202610291300"></script>
 <script>
 (function () {
@@ -1204,6 +1217,51 @@
     box.append(heading("Mano tikslas"), form);
   }
 
+  // The student's own flower on the class board (242): any painted kind,
+  // changed whenever they like. Until they choose, the board shows one
+  // picked from their id (skKind), so the question stays open here.
+  function renderFlower(open) {
+    var box = el("flowerBox");
+    box.replaceChildren();
+    if (stats.guest) return;
+    var mine = stats.flower;
+    if (mine != null && SK_KINDS[mine] && !open) {
+      var row = node("div", "flower-mine");
+      var pic = node("span");
+      pic.innerHTML = skPlant(4, SK_COLOURS[1], false, false, mine);   // constants only
+      var txt = node("span", "txt");
+      txt.append(node("small", null, "Mano gėlė"), node("b", null, SK_KINDS[mine][1]));
+      var change = node("button", "btn quiet", "Keisti");
+      change.type = "button";
+      change.addEventListener("click", function () { renderFlower(true); });
+      row.append(pic, txt, change);
+      box.appendChild(row);
+      return;
+    }
+    var grid = node("div", "flower-pick");
+    var all = function (on) { grid.querySelectorAll("button").forEach(function (x) { x.disabled = !on; }); };
+    SK_KINDS.forEach(function (k, i) {
+      var b = node("button");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(i === mine));
+      b.innerHTML = skPlant(4, SK_COLOURS[1], false, false, i);   // constants only
+      b.appendChild(node("span", null, k[1]));
+      b.addEventListener("click", function () {
+        all(false);
+        rpc("teacher_student_flower_set", { p_token: token, p_kind: i }).then(function () {
+          stats.flower = i;
+          renderStats();
+        }).catch(function (err) {
+          if (signedOut(err)) return;
+          all(true);
+          statsError(err.message);
+        });
+      });
+      grid.appendChild(b);
+    });
+    box.append(heading("Mano gėlė", mine == null ? "Išsirink – ji augs klasės lentoje." : null), grid);
+  }
+
   var MONTHS = ["sausio", "vasario", "kovo", "balandžio", "gegužės", "birželio", "liepos", "rugpjūčio", "rugsėjo", "spalio", "lapkričio", "gruodžio"];
   function dayOf(at) { var d = new Date(at); return MONTHS[d.getMonth()] + " " + d.getDate() + " d."; }
   function node(tag, cls, text) {
@@ -1287,6 +1345,7 @@
     rules.sort(function (a, b) { return a.last.at < b.last.at ? 1 : -1; });
 
     renderGoal(rules.filter(function (s) { return s.stage === 4; }).length, rules.length);
+    renderFlower(false);
     renderMarks(runs, goal);
 
     var frag = document.createDocumentFragment();
@@ -1316,7 +1375,7 @@
     var card = node("details", "rule-card " + v[0]);
     var sum = node("summary");
     var pot = node("span", "pot");
-    pot.innerHTML = skPlant(s.stage, s.colour, first, s.grew);   // numbers and constants only
+    pot.innerHTML = skPlant(s.stage, s.colour, first, s.grew, skKind(stats));   // numbers and constants only
     var name = node("span", "name", s.label.name);
     if (s.label.ex) name.appendChild(node("span", "ex", s.label.ex));
     var mark = node("span", "avg", "pažymys");
@@ -1374,7 +1433,7 @@
     var key = node("div", "key");
     for (var st = 1; st <= 4; st++) {
       var k = node("span");
-      k.innerHTML = skPlant(st, SK_COLOURS[0], false, false);
+      k.innerHTML = skPlant(st, SK_COLOURS[0], false, false, skKind(stats));
       k.appendChild(document.createTextNode(SK_WORDS[st].replace("!", "")));
       key.appendChild(k);
     }
