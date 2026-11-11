@@ -37,6 +37,17 @@ function gradeFor(score, total) {
   return 1;
 }
 
+// A student's own goal (the level they want, 1–10; 241). How far they are
+// is measured against it, not against 10: goalNeed is the share of right
+// answers that mark takes on the scale above. No goal yet = the fixed line
+// the levels had before goals. Marks themselves stay real marks.
+const GOAL_NONE_NEED = 0.85;
+
+function goalNeed(goal) {
+  if (!goal) return GOAL_NONE_NEED;
+  return goal >= 2 ? GRADE_STEPS[10 - goal] : 0.05;
+}
+
 const GENERIC_ERROR = "Nepavyko susisiekti. Patikrink internetą ir bandyk dar kartą.";
 
 function apiError(code) {

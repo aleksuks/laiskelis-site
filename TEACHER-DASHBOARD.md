@@ -125,7 +125,9 @@ No author/device columns anywhere student-facing.
   bloom from the share right in the student's latest test of that rule
   (`SK_STAGES`), an empty outline if never tried. A droplet marks the one
   rule to repeat first, an arrow a stage gained against their own earlier
-  test. Reads `teacher_class_progress`. This is the one deliberate exception
+  test. Since 241 a plant grows toward its student's own goal, not toward
+  10 (`SK_STAGES` are parts of the way there), so two plants in bloom may
+  stand for different marks. Reads `teacher_class_progress`. This is the one deliberate exception
   to "no results on the projected board" (the teacher's call): so no numbers,
   grades or ranking on it, alphabetical order, magnets taken off with × are
   left out.
@@ -133,10 +135,40 @@ No author/device columns anywhere student-facing.
   used with the class on the big screen, one tap each: Ratas, Ekranas,
   Testas, Žaidimai (a card per game: Žodžių poros, Piešiu ir spėju), Lygiai,
   Atsiliepimai; then the eraser (Visi į vidurį) and **Meniu**, one card with
-  three headings: the class (Mokiniai, PIN kodai, Kaupiamieji, Įsivertinimas,
+  three headings: the class (Mokiniai, PIN kodai, Pažymiai, Įsivertinimas,
   Pamokos, Drive), Planas (Rytoj, Visos klasės) and Įrenginys (sound,
   Išeiti). A new tool goes on the tray only if the class watches it;
   anything else is a line in the menu.
+- **Own goals, small marks and the +1 (2026-11-11, migration 241 in the school
+  folder's `school-db/`):** the learning format from here on.
+  - *Goal.* Each student rates their level now and the level they want
+    (1–10, `teacher_self_levels`); the wanted level is their goal. They
+    answer on /mokinys once ("Mano tikslas", `teacher_student_self_set`) or
+    the teacher enters it in Įsivertinimas; after that only the teacher
+    changes it (clearing it reopens the question on the phone).
+  - *Levels are shown against the goal, never against 10.* `goalNeed(goal)`
+    in `api.js` is the share of right answers that mark takes on
+    `GRADE_STEPS`. Lygiai, the rule cards and result line on /mokinys, the
+    recap's "known" line (`insights.js`) and the parent PDF all use it; no
+    goal yet = the old fixed lines. **Marks are never rescaled**, and goals
+    never go on the projected board.
+  - *The +1* (`teacher_plus`, `teacher_plus_give` / `_take` / `_use`): given
+    for a good answer to a complicated question; the student adds it to one
+    atsiskaitymas grade (one per grade, 10 at most). It is a row pointing at
+    the column, never a change to the stored mark: Pažymiai shows a dashed
+    "+1" beside a mark while the student has one to use, "+1 → 8" once
+    used (`gbFinal`, the TAMO grade). A mark cleared or made a 10, or a
+    deleted column, gives it back. /mokinys shows "Turiu +1" with the count.
+  - *Pažymiai* (was Kaupiamieji). Besides the +1, two kinds of marks: an
+    atsiskaitymas is a
+    column (`teacher_gb_cols`, a full grade for TAMO); a small mark
+    (`teacher_small_marks`) is given to one student whenever, for that
+    lesson's work, tied to no skill, column or lesson. Every `GB_K` (3) of a
+    student's small marks, in the order given, average into a K. "Kam
+    trūksta mažų" sorts by the count, fewest first: that student works
+    today. The count is the teacher's, not the board's.
+  - *Pasiekta* in Visos klasės is `teacher_classes.plan_at`: click a lesson
+    in a class's bar; a filled atsiskaitymas moves it forward by itself.
 - **Next:** authoring quizzes (today: by migration), removing/renaming
   students, a teacher view of one student's history.
 

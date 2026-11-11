@@ -7,7 +7,7 @@
 // Every sentence is about the task, compares the student only with their
 // own earlier results, and the weak spot comes with its rule card.
 
-var MASTERY = 0.8;     // a section counts as known from 80 % right. Tuning knob.
+var MASTERY = 0.8;     // a section counts as known from 80 % right, for a student with no goal. Tuning knob.
 var TREND_PTS = 8;     // percentage points before "better" / "worse".
 var STALE_DAYS = 28;   // a not-yet-mastered topic untouched this long gets a nudge.
 
@@ -26,7 +26,9 @@ function partName(part, i) {
 
 function pctOf(c, n) { return n ? Math.round(100 * c / n) : 0; }
 
-// stats: { runs: [{at, quiz, skill, n, correct, marks}], quizzes: {id: parts} }
+// stats: { runs: [{at, quiz, skill, n, correct, marks}], quizzes: {id: parts},
+// goal, need }. With a goal (the student's own, 241) a section counts as
+// known from `need`, the share that mark takes (goalNeed in api.js).
 // Returns { lines: [{kind: up|down|same|good|work|time|stale, text}], weak }
 // where weak is the section to repeat ({skill, name, rule_html}) or null.
 function progressRecap(stats, now) {
@@ -34,6 +36,7 @@ function progressRecap(stats, now) {
   var lines = [];
   if (!runs.length) return { lines: lines, weak: null, recent: null, trend: null };
   now = now || Date.now();
+  var known = stats.goal ? stats.need : MASTERY;
 
   // 1. Better or worse than before: the latest runs against the ones before.
   // ponytail: quizzes differ in difficulty, so this is rough; compare the
@@ -77,9 +80,9 @@ function progressRecap(stats, now) {
   var worst = sections[sections.length - 1];
   var named = function (s) { return s.skill + " – " + s.name + " (" + s.c + "/" + s.t + ")"; };
   if (best && best.share >= 0.5) lines.push({ kind: "good", text: "Stiprioji vieta: " + named(best) + "." });
-  var weak = worst && worst !== best && worst.share < MASTERY ? worst : null;
+  var weak = worst && worst !== best && worst.share < known ? worst : null;
   if (weak) lines.push({ kind: "work", text: "Daugiausia klaidų: " + named(weak) + "." });
-  else if (sections.length) lines.push({ kind: "good", text: "Visos dalys – bent " + MASTERY * 100 + " % teisingai." });
+  else if (sections.length) lines.push({ kind: "good", text: stats.goal ? "Visos dalys pasiekė tikslą (" + stats.goal + ")." : "Visos dalys – bent " + MASTERY * 100 + " % teisingai." });
 
   // 3. Questions left to the timer in the latest runs.
   var last = runs.slice(-3);
@@ -95,7 +98,7 @@ function progressRecap(stats, now) {
   var stale = Object.keys(bySkill).map(function (s) {
     var list = bySkill[s], r = list[list.length - 1];
     return { skill: s, days: Math.floor((now - new Date(r.at).getTime()) / 864e5), share: r.correct / r.n };
-  }).filter(function (s) { return s.days >= STALE_DAYS && s.share < 0.9; })
+  }).filter(function (s) { return s.days >= STALE_DAYS && s.share < (stats.goal ? known : 0.9); })
     .sort(function (a, b) { return b.days - a.days; })[0];
   if (stale) lines.push({ kind: "stale", text: "Seniai kartota: " + stale.skill + " (prieš " + stale.days + " d.)." });
 

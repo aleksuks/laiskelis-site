@@ -24,8 +24,10 @@
   td.t b { display: block; }
   td.t span { color: var(--mute); font-size: 12px; }
   td.b { width: 34%; }
-  .bar { height: 12px; background: var(--bar); border-radius: 6px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: var(--c); }
+  .bar { position: relative; height: 12px; background: var(--bar); border-radius: 6px; }
+  .bar i { display: block; height: 100%; border-radius: 6px; background: var(--c); }
+  .bar u { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+  .goal { margin: 0 0 12px; }
   td.l { width: 28%; font-weight: 600; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--c); }
   .l-hi { --c: #2e8b57; } .l-mid { --c: #c8a415; } .l-lo { --c: #d9702b; } .l-none { --c: #9aa3b5; }
@@ -35,7 +37,7 @@
     body { background: none; }
     #tools, #msg { display: none; }
     .page { margin: 0; box-shadow: none; }
-    .bar, .bar i, .dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bar, .bar i, .bar u, .dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
@@ -46,7 +48,7 @@
 </div>
 <p id="msg">Kraunama…</p>
 <div id="pages"></div>
-<script src="api.js?v=202610281000"></script>
+<script src="api.js?v=202611111500"></script>
 <script>
 (function () {
   // What each question type means for a parent (grade 6; other grades fall back to the type's name).
@@ -63,10 +65,13 @@
       "Kur yra? (под, над, рядом с)": "Kur kas yra: под столом, над доской, рядом с окном"
     }
   };
+  // A level is the share of right answers against what the student's own
+  // goal takes (goalNeed, 241), not against 10: there, close (from 70 % of
+  // the way), or to repeat. Without a goal the old fixed line stands in.
   var LEVELS = [
-    { min: 85, cls: "l-hi", text: "Moka gerai" },
-    { min: 60, cls: "l-mid", text: "Beveik moka" },
-    { min: 0, cls: "l-lo", text: "Reikia kartoti" }
+    { min: 1, cls: "l-hi", text: "Moka gerai", goal: "Tikslas pasiektas" },
+    { min: 0.7, cls: "l-mid", text: "Beveik moka", goal: "Arti tikslo" },
+    { min: 0, cls: "l-lo", text: "Reikia kartoti", goal: "Reikia kartoti" }
   ];
   var NONE = { cls: "l-none", text: "Dar neįvertinta" };
 
@@ -77,10 +82,12 @@
 
   function h(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-  function level(c) {
+  function level(c, goal) {
     if (!c || !c.total) return NONE;
-    var pct = Math.round(100 * c.right / c.total);
-    for (var i = 0; i < LEVELS.length; i++) if (pct >= LEVELS[i].min) return { cls: LEVELS[i].cls, text: LEVELS[i].text, pct: pct };
+    var share = c.right / c.total, way = share / goalNeed(goal);
+    for (var i = 0; i < LEVELS.length; i++) {
+      if (way >= LEVELS[i].min) return { cls: LEVELS[i].cls, text: goal ? LEVELS[i].goal : LEVELS[i].text, pct: Math.round(100 * share) };
+    }
   }
 
   function page(res, st) {
@@ -90,12 +97,13 @@
     var p = h("section", "page");
     p.appendChild(h("h1", null, st.name));
     p.appendChild(h("p", "sub", "Rusų kalba · " + res.class + " · " + new Intl.DateTimeFormat("lt-LT", { dateStyle: "long" }).format(new Date())));
+    if (st.goal) p.appendChild(h("p", "goal", "Mokinio paties pasirinktas tikslas – " + st.goal + " (iš 10). Lygis rodomas pagal šį tikslą; brūkšnelis juostoje žymi, kiek jam reikia."));
     var t = h("table");
     var head = h("tr");
     ["Tema", "", "Lygis"].forEach(function (x) { head.appendChild(h("th", null, x)); });
     t.appendChild(head);
     res.cats.forEach(function (cat) {
-      var lv = level(by[cat]);
+      var lv = level(by[cat], st.goal);
       var tr = h("tr");
       var a = h("td", "t");
       a.append(h("b", null, cat), h("span", null, goals[cat] || ""));
@@ -103,6 +111,7 @@
       var bar = h("div", "bar " + lv.cls), i = h("i");
       i.style.width = (lv.pct || 0) + "%";
       bar.appendChild(i);
+      if (st.goal) { var mark = h("u"); mark.style.left = Math.round(100 * goalNeed(st.goal)) + "%"; bar.appendChild(mark); }
       b.appendChild(bar);
       var l = h("td", "l " + lv.cls);
       l.append(h("span", "dot"), document.createTextNode(lv.text));

@@ -122,6 +122,14 @@
   .score .grade { font-family: var(--marker); font-size: 140px; line-height: 1; color: var(--blue); }
   .score .of { font-size: 22px; color: var(--ink); font-variant-numeric: tabular-nums; }
   .score h1 { margin-bottom: 4px; }
+  .score .goal-line { margin-top: 6px; font-size: 18px; font-weight: 700; color: var(--ink-dim); }
+  .score .goal-line.there { color: var(--green); }
+  /* the student's own goal (241): two 1–10 questions, answered once */
+  .goal-form { display: flex; flex-direction: column; gap: 10px; background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 14px; }
+  .goal-form p { margin: 0; font-weight: 700; }
+  .goal-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .goal-scale button { height: 44px; border: 2px solid var(--frame); border-radius: 12px; background: #fff; font: inherit; font-weight: 700; padding: 0; }
+  .goal-scale button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: #fff; }
   .mistake { background: #fff; border: 1px solid #e3e6e4; border-radius: 10px; padding: 10px 14px; }
   .mistake .fix { color: var(--green); font-weight: 700; }
   .mistake .was { margin-top: 4px; font-size: 15px; color: var(--ink-dim); }
@@ -345,7 +353,7 @@
   </div>
 
   <div id="result" class="screen" hidden>
-    <div class="score"><h1 id="resultTitle">Testas baigtas!</h1><div class="rosette" role="img" id="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div></div>
+    <div class="score"><h1 id="resultTitle">Testas baigtas!</h1><div class="rosette" role="img" id="rosette"><div class="grade" id="grade"></div></div><div class="of" id="of"></div><div class="goal-line" id="goalLine" hidden></div></div>
     <p class="sub practice-note" id="practiceNote" hidden>Pasikartojimas: rezultatas niekur neįrašomas.</p>
     <div class="screen" id="mistakes"></div>
     <button class="btn" type="button" id="toStats">Mano statistika</button>
@@ -360,6 +368,7 @@
       <button class="btn" type="button" id="checkQuiz">Įeiti</button>
       <p class="note" id="quizNote" role="status" hidden>Testas dar neprasidėjo. Palauk mokytojos ženklo.</p>
     </div>
+    <div class="screen" id="goalBox"></div>
     <div class="screen" id="skills"></div>
     <div class="facts" id="facts"></div>
     <div class="links">
@@ -423,9 +432,9 @@
 
 <div class="sticker" id="ping" role="status" hidden><img id="pingArt" alt=""><span id="pingText"></span></div>
 
-<script src="../teacher/api.js"></script>
+<script src="../teacher/api.js?v=202611111500"></script>
 <script src="../teacher/sound.js"></script>
-<script src="../teacher/insights.js"></script>
+<script src="../teacher/insights.js?v=202611111500"></script>
 <script src="../teacher/draw.js?v=202610291300"></script>
 <script>
 (function () {
@@ -605,6 +614,7 @@
     call.then(function (res) {
       if (res.error) throw new Error(LOGIN_ERRORS[res.error] || GENERIC_ERROR);
       token = res.token;
+      stats = null;
       store(token);
       setGuest(!!res.guest);
       el("pin").value = "";
@@ -617,6 +627,7 @@
   el("logout").addEventListener("click", function () {
     rpc("teacher_student_logout", { p_token: token }).catch(function () {});
     token = null;
+    stats = null;
     store(null);
     setGuest(false);
     showLogin();
@@ -940,6 +951,15 @@
 
   /* ---------- result ---------- */
 
+  // The student's goal for the result screen. After a login straight into a
+  // test the stats (and the goal in them) aren't loaded yet.
+  function withGoal(fn) {
+    if (stats) return fn(stats.goal);
+    rpc("teacher_student_stats", { p_token: token })
+      .then(function (res) { stats = res; return res.goal; }, function () { return null; })
+      .then(fn);
+  }
+
   function showResult() {
     clearTimers();
     var s = score();
@@ -984,8 +1004,21 @@
       list.appendChild(row);
     });
     el("practiceNote").hidden = !run.practice;
+    el("goalLine").hidden = true;
     show("result");
-    if (gradeFor(s, n) >= 8) setTimeout(function () { confetti(el("grade")); Sound.fanfare(); }, 350);
+    // Reaching your own goal is the win (241); an 8 still is one for everybody.
+    withGoal(function (goal) {
+      if (screen !== "result") return;
+      var g = gradeFor(s, n);
+      if (goal) {
+        var left = Math.ceil(goalNeed(goal) * n - 1e-9) - s;
+        el("goalLine").textContent = g >= goal ? "Tavo tikslas (" + goal + ") pasiektas!"
+          : "Iki tavo tikslo (" + goal + ") – dar " + left + " " + ltPlural(left, "teisingas atsakymas", "teisingi atsakymai", "teisingų atsakymų") + ".";
+        el("goalLine").className = "goal-line" + (g >= goal ? " there" : "");
+        el("goalLine").hidden = false;
+      }
+      if (g >= Math.min(goal || 8, 8)) setTimeout(function () { confetti(el("grade")); Sound.fanfare(); }, 350);
+    });
   }
 
   el("toStats").addEventListener("click", openStats);
@@ -1054,6 +1087,65 @@
     return frag;
   }
 
+  // The level the student wants is their goal (241): how far they are is
+  // shown against it, not against 10. They answer here once; after that only
+  // the teacher changes it, so it can't be lowered mid-test to look finished.
+  var SELF_Q = [["now", "Kaip aš dabar vertinu savo lygį?"],
+                ["want", "Remiantis savo požiūriu ir reikalavimais sau, kokio lygio norėčiau?"]];
+
+  function renderGoal(reached, tried) {
+    var box = el("goalBox");
+    box.replaceChildren();
+    if (stats.guest) return;
+    if (stats.goal) {
+      var facts = document.createElement("div");
+      facts.className = "facts";
+      facts.appendChild(fact("Mano tikslas", stats.goal,
+        tried ? "pasiekta taisyklių: " + reached + " iš " + tried : stats.self_now ? "dabar save vertinu " + stats.self_now : ""));
+      box.appendChild(facts);
+      return;
+    }
+    var picked = {};
+    var form = document.createElement("div");
+    form.className = "goal-form";
+    var save = document.createElement("button");
+    save.type = "button";
+    save.className = "btn";
+    save.textContent = "Išsaugoti";
+    save.disabled = true;
+    SELF_Q.forEach(function (q) {
+      var p = document.createElement("p");
+      p.textContent = q[1];
+      var scale = document.createElement("div");
+      scale.className = "goal-scale";
+      for (var n = 1; n <= 10; n++) (function (n) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = n;
+        b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () {
+          picked[q[0]] = n;
+          scale.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+          save.disabled = !(picked.now && picked.want);
+        });
+        scale.appendChild(b);
+      })(n);
+      form.append(p, scale);
+    });
+    save.addEventListener("click", function () {
+      save.disabled = true;
+      rpc("teacher_student_self_set", { p_token: token, p_now: picked.now, p_want: picked.want })
+        .then(openStats)
+        .catch(function (err) {
+          if (signedOut(err)) return;
+          save.disabled = false;
+          statsError(err.message);
+        });
+    });
+    form.appendChild(save);
+    box.append(heading("Mano tikslas"), form);
+  }
+
   function renderStats() {
     el("statsName").textContent = "Labas, " + stats.name.split(" ")[0] + "!";
     var runs = stats.runs;
@@ -1065,6 +1157,8 @@
 
     // Before the first quiz only the points mean anything; zeros would be noise.
     var facts = POINTS ? [fact("Taškai šią savaitę", stats.points_week, "iš viso " + stats.points_total, "points")] : [];
+    // +1 still to use (241): given for a good answer to a hard question.
+    if (stats.plus) facts.push(fact("Turiu +1", stats.plus, "pridėk prie atsiskaitymo pažymio – po vieną"));
     if (runs.length) facts.push(
       fact("Atlikti testai", runs.length),
       fact("Atsakymo laikas", avgS === null ? "–" : avgS + " s", "vidutiniškai"),
@@ -1081,6 +1175,8 @@
       var avg = Math.round(list.reduce(function (t, r) { return t + gradeFor(r.correct, r.n); }, 0) / list.length);
       return { name: last.skill_lt, quiz: last.quiz, avg: avg };
     }).sort(function (a, b) { return b.avg - a.avg; });
+    var goal = stats.goal;
+    renderGoal(skills.filter(function (s) { return s.avg >= goal; }).length, skills.length);
 
     var frag = document.createDocumentFragment();
     if (!skills.length) {
@@ -1097,7 +1193,7 @@
       box.append(img, p, sub);
       frag.appendChild(box);
     } else {
-      frag.appendChild(heading("Ką moki", "Skaičius – tavo vidutinis pažymys. Paspausk ir pasikartok."));
+      frag.appendChild(heading("Ką moki", "Skaičius – tavo vidutinis pažymys" + (goal ? ", po juo – tavo tikslas" : "") + ". Paspausk ir pasikartok."));
     }
     var span = function (cls, text) {
       var e = document.createElement("span");
@@ -1106,12 +1202,14 @@
       return e;
     };
     skills.forEach(function (s) {
-      // ponytail: fixed cut-offs on the 10-point mark; tune here if they feel off.
-      var v = s.avg >= 8 ? ["good", "Gerai moki"] : s.avg >= 6 ? ["fair", "Neblogai moki"] : ["weak", "Silpnai moki"];
+      // Against the student's own goal; fixed cut-offs on the 10-point mark until they have one.
+      // ponytail: "close" = within 2 marks of the goal; tune here if it feels off.
+      var v = goal ? (s.avg >= goal ? ["good", "Tikslas pasiektas"] : s.avg >= goal - 2 ? ["fair", "Arti tikslo"] : ["weak", "Iki tikslo toli"])
+        : s.avg >= 8 ? ["good", "Gerai moki"] : s.avg >= 6 ? ["fair", "Neblogai moki"] : ["weak", "Silpnai moki"];
       var b = document.createElement("button");
       b.type = "button";
       b.className = "rule-card " + v[0];
-      var avg = span("avg", "vidutiniškai");
+      var avg = span("avg", goal ? "tikslas " + goal : "vidutiniškai");
       avg.prepend(Object.assign(document.createElement("b"), { textContent: s.avg }));
       // "Kur? ir Kur link? (в столовой / в столовую)": the example on its own quieter line.
       var m = /^(.*?) \((.*)\)$/.exec(s.name);

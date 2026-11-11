@@ -30,6 +30,14 @@ r = R.progressRecap({ quizzes: { q: [{ name: "A", from: 0, to: 5 }, { name: "B",
 assert.strictEqual(r.weak, null);
 assert.deepStrictEqual(r.lines.map(function (l) { return l.kind; }), ["same", "good", "good", "stale"]);
 
+// A goal of 4 (35 % right is enough): the same run has a weak spot without it, none with it.
+var mid = { quizzes: { q: [{ name: "A", from: 0, to: 5 }, { name: "B", from: 5, to: 10 }] }, runs: [run("2026-10-14", "1111111000")] };
+assert.strictEqual(R.progressRecap(mid, now).weak.name, "B");
+mid.goal = 4; mid.need = 0.35;
+r = R.progressRecap(mid, now);
+assert.strictEqual(r.weak, null);
+assert.ok(r.lines.some(function (l) { return l.text === "Visos dalys pasiekė tikslą (4)."; }));
+
 var c = R.classRecap([
   { name: "Ona A", recap: { trend: "up", weak: { skill: "S", name: "-ся" } } },
   { name: "Jonas B", recap: { trend: "down", weak: { skill: "S", name: "-ся" } } },
