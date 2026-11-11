@@ -171,18 +171,73 @@
   .waiting p { margin: 0; }
   .waiting .note { color: var(--ink-dim); text-align: center; }
 
-  /* one card per rule: the marker verdict, the rule in plain words, the average mark; tap = practise */
-  .rule-card { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; align-items: center; text-align: left; background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 12px 14px; }
-  .rule-card .tag { font-family: var(--marker); font-size: 28px; line-height: 1; }
+  /* One card per rule. Closed it says how well the rule is known now: the
+     plant the class board shows (teacher/plants.js), the verdict in words,
+     the latest mark, and a bar of right answers with a tick where the
+     student's own goal is. Open: every attempt, the rule itself, practice. */
+  .rule-card { background: #fff; border: 2px solid var(--frame); border-radius: 14px; }
+  .rule-card.weak { background: #fff8e8; }
+  .rule-card summary { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 0 12px; align-items: center; padding: 12px 14px; cursor: pointer; list-style: none; border-radius: 12px; }
+  .rule-card summary::-webkit-details-marker { display: none; }
+  .rule-card .pot { grid-row: 1 / span 2; }
+  .rule-card .pot svg { display: block; width: 50px; height: 75px; overflow: visible; }
+  .rule-card .tag { align-self: end; font-family: var(--marker); font-size: 28px; line-height: 1; }
   .rule-card.good .tag { color: var(--green); }
   .rule-card.fair .tag { color: var(--blue); }
-  .rule-card.weak { background: #fff8e8; }
   .rule-card.weak .tag { color: #8f5a00; }
-  .rule-card .name { grid-column: 1; font-weight: 700; font-size: 18px; }
+  .rule-card .name { grid-column: 2; align-self: start; font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
   .rule-card .ex { display: block; font-weight: 400; font-size: 16px; color: var(--ink-dim); }
-  .rule-card .avg { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: center; color: var(--ink-dim); font-size: 13px; }
+  .rule-card .avg { grid-column: 3; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: center; color: var(--ink-dim); font-size: 13px; }
   .rule-card .avg b { font-family: var(--marker); font-size: 52px; line-height: 0.9; color: var(--ink); }
-  .rule-card .go { grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--frame); color: var(--blue); font-weight: 700; }
+  .rule-card .lvl { grid-column: 1 / -1; margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+  .rule-card .cap { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .rule-card .cap .open { color: var(--blue); font-weight: 700; white-space: nowrap; }
+  .rule-card .cap .open::after { content: " \25BE"; }
+  .rule-card[open] .cap .open::after { content: " \25B4"; }
+  .rule-more { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border-top: 1px dashed var(--frame); }
+  .rule-more h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink-dim); }
+  .rule-more .rule { border-width: 1px; padding: 12px; font-size: 16px; }
+
+  /* right answers out of all; the tick is what the student's goal takes */
+  .bar { position: relative; display: block; height: 10px; border-radius: 5px; background: #e3e6e4; }
+  .bar i { display: block; height: 100%; border-radius: 5px; background: var(--blue); }
+  .bar.there i { background: var(--green); }
+  .bar u { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+
+  .tbl { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .tbl th { text-align: left; font-size: 13px; font-weight: 600; color: var(--ink-dim); padding: 0 4px 4px; }
+  .tbl td { padding: 7px 4px; border-top: 1px solid #e3e6e4; vertical-align: top; }
+  .tbl small { display: block; color: var(--ink-dim); font-size: 14px; }
+  .tbl .n { white-space: nowrap; }
+  .tbl th:last-child, .tbl td:last-child { text-align: right; }
+  .tbl td.m { font-weight: 700; }
+  .tbl td.pb { width: 34%; vertical-align: middle; }
+
+  /* every test's mark in order, against the goal line */
+  .panel { background: #fff; border: 2px solid var(--frame); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .chart { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { font-family: var(--font); font-size: 11px; fill: var(--ink-dim); }
+  .chart .grid { stroke: #e3e6e4; stroke-width: 1; }
+  .chart .goal { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  .chart .goal-t { fill: var(--ink); font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+  .chart .line { fill: none; stroke: var(--blue); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .chart .dot { fill: var(--blue); stroke: #fff; stroke-width: 2; pointer-events: none; }
+  .chart .hit { fill: transparent; cursor: pointer; outline: none; }
+  .chart g.on .dot { fill: var(--ink); }
+  .chart .val { visibility: hidden; pointer-events: none; fill: var(--ink); font-size: 14px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+  .chart g.on .val { visibility: visible; }
+  .chart-cap { margin: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+
+  /* folded away: how to read the page, and the full list of tests */
+  details.fold { background: #fff; border: 2px solid var(--frame); border-radius: 14px; }
+  details.fold > summary { padding: 12px 14px; font-weight: 700; color: var(--blue); cursor: pointer; }
+  details.fold > div { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .how p { margin: 0; font-size: 16px; }
+  .how .key { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; font-size: 14px; color: var(--ink-dim); }
+  .how .key svg { display: block; width: 44px; height: 66px; margin: 0 auto; overflow: visible; }
+  .how .badges { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 15px; }
+  .how .badges span { display: inline-flex; align-items: center; gap: 6px; }
+  .how .badges svg { width: 22px; height: 26px; }
 
   .practice-note { text-align: center; }
   .newpin { font-size: 56px; font-weight: 700; letter-spacing: 0.15em; text-align: center; font-variant-numeric: tabular-nums; margin: 0; }
@@ -369,7 +424,9 @@
       <p class="note" id="quizNote" role="status" hidden>Testas dar neprasidėjo. Palauk mokytojos ženklo.</p>
     </div>
     <div class="screen" id="goalBox"></div>
+    <div class="screen" id="marksBox"></div>
     <div class="screen" id="skills"></div>
+    <div class="screen" id="testsBox"></div>
     <div class="facts" id="facts"></div>
     <div class="links">
       <button type="button" id="newPinBtn">Naujas PIN</button>
@@ -435,6 +492,7 @@
 <script src="../teacher/api.js?v=202611111500"></script>
 <script src="../teacher/sound.js"></script>
 <script src="../teacher/insights.js?v=202611111500"></script>
+<script src="../teacher/plants.js?v=202611111700"></script>
 <script src="../teacher/draw.js?v=202610291300"></script>
 <script>
 (function () {
@@ -1146,9 +1204,52 @@
     box.append(heading("Mano tikslas"), form);
   }
 
+  var MONTHS = ["sausio", "vasario", "kovo", "balandžio", "gegužės", "birželio", "liepos", "rugpjūčio", "rugsėjo", "spalio", "lapkričio", "gruodžio"];
+  function dayOf(at) { var d = new Date(at); return MONTHS[d.getMonth()] + " " + d.getDate() + " d."; }
+  function node(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function table(heads) {
+    var t = node("table", "tbl"), tr = node("tr");
+    heads.forEach(function (x) { tr.appendChild(node("th", null, x)); });
+    t.appendChild(tr);
+    return t;
+  }
+  // cells: a string, or { cls, put: a string / node / list of both }
+  function row(t, cells) {
+    var tr = node("tr");
+    cells.forEach(function (c) {
+      var plain = typeof c === "string";
+      var td = node("td", plain ? null : c.cls);
+      td.append.apply(td, [].concat(plain ? c : c.put));
+      tr.appendChild(td);
+    });
+    t.appendChild(tr);
+  }
+  // Right answers out of all, with a tick at the share the goal takes.
+  function levelBar(share, need) {
+    var bar = node("span", "bar" + (need != null && share >= need - 1e-9 ? " there" : ""));
+    var fill = node("i");
+    fill.style.width = Math.round(100 * share) + "%";
+    bar.appendChild(fill);
+    if (need != null) { var tick = node("u"); tick.style.left = Math.round(100 * need) + "%"; bar.appendChild(tick); }
+    return bar;
+  }
+  function needCount(goal, n) { return Math.ceil(goalNeed(goal) * n - 1e-9); }
+
+  // The page a student shows at home, so it reads top to bottom as an
+  // answer to "how is it going?": the goal, every test's mark against it,
+  // then each rule (what is known now, every attempt, the rule itself,
+  // practice), then the plain list of all tests. A level is the latest test
+  // of a rule measured against the student's own goal, exactly as Lygiai
+  // and the parent PDF do; the marks are the real ones.
   function renderStats() {
     el("statsName").textContent = "Labas, " + stats.name.split(" ")[0] + "!";
-    var runs = stats.runs;
+    var runs = stats.runs.filter(function (r) { return r.n; });
+    var goal = stats.guest ? null : stats.goal;
 
     var speedRuns = runs.filter(function (r) { return r.avg_ms; });
     var avgS = speedRuns.length
@@ -1166,60 +1267,205 @@
     );
     el("facts").replaceChildren.apply(el("facts"), facts);
 
-    // One card per rule, in the student's words (skill_lt, 196): how well
-    // they know it as their average mark, and a tap to practise its latest quiz.
-    var bySkill = {};
-    runs.forEach(function (r) { (bySkill[r.skill] = bySkill[r.skill] || []).push(r); });
-    var skills = Object.keys(bySkill).map(function (k) {
-      var list = bySkill[k], last = list[list.length - 1];
-      var avg = Math.round(list.reduce(function (t, r) { return t + gradeFor(r.correct, r.n); }, 0) / list.length);
-      return { name: last.skill_lt, quiz: last.quiz, avg: avg };
-    }).sort(function (a, b) { return b.avg - a.avg; });
-    var goal = stats.goal;
-    renderGoal(skills.filter(function (s) { return s.avg >= goal; }).length, skills.length);
+    // One rule = one skill, in the student's words (skill_lt, 196). Colours
+    // go by the order the rules were first met, so a rule keeps its pot.
+    var bySkill = {}, order = [];
+    runs.forEach(function (r) {
+      if (!bySkill[r.skill]) { bySkill[r.skill] = []; order.push(r.skill); }
+      bySkill[r.skill].push(r);
+    });
+    var rules = order.map(function (k, i) {
+      var list = bySkill[k], last = list[list.length - 1], prev = list[list.length - 2];
+      var stage = skStage(last, goal);
+      return { list: list, last: last, stage: stage, share: last.correct / last.n,
+               grew: !!prev && stage > skStage(prev, goal),
+               colour: SK_COLOURS[i % SK_COLOURS.length], label: skLabel(last.skill_lt) };
+    });
+    // the one rule to repeat first: the weakest of those tried, unless it already blooms (as in Lygiai)
+    var weak = rules.length > 1 ? rules.reduce(function (a, c) { return c.share < a.share ? c : a; }) : null;
+    if (weak && weak.stage === 4) weak = null;
+    rules.sort(function (a, b) { return a.last.at < b.last.at ? 1 : -1; });
+
+    renderGoal(rules.filter(function (s) { return s.stage === 4; }).length, rules.length);
+    renderMarks(runs, goal);
 
     var frag = document.createDocumentFragment();
-    if (!skills.length) {
-      var box = document.createElement("div");
-      box.className = "art-empty";
+    if (!rules.length) {
+      var box = node("div", "art-empty");
       var img = document.createElement("img");
       img.src = "../teacher/art/hero-stats-empty.png";
       img.alt = "";
-      var p = document.createElement("p");
-      p.textContent = "Čia augs tavo statistika";
-      var sub = document.createElement("span");
-      sub.className = "sub";
-      sub.textContent = "Kai atliksi pirmą testą, matysi, kaip sekasi.";
-      box.append(img, p, sub);
+      box.append(img, node("p", null, "Čia augs tavo statistika"), node("span", "sub", "Kai atliksi pirmą testą, matysi, kaip sekasi."));
       frag.appendChild(box);
     } else {
-      frag.appendChild(heading("Ką moki", "Skaičius – tavo vidutinis pažymys" + (goal ? ", po juo – tavo tikslas" : "") + ". Paspausk ir pasikartok."));
+      frag.appendChild(heading("Taisyklės"));
     }
-    var span = function (cls, text) {
-      var e = document.createElement("span");
-      e.className = cls;
-      e.textContent = text;
-      return e;
-    };
-    skills.forEach(function (s) {
-      // Against the student's own goal; fixed cut-offs on the 10-point mark until they have one.
-      // ponytail: "close" = within 2 marks of the goal; tune here if it feels off.
-      var v = goal ? (s.avg >= goal ? ["good", "Tikslas pasiektas"] : s.avg >= goal - 2 ? ["fair", "Arti tikslo"] : ["weak", "Iki tikslo toli"])
-        : s.avg >= 8 ? ["good", "Gerai moki"] : s.avg >= 6 ? ["fair", "Neblogai moki"] : ["weak", "Silpnai moki"];
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "rule-card " + v[0];
-      var avg = span("avg", goal ? "tikslas " + goal : "vidutiniškai");
-      avg.prepend(Object.assign(document.createElement("b"), { textContent: s.avg }));
-      // "Kur? ir Kur link? (в столовой / в столовую)": the example on its own quieter line.
-      var m = /^(.*?) \((.*)\)$/.exec(s.name);
-      var name = span("name", m ? m[1] : s.name);
-      if (m) name.appendChild(span("ex", m[2]));
-      b.append(span("tag", v[1]), name, avg, span("go", "Pasikartok su paaiškinimais →"));
-      b.addEventListener("click", function () { startPractice(s.quiz, b); });
-      frag.appendChild(b);
-    });
+    rules.forEach(function (s) { frag.appendChild(ruleCard(s, goal, s === weak)); });
+    if (rules.length) frag.appendChild(howToRead(goal));
     el("skills").replaceChildren(frag);
+
+    renderTests(runs);
+  }
+
+  function ruleCard(s, goal, first) {
+    var r = s.last;
+    // Against the student's own goal; without one, against the fixed line (goalNeed).
+    var v = s.stage === 4 ? ["good", goal ? "Tikslas pasiektas" : "Gerai moki"]
+      : s.stage === 3 ? ["fair", goal ? "Arti tikslo" : "Beveik moki"]
+      : ["weak", "Reikia kartoti"];
+    var card = node("details", "rule-card " + v[0]);
+    var sum = node("summary");
+    var pot = node("span", "pot");
+    pot.innerHTML = skPlant(s.stage, s.colour, first, s.grew);   // numbers and constants only
+    var name = node("span", "name", s.label.name);
+    if (s.label.ex) name.appendChild(node("span", "ex", s.label.ex));
+    var mark = node("span", "avg", "pažymys");
+    mark.prepend(node("b", null, gradeFor(r.correct, r.n)));
+    var lvl = node("span", "lvl");
+    var cap = node("span", "cap");
+    var said = r.correct + " iš " + r.n + " teisingai";
+    if (goal && s.stage < 4) said += " · tikslui (" + goal + ") reikia " + needCount(goal, r.n);
+    cap.append(node("span", null, said), node("span", "open", "Plačiau"));
+    lvl.append(levelBar(s.share, goal ? goalNeed(goal) : null), cap);
+    sum.append(pot, node("span", "tag", v[1]), name, mark, lvl);
+
+    var more = node("div", "rule-more");
+    if (first) more.appendChild(node("p", "sub", "Šią taisyklę pakartok pirmiausia."));
+
+    // every attempt, newest first: nothing about a result is left out
+    var t = table(["Data", "Teisingai", "Pažymys"]);
+    s.list.slice().reverse().forEach(function (x) {
+      row(t, [dayOf(x.at), { cls: "n", put: x.correct + " iš " + x.n }, { cls: "m", put: String(gradeFor(x.correct, x.n)) }]);
+    });
+    more.appendChild(t);
+
+    // a test of several parts (a review): the latest result part by part
+    var parts = (stats.quizzes[r.quiz] || []).filter(function (p) { return p.to > p.from; });
+    if (parts.length > 1) {
+      more.appendChild(node("h3", null, "Paskutinis testas dalimis"));
+      var pt = table(["Dalis", "", "Teisingai"]);
+      parts.forEach(function (p, i) {
+        var c = 0;
+        for (var q = p.from; q < p.to; q++) if (r.marks.charAt(q) === "1") c++;
+        var n = p.to - p.from;
+        row(pt, [partName(p, i), { cls: "pb", put: levelBar(c / n, goal ? goalNeed(goal) : null) }, { cls: "n", put: c + " iš " + n }]);
+      });
+      more.appendChild(pt);
+    } else if (parts.length && parts[0].rule_html) {
+      more.appendChild(node("h3", null, "Taisyklė"));
+      var rule = node("div", "rule");
+      rule.innerHTML = parts[0].rule_html;   // authored in a migration, never by a student
+      more.appendChild(rule);
+    }
+
+    var go = node("button", "btn", "Pasikartok");
+    go.type = "button";
+    go.addEventListener("click", function () { startPractice(r.quiz, go); });
+    more.append(go, node("p", "sub practice-note", "Pasikartojimo rezultatas niekur neįrašomas."));
+    card.append(sum, more);
+    return card;
+  }
+
+  // The key to the plants and the numbers, for whoever reads the page at home.
+  function howToRead(goal) {
+    var d = node("details", "fold how");
+    d.appendChild(node("summary", null, "Kaip skaityti?"));
+    var body = node("div");
+    var key = node("div", "key");
+    for (var st = 1; st <= 4; st++) {
+      var k = node("span");
+      k.innerHTML = skPlant(st, SK_COLOURS[0], false, false);
+      k.appendChild(document.createTextNode(SK_WORDS[st].replace("!", "")));
+      key.appendChild(k);
+    }
+    var badges = node("div", "badges");
+    [['<svg viewBox="70 50 28 36" aria-hidden="true">' + SK_DROP + "</svg>", "pakartok pirmiausia"],
+     ['<svg viewBox="2 57 26 26" aria-hidden="true">' + SK_GREW + "</svg>", "paaugo nuo praeito karto"]].forEach(function (b) {
+      var x = node("span");
+      x.innerHTML = b[0];
+      x.appendChild(document.createTextNode(b[1]));
+      badges.appendChild(x);
+    });
+    body.append(key, badges,
+      node("p", null, goal
+        ? "Augalas ir juosta rodo paskutinį tos taisyklės testą pagal mano tikslą (" + goal + "), ne pagal 10. Brūkšnys juostoje – kiek teisingų atsakymų reikia tikslui."
+        : "Augalas ir juosta rodo paskutinį tos taisyklės testą."),
+      node("p", null, "Pažymys – pagal teisingų atsakymų dalį: nuo 95 % – 10, nuo 85 % – 9, nuo 75 % – 8 ir taip toliau kas 10 %. Tikslas pažymio nekeičia."));
+    d.appendChild(body);
+    return d;
+  }
+
+  // Every test's mark in the order taken, with the goal as a line across.
+  // ponytail: tests differ in difficulty, so the line is a record, not a
+  // trend to read too closely; the rule cards say what is known.
+  var CHART_MAX = 12;   // the newest tests drawn; the list at the end of the page has them all
+  function renderMarks(runs, goal) {
+    var box = el("marksBox");
+    box.replaceChildren();
+    if (runs.length < 2) return;
+    var list = runs.slice(-CHART_MAX);
+    var W = 320, H = 168, L = 24, R = 12, T = 18, B = 22;
+    var step = (W - L - R) / (list.length - 1);
+    var x = function (i) { return L + i * step; };
+    var y = function (m) { return T + (10 - m) * (H - T - B) / 9; };
+    var f = function (v) { return v.toFixed(1); };
+    var svg = '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="group" aria-label="Testų pažymiai">';
+    [2, 4, 6, 8, 10].forEach(function (m) {
+      svg += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + f(y(m)) + '" y2="' + f(y(m)) + '"/>' +
+        '<text x="' + (L - 8) + '" y="' + f(y(m) + 4) + '" text-anchor="end">' + m + "</text>";
+    });
+    if (goal) {
+      svg += '<line class="goal" x1="' + L + '" x2="' + (W - R) + '" y1="' + f(y(goal)) + '" y2="' + f(y(goal)) + '"/>';
+    }
+    var marks = list.map(function (r) { return gradeFor(r.correct, r.n); });
+    svg += '<polyline class="line" points="' + marks.map(function (m, i) { return f(x(i)) + "," + f(y(m)); }).join(" ") + '"/>';
+    if (goal) svg += '<text class="goal-t" x="' + (L + 4) + '" y="' + f(y(goal) - 5) + '">tikslas ' + goal + "</text>";
+    marks.forEach(function (m, i) {
+      svg += '<g data-i="' + i + '"><rect class="hit" tabindex="0" role="button" aria-label="' + (i + 1) + " testas, pažymys " + m + '" x="' + f(x(i) - step / 2) + '" y="0" width="' + f(step) + '" height="' + H + '"/>' +
+        '<circle class="dot" cx="' + f(x(i)) + '" cy="' + f(y(m)) + '" r="5"/>' +
+        '<text class="val" x="' + f(x(i)) + '" y="' + f(y(m) - 10) + '">' + m + "</text></g>";
+    });
+    var d = function (at) { var t = new Date(at); return String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); };
+    svg += '<text x="' + L + '" y="' + (H - 4) + '">' + d(list[0].at) + "</text>" +
+      '<text x="' + (W - R) + '" y="' + (H - 4) + '" text-anchor="end">' + d(list[list.length - 1].at) + "</text></svg>";
+
+    var panel = node("div", "panel");
+    panel.innerHTML = svg;   // numbers only; the titles go into the caption as text
+    var cap = node("p", "chart-cap");
+    panel.appendChild(cap);
+    var groups = panel.querySelectorAll("g[data-i]");
+    function pick(i) {
+      var r = list[i];
+      groups.forEach(function (g, k) { g.classList.toggle("on", k === i); });
+      cap.replaceChildren(node("b", null, dayOf(r.at)), " · " + r.title + " · " + r.correct + " iš " + r.n + " teisingai · pažymys ", node("b", null, marks[i]));
+    }
+    groups.forEach(function (g, i) {
+      var hit = g.querySelector(".hit");
+      hit.addEventListener("pointerenter", function () { pick(i); });
+      hit.addEventListener("click", function () { pick(i); });
+      hit.addEventListener("focus", function () { pick(i); });
+    });
+    pick(list.length - 1);
+    box.append(heading("Testų pažymiai"), panel);
+  }
+
+  // The plain record: every test, newest first.
+  function renderTests(runs) {
+    var box = el("testsBox");
+    box.replaceChildren();
+    if (!runs.length) return;
+    var d = node("details", "fold");
+    d.appendChild(node("summary", null, "Visi testai (" + runs.length + ")"));
+    var body = node("div");
+    var t = table(["Data", "Testas", "Pažymys"]);
+    runs.slice().reverse().forEach(function (r) {
+      row(t, [{ cls: "n", put: dayOf(r.at) },
+              { put: [r.title, node("small", null, r.correct + " iš " + r.n + " teisingai")] },
+              { cls: "m", put: String(gradeFor(r.correct, r.n)) }]);
+    });
+    body.appendChild(t);
+    d.appendChild(body);
+    box.appendChild(d);
   }
 
   function startPractice(quiz, btn) {

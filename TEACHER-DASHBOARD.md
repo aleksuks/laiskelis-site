@@ -169,6 +169,17 @@ No author/device columns anywhere student-facing.
     today. The count is the teacher's, not the board's.
   - *Pasiekta* in Visos klasės is `teacher_classes.plan_at`: click a lesson
     in a class's bar; a filled atsiskaitymas moves it forward by itself.
+- **Student page, the stats screen (2026-11-11, no migration):** the page a
+  student shows at home, read top to bottom: the goal, "Testų pažymiai"
+  (every test's real mark in order, the goal as a dashed line, tap a dot for
+  the test), then a card per rule with the same plant as Lygiai
+  (`teacher/plants.js`, shared by both pages), the verdict in words, the
+  latest mark and a bar of right answers with a tick at the goal. A card
+  opens to every attempt, the rule itself (or a review test part by part)
+  and Pasikartok. "Kaip skaityti?" is the key; "Visi testai" the full list.
+  A rule's level is its **latest** test against the goal, as in Lygiai and
+  the parent PDF (it was the average mark before). Atsiskaitymas and small
+  marks are still not on this page: `teacher_stats_of` doesn't send them.
 - **Next:** authoring quizzes (today: by migration), removing/renaming
   students, a teacher view of one student's history.
 
