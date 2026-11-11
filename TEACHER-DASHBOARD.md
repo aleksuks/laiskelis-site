@@ -119,6 +119,16 @@ No author/device columns anywhere student-facing.
 - **PINs** are 5 random digits, HMAC'd under a server secret (not bcrypt, so
   system-wide uniqueness is an index). Students can't pick their own: that
   would let them probe which PINs exist.
+- **Lygiai (2026-11-11, tray, no migration):** the teacher ticks rules
+  (`skill`, newest test first; the newest test day is pre-ticked), then every
+  student's level in them is projected as potted plants: seed, sprout, bud,
+  bloom from the share right in the student's latest test of that rule
+  (`SK_STAGES`), an empty outline if never tried. A droplet marks the one
+  rule to repeat first, an arrow a stage gained against their own earlier
+  test. Reads `teacher_class_progress`. This is the one deliberate exception
+  to "no results on the projected board" (the teacher's call): so no numbers,
+  grades or ranking on it, alphabetical order, magnets taken off with × are
+  left out.
 - **Next:** authoring quizzes (today: by migration), removing/renaming
   students, a teacher view of one student's history.
 
