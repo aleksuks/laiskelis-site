@@ -104,6 +104,45 @@ textarea:focus-visible, .magnet:focus-visible {
 .tool svg { width: 20px; height: 20px; flex: none; }
 .tool.dim { color: var(--ink-dim); font-weight: 400; }
 
+/* The menu: what the class doesn't need to see (the class's records, the
+   plan, this device), as one index card hanging under its tray button. */
+.menu-wrap { position: relative; display: flex; }
+.menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 6;
+  display: flex;
+  gap: 14px 34px;
+  padding: 16px 22px 14px;
+  background: #fffdf6;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 rgba(34, 39, 43, 0.14), 0 16px 36px rgba(34, 39, 43, 0.28);
+}
+.menu section { display: flex; flex-direction: column; align-items: stretch; }
+.menu h3 { margin: 0 0 6px; font-family: var(--marker); font-size: 32px; line-height: 1; color: var(--blue); white-space: nowrap; }
+.menu-item {
+  border: 0;
+  border-radius: 8px;
+  margin: 0 -10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.menu-item:hover, .menu-item:focus-visible { background: rgba(31, 79, 181, 0.12); }
+.menu-item.dim { color: var(--ink-dim); font-weight: 400; }
+.tool[aria-expanded="true"] img { transform: translateY(-4px) rotate(-5deg); }
+@media (max-width: 640px) {
+  /* On a phone the card spans the tray instead of hanging off the button. */
+  .menu-wrap { position: static; }
+  .menu { left: 8px; right: 8px; top: 100%; flex-wrap: wrap; }
+}
+
 /* ---------- the board ---------- */
 
 /* The app is exactly one screen tall: ЛУЧШИЕ on the left, the task in the

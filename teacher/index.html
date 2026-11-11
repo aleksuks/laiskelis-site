@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611111040">
+<link rel="stylesheet" href="style.css?v=202611111200">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -30,27 +30,43 @@
 <div id="app" hidden>
   <nav class="tray">
     <div class="classes" id="classes"></div>
+    <!-- With the class, on the big screen: one tap each. -->
     <div class="tools" id="tools">
-      <a class="tool" id="drive" target="_blank" rel="noopener"><img src="art/tool-drive.png" alt="">Drive</a>
       <button class="tool" id="wheelBtn" type="button"><img src="art/tool-wheel.png" alt="">Ratas</button>
       <button class="tool" id="displayBtn" type="button"><img src="art/tool-display.png" alt="">Ekranas</button>
       <button class="tool" id="quizBtn" type="button"><img src="art/tool-quiz.png" alt="">Testas<span class="live-dot" id="liveDot" hidden></span></button>
-      <button class="tool" id="wordsBtn" type="button"><img src="art/tool-quiz.png" alt="">Žodžiai<span class="live-dot" id="wordsDot" hidden></span></button>
-      <button class="tool" id="gamesBtn" type="button"><img src="art/markers.png" alt="">Žaidimai</button>
+      <button class="tool" id="gamesBtn" type="button"><img src="art/markers.png" alt="">Žaidimai<span class="live-dot" id="gamesDot" hidden></span></button>
       <button class="tool" id="skillsBtn" type="button"><img src="art/tool-students.png" alt="">Lygiai</button>
       <button class="tool" id="fbBtn" type="button"><img src="art/tool-feedback.png" alt="">Atsiliepimai<span class="live-dot" id="fbDot" hidden></span></button>
     </div>
+    <!-- The teacher's own: the eraser for the board, and the menu with the
+         class's records, the plan and this device. -->
     <div class="tools minor" id="toolsMinor">
-      <button class="tool small" id="addStudents" type="button"><img src="art/tool-students.png" alt="">Mokiniai</button>
-      <button class="tool small" id="overviewBtn" type="button"><img src="art/tool-students.png" alt="">Visos klasės</button>
       <button class="tool small" id="campsReset" type="button"><img src="art/eraser.png" alt="">Visi į vidurį</button>
-      <button class="tool small" id="lessonsBtn" type="button"><img src="art/eraser.png" alt="">Pamokos</button>
-      <button class="tool small" id="pinsBtn" type="button"><img src="art/tool-pins.png" alt="">PIN</button>
-      <button class="tool small" id="gbBtn" type="button"><img src="art/tool-pins.png" alt="">Kaupiamieji</button>
-      <button class="tool small" id="selfBtn" type="button"><img src="art/tool-students.png" alt="">Įsivertinimas</button>
-      <button class="tool small" id="nextBtn" type="button"><img src="art/tool-class-add.png" alt="">Rytoj</button>
-      <button class="tool small" id="soundBtn" type="button"><img id="soundArt" src="art/tool-sound-on.png" alt=""><span id="soundLabel">Garsas</span></button>
-      <button class="tool small" id="logout" type="button"><img src="art/tool-logout.png" alt="">Išeiti</button>
+      <div class="menu-wrap">
+        <button class="tool small" id="menuBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="menu"><img src="art/tool-drive.png" alt="">Meniu</button>
+        <div class="menu" id="menu" hidden>
+          <section id="menuClass">
+            <h3 id="menuClassName">Klasė</h3>
+            <button class="menu-item" id="addStudents" type="button">Mokiniai</button>
+            <button class="menu-item" id="pinsBtn" type="button">PIN kodai</button>
+            <button class="menu-item" id="gbBtn" type="button">Kaupiamieji</button>
+            <button class="menu-item" id="selfBtn" type="button">Įsivertinimas</button>
+            <button class="menu-item" id="lessonsBtn" type="button">Pamokos</button>
+            <a class="menu-item" id="drive" target="_blank" rel="noopener">Drive</a>
+          </section>
+          <section>
+            <h3>Planas</h3>
+            <button class="menu-item" id="nextBtn" type="button">Rytoj</button>
+            <button class="menu-item" id="overviewBtn" type="button">Visos klasės</button>
+          </section>
+          <section>
+            <h3>Įrenginys</h3>
+            <button class="menu-item" id="soundBtn" type="button"></button>
+            <button class="menu-item" id="logout" type="button">Išeiti</button>
+          </section>
+        </div>
+      </div>
     </div>
     <div class="abc" id="abc" aria-hidden="true"></div>
     <button class="tray-toggle" id="trayToggle" type="button" aria-expanded="true" aria-label="Suskleisti meniu">▴</button>
@@ -290,7 +306,7 @@
 <div class="full" id="lessons" hidden>
   <div class="bar">
     <h2 class="full-title" id="lessonsTitle">Pamokos</h2>
-    <button class="btn quiet" type="button" id="progressBtn">Pažanga</button>
+    <button class="btn quiet" type="button" id="progressBtn">Mokiniai</button>
     <button class="btn" type="button" id="lessonNew">Baigti pamoką</button>
     <button class="btn quiet" type="button" id="lessonsClose">Uždaryti</button>
   </div>
@@ -459,9 +475,8 @@
 
   function renderSound() {
     var on = Sound.enabled();
-    el("soundArt").src = "art/tool-sound-" + (on ? "on" : "off") + ".png";
     el("soundBtn").setAttribute("aria-pressed", String(on));
-    el("soundLabel").textContent = on ? "Garsas" : "Tyliai";
+    el("soundBtn").textContent = on ? "Garsas įjungtas" : "Garsas išjungtas";
   }
   el("soundBtn").addEventListener("click", function () { Sound.toggle(); renderSound(); Sound.pop(); });
   renderSound();
@@ -503,9 +518,26 @@
   function showBoard(hasClass) {
     el("board").hidden = !hasClass;
     el("noClass").hidden = hasClass;
-    el("tools").hidden = !hasClass;
-    el("addStudents").hidden = el("pinsBtn").hidden = el("gbBtn").hidden = el("selfBtn").hidden = el("lessonsBtn").hidden = el("campsReset").hidden = !hasClass;
+    el("tools").hidden = el("campsReset").hidden = el("menuClass").hidden = !hasClass;
   }
+
+  /* ---------- the menu: what the class doesn't need to see ---------- */
+
+  // The tray keeps the tools used with the class on the big screen. The
+  // class's records, the plan and this device's switches hang under Meniu.
+  function setMenu(open) {
+    el("menu").hidden = !open;
+    el("menuBtn").setAttribute("aria-expanded", String(open));
+  }
+  el("menuBtn").addEventListener("click", function () { setMenu(el("menu").hidden); });
+  // The sound switch stays open to show what it turned into; the rest go somewhere.
+  el("menu").addEventListener("click", function (e) {
+    var item = e.target.closest(".menu-item");
+    if (item && item.id !== "soundBtn") setMenu(false);
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (!el("menu").hidden && !e.target.closest(".menu-wrap")) setMenu(false);
+  });
 
   /* ---------- the tray folds away to give the board the room ---------- */
 
@@ -528,6 +560,7 @@
   var TRAY_KEY = "teacher.trayMin";
   function setTray(min) {
     document.body.classList.toggle("tray-min", min);
+    if (min) setMenu(false);
     el("trayToggle").setAttribute("aria-expanded", String(!min));
     el("trayToggle").setAttribute("aria-label", min ? "Išskleisti meniu" : "Suskleisti meniu");
     store(TRAY_KEY, min ? "1" : null);
@@ -650,6 +683,7 @@
     var a = el("drive");
     a.href = current.drive_url || "#";
     a.classList.toggle("dim", !current.drive_url);
+    el("menuClassName").textContent = current.name;
   }
 
   el("drive").addEventListener("click", function (e) {
@@ -2544,7 +2578,7 @@
 
   function renderLiveDot() {
     el("liveDot").hidden = !(current && current.live_run);
-    el("wordsDot").hidden = !(current && current.live_game);
+    el("gamesDot").hidden = !(current && current.live_game);
   }
 
   el("quizBtn").addEventListener("click", openQuiz);
@@ -2910,7 +2944,7 @@
 
   function renderWordsBar() {
     var m = wg.mode, game = !!(wg.board && wg.board.live);
-    el("wordsTitle").textContent = m === "pick" ? "Žodžiai: " + wg.cls.grade + " klasė" : wg.set.title;
+    el("wordsTitle").textContent = m === "pick" ? "Žodžių poros: " + wg.cls.grade + " klasė" : wg.set.title;
     el("wordsPick").hidden = m !== "pick";
     el("wordsIntro").hidden = m !== "intro";
     el("wordsPairs").hidden = m !== "pairs";
@@ -3278,7 +3312,6 @@
     }
   }
 
-  el("wordsBtn").addEventListener("click", openWords);
   el("wordsClose").addEventListener("click", closeWords);
   el("wordsNew").addEventListener("click", showWordPick);
   el("wordsNext").addEventListener("click", function () { wordsStep(1); });
@@ -3897,7 +3930,9 @@
   // The class games behind one tray button: a card per game; a game the
   // class has going says so and its button goes straight back in.
   var GAMES = [
-    { title: "Piešiu ir spėju", open: openDraw, board: "teacher_draw_board",
+    { title: "Žodžių poros", open: openWords, board: "teacher_word_board",
+      text: "Skyriaus žodžiai: susipažinti, poros, lenta." },
+    { title: "Piešiu ir spėju", open: openDraw, board: "teacher_draw_board", args: { p_drawings: false },
       text: "Piešia rusiškai, spėja lietuviškai." },
   ];
 
@@ -3924,7 +3959,7 @@
       row.appendChild(go);
       card.append(h, p, row);
       el("gamesPick").appendChild(card);
-      rpc(g.board, { p_token: token, p_class: cls.id, p_drawings: false }).then(function (b) {
+      rpc(g.board, Object.assign({ p_token: token, p_class: cls.id }, g.args)).then(function (b) {
         if (b && b.live) go.textContent = "Vyksta: tęsti";
       }).catch(function (err) {
         if (err && err.code === "teacher_denied") { closeFull(el("games")); signOut(); }
@@ -4040,6 +4075,7 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
+    if (!el("menu").hidden) return setMenu(false);
     if (!el("wheel").hidden) return el("wheelClose").click();
     if (!el("quiz").hidden) return closeQuiz();
     if (!el("words").hidden) return closeWords();

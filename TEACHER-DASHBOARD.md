@@ -129,6 +129,14 @@ No author/device columns anywhere student-facing.
   to "no results on the projected board" (the teacher's call): so no numbers,
   grades or ranking on it, alphabetical order, magnets taken off with × are
   left out.
+- **Tray regrouped (2026-11-11, no migration):** the tray holds only what is
+  used with the class on the big screen, one tap each: Ratas, Ekranas,
+  Testas, Žaidimai (a card per game: Žodžių poros, Piešiu ir spėju), Lygiai,
+  Atsiliepimai; then the eraser (Visi į vidurį) and **Meniu**, one card with
+  three headings: the class (Mokiniai, PIN kodai, Kaupiamieji, Įsivertinimas,
+  Pamokos, Drive), Planas (Rytoj, Visos klasės) and Įrenginys (sound,
+  Išeiti). A new tool goes on the tray only if the class watches it;
+  anything else is a line in the menu.
 - **Next:** authoring quizzes (today: by migration), removing/renaming
   students, a teacher view of one student's history.
 
