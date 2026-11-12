@@ -27,6 +27,11 @@ function skLabel(lt) {
 var SK_KINDS = [["ramune", "Ramunė"], ["tulpe", "Tulpė"], ["saulegraza", "Saulėgrąža"], ["aguona", "Aguona"],
   ["rugiagele", "Rugiagėlė"], ["levanda", "Levanda"], ["pakalnute", "Pakalnutė"], ["roze", "Rožė"],
   ["kaktusas", "Kaktusas"], ["bijunas", "Bijūnas"], ["ruta", "Rūta"], ["naslaite", "Našlaitė"]];
+// Each class's world (243), from letters-app scripts/ui-art/teacher_scenes.py:
+// the index is teacher_classes.scene, 0 the plain board. Append, never reorder.
+var SK_SCENES = [["", "Lenta"], ["sodas", "Sodas"], ["ziema", "Žiema"], ["dykuma", "Dykuma"],
+  ["siltnamis", "Šiltnamis"], ["pajuris", "Pajūris"], ["ruduo", "Ruduo"]];
+
 // teacher/art/, wherever the page loading this file lives
 var SK_ART = (function () {
   var src = document.currentScript && document.currentScript.src;

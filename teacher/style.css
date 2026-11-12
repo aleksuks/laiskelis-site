@@ -938,6 +938,21 @@ svg.drawing { display: block; background: #fff; border: 3px solid var(--frame); 
 .sk-card { cursor: pointer; transition: border-color 0.15s; }
 .sk-card:hover, .sk-card:focus-visible { border-color: var(--ink); outline: none; }
 
+/* The class's world (243): a pale painted backdrop. Words that stand on it get a halo. */
+.sk-scenes { display: flex; flex-direction: column; gap: 6px; padding-bottom: 6px; }
+.sk-scenes b { font-size: 18px; }
+.sk-scenes > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.sk-scenes button {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 6px 8px;
+  border: 3px solid var(--frame); border-radius: 14px; background: rgba(255, 255, 255, 0.85);
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); cursor: pointer;
+}
+.sk-scenes button[aria-pressed="true"] { border-color: var(--blue); }
+.sk-scenes .pic { width: 128px; height: 72px; border-radius: 8px; background: var(--board) center / cover; box-shadow: inset 0 0 0 1px var(--frame); }
+.scened .sk-gpot b, .scened .sk-gpot small, .scened .sk-gpot .word, .scened .sk-key, .scened .sk-rules {
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 0 10px #fff;
+}
+
 /* One student's garden: every rule the class has done, each its own flower. */
 .sk-garden { flex: 1; min-height: 0; display: grid; align-content: center; gap: 14px 8px; padding: 8px 20px 16px; overflow-y: auto; }
 .sk-gpot { min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.15; }

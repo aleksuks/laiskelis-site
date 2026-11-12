@@ -150,6 +150,16 @@ No author/device columns anywhere student-facing.
   i = kind i of `SK_KINDS`, pot i of `SK_COLOURS`), so a flower stands for a
   rule; never-tried rules are empty pots. Stage words only, no numbers or
   goals, so it can be projected. "Atgal" returns to the board or Mokiniai.
+- **A world per class (2026-11-12, 243):** each class chooses where its
+  flowers grow; the teacher sets it under "Aplinka" at the top of Lygiai's
+  rule list: Lenta (the plain board, default), Sodas, Žiema, Dykuma,
+  Šiltnamis, Pajūris, Ruduo (`SK_SCENES` in `teacher/plants.js`, stored in
+  `teacher_classes.scene` via `teacher_class_scene_set`, read back in
+  `teacher_class_progress`). Painted backdrops (letters-app
+  `scripts/ui-art/teacher_scenes.py` → `teacher/art/scene-<name>.jpg` and
+  `-thumb.jpg`), kept pale for the projector, behind the board and every
+  student's garden. New scenes are appended, never reordered; the RPC's
+  bound goes up with them.
 - **Tray regrouped (2026-11-11, no migration):** the tray holds only what is
   used with the class on the big screen, one tap each: Ratas, Ekranas,
   Testas, Žaidimai (a card per game: Žodžių poros, Piešiu ir spėju), Lygiai,

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611121000">
+<link rel="stylesheet" href="style.css?v=202611121200">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -419,7 +419,7 @@
 <script src="api.js?v=202611111500"></script>
 <script src="sound.js?v=202610151450"></script>
 <script src="insights.js?v=202611111500"></script>
-<script src="plants.js?v=202611111900"></script>
+<script src="plants.js?v=202611121200"></script>
 <script src="draw.js?v=202610291300"></script>
 <script>
 (function () {
@@ -1581,13 +1581,60 @@
       return { id: st.id, name: short[st.id] || st.name.split(" ")[0], goal: st.goal, kind: skKind(st), by: by };
     });
     return {
+      scene: SK_SCENES[res.scene] ? res.scene : 0,
       students: students,
       rules: Object.keys(rules).map(function (k) { return rules[k]; }).sort(function (a, b) { return a.at < b.at ? 1 : -1; }),
     };
   }
 
+  // The class's world behind its plants (243): the class chooses, the
+  // teacher sets it here. 0 is the plain board.
+  function skScene(i) {
+    var s = SK_SCENES[i] ? SK_SCENES[i][0] : "";
+    el("skills").classList.toggle("scened", !!s);
+    el("skills").style.background = s ? 'var(--board) url("' + SK_ART + "scene-" + s + '.jpg") center bottom / cover no-repeat' : "";
+  }
+
+  function skScenePick() {
+    var box = document.createElement("div");
+    box.className = "sk-scenes";
+    var h = document.createElement("b");
+    h.textContent = "Aplinka";
+    box.appendChild(h);
+    var row = document.createElement("div");
+    SK_SCENES.forEach(function (sc, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(i === skData.scene));
+      var pic = document.createElement("span");
+      pic.className = "pic";
+      if (sc[0]) pic.style.backgroundImage = 'url("' + SK_ART + "scene-" + sc[0] + '-thumb.jpg")';
+      b.append(pic, document.createTextNode(sc[1]));
+      b.addEventListener("click", function () {
+        var was = skData.scene, c = current;
+        if (i === was) return;
+        skData.scene = i;
+        skScene(i);
+        row.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        rpc("teacher_class_scene_set", { p_token: token, p_class: c.id, p_scene: i }).catch(function (err) {
+          if (err && err.code === "teacher_denied") { el("skills").hidden = true; return signOut(); }
+          if (current !== c || !skData) return;
+          skData.scene = was;
+          skScene(was);
+          row.querySelectorAll("button").forEach(function (x, k) { x.setAttribute("aria-pressed", String(k === was)); });
+          el("skillsError").textContent = err.message;
+          el("skillsError").hidden = false;
+        });
+      });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    return box;
+  }
+
   // "pick" the rules, the class "board", or one student's "garden"
   function skMode(mode) {
+    skScene(skData ? skData.scene : 0);
     el("skillsPick").hidden = mode !== "pick";
     el("skillsStage").hidden = mode !== "board";
     el("skillsGarden").hidden = mode !== "garden";
@@ -1621,6 +1668,7 @@
       });
     }
     var frag = document.createDocumentFragment();
+    frag.appendChild(skScenePick());
     var sync = function () {
       el("skillsShow").disabled = !skData.rules.some(function (r) { return chosen[r.skill]; });
     };
