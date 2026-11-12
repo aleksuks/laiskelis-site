@@ -935,6 +935,18 @@ svg.drawing { display: block; background: #fff; border: 3px solid var(--frame); 
 @keyframes skgrow { from { transform: scale(0); } }
 @keyframes skpop { from { transform: scale(0); opacity: 0; } }
 
+.sk-card { cursor: pointer; transition: border-color 0.15s; }
+.sk-card:hover, .sk-card:focus-visible { border-color: var(--ink); outline: none; }
+
+/* One student's garden: every rule the class has done, each its own flower. */
+.sk-garden { flex: 1; min-height: 0; display: grid; align-content: center; gap: 14px 8px; padding: 8px 20px 16px; overflow-y: auto; }
+.sk-gpot { min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; line-height: 1.15; }
+.sk-gpot svg { height: var(--g-h, 200px); width: auto; aspect-ratio: 2 / 3; overflow: visible; }
+.sk-gpot b { margin-top: 4px; font-size: clamp(14px, calc(var(--g-h, 200px) * 0.085), 26px); overflow-wrap: anywhere; }
+.sk-gpot small { color: var(--ink-dim); font-size: clamp(12px, calc(var(--g-h, 200px) * 0.065), 19px); }
+.sk-gpot .word { font-family: var(--marker); color: var(--blue); font-size: clamp(17px, calc(var(--g-h, 200px) * 0.1), 30px); }
+.sk-gpot .word.none { color: var(--ink-dim); }
+
 .sk-key { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 28px; padding: 2px 20px 8px; color: var(--ink-dim); font-size: clamp(14px, 1.35vw, 22px); font-weight: 600; }
 .sk-key span { display: inline-flex; align-items: flex-end; gap: 6px; }
 .sk-key svg { height: 2.8em; width: auto; }

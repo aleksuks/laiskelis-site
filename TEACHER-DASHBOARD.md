@@ -143,6 +143,13 @@ No author/device columns anywhere student-facing.
   pick, `skKind()` derives one from their id. Their own rule cards on
   /mokinys use it too. New kinds are appended, never reordered (the index
   is the stored id), and the RPC's bound goes up with them.
+- **A student's garden (2026-11-12, no migration):** tap a student's card on
+  the Lygiai board (or "Gėlės" under a student in Mokiniai) to see every
+  rule the class has done as that student's garden, oldest rule first. Each
+  rule is its own flower and pot, the same in every student's garden (rule
+  i = kind i of `SK_KINDS`, pot i of `SK_COLOURS`), so a flower stands for a
+  rule; never-tried rules are empty pots. Stage words only, no numbers or
+  goals, so it can be projected. "Atgal" returns to the board or Mokiniai.
 - **Tray regrouped (2026-11-11, no migration):** the tray holds only what is
   used with the class on the big screen, one tap each: Ratas, Ekranas,
   Testas, Žaidimai (a card per game: Žodžių poros, Piešiu ir spėju), Lygiai,

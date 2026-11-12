@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611111600">
+<link rel="stylesheet" href="style.css?v=202611121000">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -277,6 +277,7 @@
   <div class="bar">
     <h2 class="full-title" id="skillsTitle">Lygiai</h2>
     <button class="btn quiet" type="button" id="skillsBack" hidden>Taisyklės</button>
+    <button class="btn quiet" type="button" id="skillsAll" hidden>Atgal</button>
     <button class="btn" type="button" id="skillsShow" hidden>Rodyti</button>
     <button class="btn quiet" type="button" id="skillsClose">Uždaryti</button>
   </div>
@@ -287,6 +288,7 @@
     <div class="sk-grid" id="skillsGrid"></div>
     <div class="sk-key" id="skillsKey"></div>
   </div>
+  <div class="sk-garden" id="skillsGarden" hidden></div>
 </div>
 
 <!-- ---------- PINs: shown once, when issued ---------- -->
@@ -1507,6 +1509,22 @@
             return [DAY_FMT.format(new Date(g.at)) + " · " + g.title, g.found + "/" + g.cards, g.wrong, pts, gradeFor(Math.max(0, pts), g.cards)];
           }), true));
         }
+        // the student's garden (Lygiai): every rule as its own flower
+        if (x.recap) {
+          var garden = document.createElement("button");
+          garden.type = "button";
+          garden.className = "btn quiet";
+          garden.textContent = "Gėlės";
+          garden.addEventListener("click", function () {
+            skData = skBuild(res, true);
+            var st = skData.students.filter(function (s) { return s.id === x.stats.id; })[0];
+            el("skillsError").hidden = true;
+            el("progress").hidden = true;
+            openFull(el("skills"));
+            skGarden(st, "progress");
+          });
+          d.appendChild(garden);
+        }
         var rm = document.createElement("button");
         rm.type = "button";
         rm.className = "btn quiet lesson-delete";
@@ -1545,20 +1563,22 @@
   var skChosen = {};     // class id -> { skill: true }, for this visit
 
   // skStage, skLabel, skPlant and the SK_ constants are in plants.js (shared with /mokinys).
-  function skBuild(res) {
+  // all: keep the students taken off the board with × (the garden from Mokiniai).
+  function skBuild(res, all) {
     var short = shortNames(current.students);
-    var gone = away[current.id] || new Set();
+    var gone = all ? new Set() : away[current.id] || new Set();
     var rules = {};
     var students = res.students.filter(function (st) { return !gone.has(st.id); }).map(function (st) {
       var by = {};
       st.runs.slice().sort(function (a, b) { return a.at < b.at ? -1 : 1; }).forEach(function (r) {
         if (!r.n) return;
         (by[r.skill] = by[r.skill] || []).push(r);
-        var rule = rules[r.skill] = rules[r.skill] || { skill: r.skill, lt: r.skill, at: "", who: {} };
+        var rule = rules[r.skill] = rules[r.skill] || { skill: r.skill, lt: r.skill, at: "", first: r.at, who: {} };
         if (r.at > rule.at) { rule.at = r.at; rule.lt = r.skill_lt || r.skill; }
+        if (r.at < rule.first) rule.first = r.at;
         rule.who[st.id] = true;
       });
-      return { name: short[st.id] || st.name.split(" ")[0], goal: st.goal, kind: skKind(st), by: by };
+      return { id: st.id, name: short[st.id] || st.name.split(" ")[0], goal: st.goal, kind: skKind(st), by: by };
     });
     return {
       students: students,
@@ -1566,11 +1586,30 @@
     };
   }
 
-  function skMode(showing) {
-    el("skillsPick").hidden = showing;
-    el("skillsStage").hidden = !showing;
-    el("skillsShow").hidden = showing || !skData || !skData.rules.length;
-    el("skillsBack").hidden = !showing;
+  // "pick" the rules, the class "board", or one student's "garden"
+  function skMode(mode) {
+    el("skillsPick").hidden = mode !== "pick";
+    el("skillsStage").hidden = mode !== "board";
+    el("skillsGarden").hidden = mode !== "garden";
+    el("skillsShow").hidden = mode !== "pick" || !skData || !skData.rules.length;
+    el("skillsBack").hidden = mode !== "board";
+    el("skillsAll").hidden = mode !== "garden";
+    if (mode !== "garden") el("skillsTitle").textContent = "Lygiai: " + current.name;
+  }
+
+  // A student's level in each rule: stage 0 if never tried. The one to
+  // repeat first (weak) is the weakest of those tried, unless it already blooms.
+  function skCells(st, rules) {
+    var cells = rules.map(function (r) {
+      var runs = st.by[r.skill];
+      if (!runs) return { stage: 0 };
+      var last = runs[runs.length - 1], prev = runs[runs.length - 2];
+      return { stage: skStage(last, st.goal), share: last.correct / last.n, grew: !!prev && skStage(last, st.goal) > skStage(prev, st.goal) };
+    });
+    var tried = cells.filter(function (c) { return c.stage; });
+    var weak = tried.length > 1 ? tried.reduce(function (a, c) { return c.share < a.share ? c : a; }) : null;
+    if (weak && weak.stage !== 4) weak.weak = true;
+    return cells;
   }
 
   function skRenderPick() {
@@ -1611,7 +1650,7 @@
       frag.appendChild(p);
     }
     el("skillsPick").replaceChildren(frag);
-    skMode(false);
+    skMode("pick");
     sync();
   }
 
@@ -1649,19 +1688,15 @@
 
     var grid = document.createDocumentFragment();
     skData.students.forEach(function (st, i) {
-      var cells = rules.map(function (r) {
-        var runs = st.by[r.skill];
-        if (!runs) return { stage: 0 };
-        var last = runs[runs.length - 1], prev = runs[runs.length - 2];
-        return { stage: skStage(last, st.goal), share: last.correct / last.n, grew: !!prev && skStage(last, st.goal) > skStage(prev, st.goal) };
-      });
-      // one rule to repeat first: the weakest of those tried, unless it already blooms
-      var tried = cells.filter(function (c) { return c.stage; });
-      var weak = tried.length > 1 ? tried.reduce(function (a, c) { return c.share < a.share ? c : a; }) : null;
-      if (weak && weak.stage === 4) weak = null;
-
+      var cells = skCells(st, rules);
       var card = document.createElement("div");
       card.className = "sk-card";
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.addEventListener("click", function () { skGarden(st, "board"); });
+      card.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); skGarden(st, "board"); }
+      });
       card.style.setProperty("--d", (i * 0.07).toFixed(2) + "s");
       var h = document.createElement("h3");
       h.textContent = st.name;
@@ -1670,7 +1705,7 @@
       cells.forEach(function (c, j) {
         var pot = document.createElement("div");
         pot.className = "sk-pot";
-        pot.innerHTML = skPlant(c.stage, rules[j].colour, c === weak, c.grew, st.kind);   // numbers and constants only
+        pot.innerHTML = skPlant(c.stage, rules[j].colour, c.weak, c.grew, st.kind);   // numbers and constants only
         var name = document.createElement("span");
         name.textContent = rules[j].label.name;
         pot.appendChild(name);
@@ -1698,8 +1733,64 @@
     });
     el("skillsKey").replaceChildren(key);
 
-    skMode(true);
+    skMode("board");
     skLayout();
+  }
+
+  // One student's garden: every rule the class has done, oldest first, each
+  // its own flower and pot, the same ones in every student's garden, so a
+  // flower stands for a rule. Never-tried rules are empty pots. No numbers,
+  // like the board: it can be projected.
+  var skFrom = "board";   // where Atgal goes: the class "board", or "progress" (Mokiniai)
+  function skGarden(st, from) {
+    skFrom = from;
+    var rules = skData.rules.slice().sort(function (a, b) { return a.first < b.first ? -1 : 1; });
+    var cells = skCells(st, rules);
+    var frag = document.createDocumentFragment();
+    rules.forEach(function (r, i) {
+      var c = cells[i], label = skLabel(r.lt);
+      var pot = document.createElement("div");
+      pot.className = "sk-gpot";
+      pot.style.setProperty("--d", (i * 0.08).toFixed(2) + "s");
+      pot.innerHTML = skPlant(c.stage, SK_COLOURS[i % SK_COLOURS.length], c.weak, c.grew, i % SK_KINDS.length);   // numbers and constants only
+      var name = document.createElement("b");
+      name.textContent = label.name;
+      pot.appendChild(name);
+      if (label.ex) {
+        var ex = document.createElement("small");
+        ex.textContent = label.ex;
+        pot.appendChild(ex);
+      }
+      var word = document.createElement("span");
+      word.className = "word" + (c.stage ? "" : " none");
+      word.textContent = c.stage ? SK_WORDS[c.stage] : "dar nebandyta";
+      pot.appendChild(word);
+      frag.appendChild(pot);
+    });
+    if (!rules.length) {
+      var p = document.createElement("p");
+      p.className = "pins-note";
+      p.textContent = "Ši klasė dar nesprendė testų.";
+      frag.appendChild(p);
+    }
+    el("skillsGarden").replaceChildren(frag);
+    skMode("garden");
+    el("skillsTitle").textContent = "Lygiai: " + st.name;
+    skGardenLayout();
+  }
+
+  // As many columns as make the plants biggest; the labels take about 0.36 of a plant's height.
+  function skGardenLayout() {
+    var g = el("skillsGarden"), n = g.querySelectorAll(".sk-gpot").length;
+    if (!n || g.hidden) return;
+    var W = g.clientWidth - 40, H = g.clientHeight - 24, best = 1, size = 0;
+    for (var c = 1; c <= n; c++) {
+      var rows = Math.ceil(n / c);
+      var h = Math.min((W / c - 12) * 1.5, (H / rows - 12) / 1.36);
+      if (h > size) { size = h; best = c; }
+    }
+    g.style.gridTemplateColumns = "repeat(" + best + ", minmax(0, 1fr))";
+    g.style.setProperty("--g-h", Math.max(90, Math.min(460, Math.round(size))) + "px");
   }
 
   function openSkills() {
@@ -1708,7 +1799,7 @@
     el("skillsError").hidden = true;
     el("skillsTitle").textContent = "Lygiai: " + c.name;
     el("skillsPick").replaceChildren();
-    skMode(false);
+    skMode("pick");
     openFull(el("skills"));
     rpc("teacher_class_progress", { p_token: token, p_class: c.id }).then(function (res) {
       if (current !== c) return;
@@ -1728,6 +1819,12 @@
   el("skillsBtn").addEventListener("click", openSkills);
   el("skillsShow").addEventListener("click", skShow);
   el("skillsBack").addEventListener("click", skRenderPick);
+  el("skillsAll").addEventListener("click", function () {
+    if (skFrom === "progress") { el("skills").hidden = true; el("progress").hidden = false; return; }
+    skMode("board");
+    skLayout();
+  });
+  window.addEventListener("resize", skGardenLayout);
   el("skillsClose").addEventListener("click", function () { closeFull(el("skills")); });
   window.addEventListener("resize", skLayout);
   el("lessonsClose").addEventListener("click", function () { closeFull(el("lessons")); });
