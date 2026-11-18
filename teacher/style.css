@@ -594,6 +594,9 @@ button.pin:hover { color: var(--ink); }
 .ym-tag { font-size: 13px; font-weight: 700; padding: 0 8px; border-radius: 10px; border: 2px solid currentColor; }
 .ym-tag.now { color: var(--blue); }
 .ym-tag.at { color: var(--green); }
+.ym-count { font-size: 13px; color: var(--ink-dim); }
+.ym-count.some { color: var(--green); font-weight: 700; }
+.ym-ok { color: var(--green); }
 .ym-month dl { margin: 4px 0 4px 7.2em; display: grid; gap: 3px; font-size: 15px; }
 .ym-month dl div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 8px; }
 .ym-month dt { color: var(--ink-dim); }

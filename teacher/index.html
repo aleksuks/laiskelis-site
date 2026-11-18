@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611181200">
+<link rel="stylesheet" href="style.css?v=202611181500">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -1934,9 +1934,10 @@
     return d;
   }
 
-  /* The year map (246): per month, topic / vocabulary / grammar. The calendar month is where the
-     class should be; the month of its "Pasiekta" lesson (plan weeks → dates, break weeks skipped)
-     is where it is. Only the calendar month opens (user 2026-11-18). */
+  /* The year map (246, 247): per month, topic / vocabulary / grammar, each item with a key.
+     A key counts for a class once it ran a quiz with it or a sheet of its grade has it
+     (school-db/sheet_keys.py). "Klasė čia" = the furthest month with more than half of its
+     items counted; the calendar month is "pagal planą" and the only one opened (user 2026-11-18). */
   var YM_NAMES = ["Rugsėjis", "Spalis", "Lapkritis", "Gruodis", "Sausis", "Vasaris", "Kovas", "Balandis", "Gegužė", "Birželis"];
 
   function ymOrd(iso) {                 // "2027-03-10" → 7 (1 = September … 10 = June)
@@ -1944,36 +1945,50 @@
     return m >= 9 ? m - 8 : m <= 6 ? m + 4 : null;
   }
 
-  function ymLessonOrd(week, ym) {      // the month a plan week falls in
-    var breaks = {};
-    (ym.break_weeks || []).forEach(function (b) { breaks[b] = true; });
-    var start = new Date(ym.year_start + "T00:00:00Z");
-    var d = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * 864e5);   // Monday of week 1
-    for (var n = 0, guard = 0; guard < 80; guard++, d = new Date(d.getTime() + 7 * 864e5)) {
-      var iso = d.toISOString().slice(0, 10);
-      if (breaks[iso]) continue;
-      if (++n === week) return ymOrd(d < start ? ym.year_start : iso);
-    }
-    return null;
+  function ymCount(m, covered) {
+    var items = m.vocab.concat(m.grammar).filter(function (x) { return x.k; });
+    return { all: items.length, done: items.filter(function (x) { return covered[x.k]; }).length };
   }
 
-  function ymBlock(c, plan, ym) {
+  function ymAt(months, covered) {
+    var at = null;
+    months.forEach(function (m) { var n = ymCount(m, covered); if (n.all && n.done * 2 > n.all) at = m.ord; });
+    return at;
+  }
+
+  function ymItems(list, covered) {
+    var dd = document.createElement("dd");
+    list.forEach(function (x, i) {
+      if (i) dd.appendChild(document.createTextNode("; "));
+      var via = x.k && covered[x.k];
+      var s = ovCell((via ? "✓ " : "") + x.t, via ? "ym-ok" : "");
+      if (via) s.title = via.join(" · ");
+      dd.appendChild(s);
+    });
+    return dd;
+  }
+
+  function ymBlock(c, ym) {
     var months = ym && ym.grades && ym.grades[c.grade];
     if (!months) return null;
-    var today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vilnius" }).format(new Date());
-    var nowOrd = ymOrd(today);
-    var atOrd = c.actual && plan[c.actual - 1] ? ymLessonOrd(plan[c.actual - 1].week, ym) : null;
+    var mine = (ym.classes || []).filter(function (x) { return x.id === c.id; })[0];
+    var covered = (mine && mine.covered) || {};
+    var nowOrd = ymOrd(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vilnius" }).format(new Date()));
+    var atOrd = ymAt(months, covered);
     var box = document.createElement("div");
     box.className = "ym";
     var h = document.createElement("h4");
     h.textContent = "Metų žemėlapis";
+    h.title = "✓ – jau buvo teste, kurį klasė darė, arba lape. „Klasė čia“ – toliausias mėnuo, kurio daugiau nei pusė pažymėta ✓.";
     box.appendChild(h);
     months.forEach(function (m) {
+      var n = ymCount(m, covered);
       var d = document.createElement("details");
       d.className = "ym-month" + (m.ord === nowOrd ? " ym-now" : "") + (m.ord === atOrd ? " ym-at" : "") + (nowOrd && m.ord < nowOrd ? " ym-past" : "");
       if (m.ord === nowOrd) d.open = true;
       var s = document.createElement("summary");
       s.append(ovCell(YM_NAMES[m.ord - 1], "ym-name"), ovCell(m.topic, "ym-topic"));
+      if (n.all) s.appendChild(ovCell(n.done + "/" + n.all, "ym-count" + (n.done ? " some" : "")));
       if (m.ord === nowOrd) s.appendChild(ovCell("pagal planą", "ym-tag now"));
       if (m.ord === atOrd) s.appendChild(ovCell("klasė čia", "ym-tag at"));
       d.appendChild(s);
@@ -1981,8 +1996,7 @@
       [["Žodynas", m.vocab], ["Gramatika", m.grammar]].forEach(function (kv) {
         var row = document.createElement("div");
         var dt = document.createElement("dt"); dt.textContent = kv[0];
-        var dd = document.createElement("dd"); dd.textContent = kv[1];
-        row.append(dt, dd);
+        row.append(dt, ymItems(kv[1], covered));
         dl.appendChild(row);
       });
       d.appendChild(dl);
@@ -2026,7 +2040,7 @@
       bar.appendChild(i);
     });
     card.appendChild(bar);
-    var map = ymBlock(c, plan, ym);
+    var map = ymBlock(c, ym);
     if (map) card.appendChild(map);
 
     var facts = document.createElement("dl");

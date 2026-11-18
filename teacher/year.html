@@ -44,7 +44,7 @@
 <script>
 (function () {
   // All classes' year maps (246), one landscape page per grade. The calendar month is shaded
-  // ("pagal planą"); the month of each class's "Pasiekta" lesson has a green edge ("<class> čia").
+  // ("pagal planą"); the month each class has reached by its quizzes and sheets (247) has a green edge ("<class> čia").
   var NAMES = ["Rugsėjis", "Spalis", "Lapkritis", "Gruodis", "Sausis", "Vasaris", "Kovas", "Balandis", "Gegužė", "Birželis"];
   var token = null;
   try { token = localStorage.getItem("teacher.token"); } catch (e) {}
@@ -53,18 +53,17 @@
 
   function h(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function ord(iso) { var m = +iso.slice(5, 7); return m >= 9 ? m - 8 : m <= 6 ? m + 4 : null; }
-  function weekOrd(week, ym) {
-    var breaks = {};
-    (ym.break_weeks || []).forEach(function (b) { breaks[b] = true; });
-    var start = new Date(ym.year_start + "T00:00:00Z");
-    var d = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * 864e5);
-    for (var n = 0, g = 0; g < 80; g++, d = new Date(d.getTime() + 7 * 864e5)) {
-      var iso = d.toISOString().slice(0, 10);
-      if (breaks[iso]) continue;
-      if (++n === week) return ord(d < start ? ym.year_start : iso);
-    }
-    return null;
+  function covered(ym, id) { var x = (ym.classes || []).filter(function (c) { return c.id === id; })[0]; return (x && x.covered) || {}; }
+  function atOrd(months, cov) {     // as the dashboard: furthest month with more than half of its items counted
+    var at = null;
+    months.forEach(function (m) {
+      var items = m.vocab.concat(m.grammar).filter(function (x) { return x.k; });
+      var done = items.filter(function (x) { return cov[x.k]; }).length;
+      if (items.length && done * 2 > items.length) at = m.ord;
+    });
+    return at;
   }
+  function txt(list) { return list.map(function (x) { return x.t; }).join("; "); }
 
   Promise.all([rpc("teacher_year_map_get", { p_token: token }), rpc("teacher_plan_overview", { p_token: token })]).then(function (both) {
     var ym = both[0], ov = both[1];
@@ -72,10 +71,9 @@
     var frag = document.createDocumentFragment();
     Object.keys(ym.grades).map(Number).sort(function (a, b) { return a - b; }).forEach(function (g) {
       var classes = ov.classes.filter(function (c) { return c.grade === g; });
-      var plan = ov.plans[g] || [];
       var at = {};
       classes.forEach(function (c) {
-        var o = c.actual && plan[c.actual - 1] ? weekOrd(plan[c.actual - 1].week, ym) : null;
+        var o = atOrd(ym.grades[g], covered(ym, c.id));
         if (o) (at[o] = at[o] || []).push(c.name);
       });
       var p = h("section", "page");
@@ -92,7 +90,7 @@
         var mc = h("td", "m", NAMES[m.ord - 1]);
         if (m.ord === nowOrd) mc.appendChild(h("span", "tag now", "pagal planą"));
         if (at[m.ord]) mc.appendChild(h("span", "tag at", at[m.ord].join(", ") + " čia"));
-        tr.append(mc, h("td", "t", m.topic), h("td", "v", m.vocab), h("td", null, m.grammar));
+        tr.append(mc, h("td", "t", m.topic), h("td", "v", txt(m.vocab)), h("td", null, txt(m.grammar)));
         tb.appendChild(tr);
       });
       t.appendChild(tb);
