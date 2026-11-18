@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Metų žemėlapis</title>
+<style>
+  :root { --ink: #1d2433; --mute: #5b6579; --line: #cfd6e4; --now: #eef2fa; --at: #2e8b57; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e8e8e8; color: var(--ink); font: 13px/1.4 "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #tools { position: sticky; top: 0; z-index: 2; display: flex; gap: 10px; align-items: center; padding: 8px 16px; background: #333; color: #fff; }
+  #tools button { font: inherit; padding: 6px 12px; }
+  #msg { padding: 24px; text-align: center; }
+  .page { width: 297mm; min-height: 210mm; margin: 16px auto; padding: 12mm 12mm 10mm; background: #fff; break-after: page; page-break-after: always; }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  h1 { margin: 0; font-size: 20px; }
+  .sub { color: var(--mute); margin: 2px 0 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--mute); font-weight: 600; padding: 0 6px 4px; }
+  td { padding: 5px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  td.m { width: 11%; font-weight: 700; white-space: nowrap; }
+  td.t { width: 24%; font-weight: 600; }
+  td.v { width: 30%; }
+  tr.now td { background: var(--now); }
+  tr.at td:first-child { box-shadow: inset 4px 0 0 var(--at); }
+  .tag { display: block; font-size: 11px; font-weight: 700; }
+  .tag.now { color: #2a5bd7; } .tag.at { color: var(--at); }
+  @page { size: A4 landscape; margin: 0; }
+  @media print {
+    body { background: none; }
+    #tools, #msg { display: none; }
+    .page { margin: 0; }
+    tr.now td, tr.at td:first-child { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @media (max-width: 700px) { .page { width: auto; min-height: 0; margin: 8px; padding: 12px 16px; } td { display: block; width: auto !important; border: 0; padding: 2px 0; } tr { display: block; border-top: 1px solid var(--line); padding: 6px 0; } thead { display: none; } }
+</style>
+</head>
+<body>
+<div id="tools" hidden><button type="button" id="print">Spausdinti / PDF</button></div>
+<p id="msg">Kraunama…</p>
+<div id="pages"></div>
+<script src="api.js?v=202611111500"></script>
+<script>
+(function () {
+  // All classes' year maps (246), one landscape page per grade. The calendar month is shaded
+  // ("pagal planą"); the month of each class's "Pasiekta" lesson has a green edge ("<class> čia").
+  var NAMES = ["Rugsėjis", "Spalis", "Lapkritis", "Gruodis", "Sausis", "Vasaris", "Kovas", "Balandis", "Gegužė", "Birželis"];
+  var token = null;
+  try { token = localStorage.getItem("teacher.token"); } catch (e) {}
+  function fail(t) { document.getElementById("msg").textContent = t; }
+  if (!token) return fail("Prisijunk prie mokytojo lentos ir bandyk dar kartą.");
+
+  function h(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function ord(iso) { var m = +iso.slice(5, 7); return m >= 9 ? m - 8 : m <= 6 ? m + 4 : null; }
+  function weekOrd(week, ym) {
+    var breaks = {};
+    (ym.break_weeks || []).forEach(function (b) { breaks[b] = true; });
+    var start = new Date(ym.year_start + "T00:00:00Z");
+    var d = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * 864e5);
+    for (var n = 0, g = 0; g < 80; g++, d = new Date(d.getTime() + 7 * 864e5)) {
+      var iso = d.toISOString().slice(0, 10);
+      if (breaks[iso]) continue;
+      if (++n === week) return ord(d < start ? ym.year_start : iso);
+    }
+    return null;
+  }
+
+  Promise.all([rpc("teacher_year_map_get", { p_token: token }), rpc("teacher_plan_overview", { p_token: token })]).then(function (both) {
+    var ym = both[0], ov = both[1];
+    var nowOrd = ord(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vilnius" }).format(new Date()));
+    var frag = document.createDocumentFragment();
+    Object.keys(ym.grades).map(Number).sort(function (a, b) { return a - b; }).forEach(function (g) {
+      var classes = ov.classes.filter(function (c) { return c.grade === g; });
+      var plan = ov.plans[g] || [];
+      var at = {};
+      classes.forEach(function (c) {
+        var o = c.actual && plan[c.actual - 1] ? weekOrd(plan[c.actual - 1].week, ym) : null;
+        if (o) (at[o] = at[o] || []).push(c.name);
+      });
+      var p = h("section", "page");
+      p.appendChild(h("h1", null, "Rusų kalba · " + g + " kl." + (classes.length ? " (" + classes.map(function (c) { return c.name; }).join(", ") + ")" : "")));
+      var book = ov.books[g];
+      p.appendChild(h("p", "sub", (book ? book.textbook + " · " : "") + "2026–2027"));
+      var t = h("table");
+      var hr = h("tr");
+      ["Mėnuo", "Tema", "Žodynas", "Gramatika"].forEach(function (x) { hr.appendChild(h("th", null, x)); });
+      var thead = h("thead"); thead.appendChild(hr); t.appendChild(thead);
+      var tb = h("tbody");
+      ym.grades[g].forEach(function (m) {
+        var tr = h("tr", (m.ord === nowOrd ? "now " : "") + (at[m.ord] ? "at" : ""));
+        var mc = h("td", "m", NAMES[m.ord - 1]);
+        if (m.ord === nowOrd) mc.appendChild(h("span", "tag now", "pagal planą"));
+        if (at[m.ord]) mc.appendChild(h("span", "tag at", at[m.ord].join(", ") + " čia"));
+        tr.append(mc, h("td", "t", m.topic), h("td", "v", m.vocab), h("td", null, m.grammar));
+        tb.appendChild(tr);
+      });
+      t.appendChild(tb);
+      p.appendChild(t);
+      frag.appendChild(p);
+    });
+    document.getElementById("pages").appendChild(frag);
+    document.getElementById("msg").hidden = true;
+    document.getElementById("tools").hidden = false;
+  }).catch(function (err) { fail(err.message); });
+  document.getElementById("print").addEventListener("click", function () { window.print(); });
+})();
+</script>
+</body>
+</html>

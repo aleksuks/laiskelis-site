@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611121200">
+<link rel="stylesheet" href="style.css?v=202611181200">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -332,6 +332,7 @@
 <div class="full" id="overview" hidden>
   <div class="bar">
     <h2 class="full-title" id="overviewTitle">Visos klasės</h2>
+    <button class="btn quiet" type="button" id="overviewYear">Visi metai (spausdinti)</button>
     <button class="btn quiet" type="button" id="overviewClose">Uždaryti</button>
   </div>
   <p id="overviewError" class="msg" hidden style="margin: 0 20px"></p>
@@ -1933,7 +1934,64 @@
     return d;
   }
 
-  function ovCard(c, plan, book, week, files) {
+  /* The year map (246): per month, topic / vocabulary / grammar. The calendar month is where the
+     class should be; the month of its "Pasiekta" lesson (plan weeks → dates, break weeks skipped)
+     is where it is. */
+  var YM_NAMES = ["Rugsėjis", "Spalis", "Lapkritis", "Gruodis", "Sausis", "Vasaris", "Kovas", "Balandis", "Gegužė", "Birželis"];
+
+  function ymOrd(iso) {                 // "2027-03-10" → 7 (1 = September … 10 = June)
+    var m = +iso.slice(5, 7);
+    return m >= 9 ? m - 8 : m <= 6 ? m + 4 : null;
+  }
+
+  function ymLessonOrd(week, ym) {      // the month a plan week falls in
+    var breaks = {};
+    (ym.break_weeks || []).forEach(function (b) { breaks[b] = true; });
+    var start = new Date(ym.year_start + "T00:00:00Z");
+    var d = new Date(start.getTime() - ((start.getUTCDay() + 6) % 7) * 864e5);   // Monday of week 1
+    for (var n = 0, guard = 0; guard < 80; guard++, d = new Date(d.getTime() + 7 * 864e5)) {
+      var iso = d.toISOString().slice(0, 10);
+      if (breaks[iso]) continue;
+      if (++n === week) return ymOrd(d < start ? ym.year_start : iso);
+    }
+    return null;
+  }
+
+  function ymBlock(c, plan, ym) {
+    var months = ym && ym.grades && ym.grades[c.grade];
+    if (!months) return null;
+    var today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vilnius" }).format(new Date());
+    var nowOrd = ymOrd(today);
+    var atOrd = c.actual && plan[c.actual - 1] ? ymLessonOrd(plan[c.actual - 1].week, ym) : null;
+    var box = document.createElement("div");
+    box.className = "ym";
+    var h = document.createElement("h4");
+    h.textContent = "Metų žemėlapis";
+    box.appendChild(h);
+    months.forEach(function (m) {
+      var d = document.createElement("details");
+      d.className = "ym-month" + (m.ord === nowOrd ? " ym-now" : "") + (m.ord === atOrd ? " ym-at" : "") + (nowOrd && m.ord < nowOrd ? " ym-past" : "");
+      if (m.ord === nowOrd || m.ord === atOrd) d.open = true;
+      var s = document.createElement("summary");
+      s.append(ovCell(YM_NAMES[m.ord - 1], "ym-name"), ovCell(m.topic, "ym-topic"));
+      if (m.ord === nowOrd) s.appendChild(ovCell("pagal planą", "ym-tag now"));
+      if (m.ord === atOrd) s.appendChild(ovCell("klasė čia", "ym-tag at"));
+      d.appendChild(s);
+      var dl = document.createElement("dl");
+      [["Žodynas", m.vocab], ["Gramatika", m.grammar]].forEach(function (kv) {
+        var row = document.createElement("div");
+        var dt = document.createElement("dt"); dt.textContent = kv[0];
+        var dd = document.createElement("dd"); dd.textContent = kv[1];
+        row.append(dt, dd);
+        dl.appendChild(row);
+      });
+      d.appendChild(dl);
+      box.appendChild(d);
+    });
+    return box;
+  }
+
+  function ovCard(c, plan, book, week, files, ym) {
     var card = document.createElement("section");
     card.className = "ov-card";
     var lag = c.planned - c.actual;
@@ -1968,6 +2026,8 @@
       bar.appendChild(i);
     });
     card.appendChild(bar);
+    var map = ymBlock(c, plan, ym);
+    if (map) card.appendChild(map);
 
     var facts = document.createElement("dl");
     facts.className = "ov-facts";
@@ -2010,13 +2070,14 @@
     el("overviewError").hidden = true;
     Promise.all([
       rpc("teacher_plan_overview", { p_token: token }),
-      rpc("teacher_materials_list", { p_token: token }).catch(function () { return []; })
+      rpc("teacher_materials_list", { p_token: token }).catch(function () { return []; }),
+      rpc("teacher_year_map_get", { p_token: token }).catch(function () { return null; })
     ]).then(function (both) {
-      var res = both[0], files = both[1] || [];
+      var res = both[0], files = both[1] || [], ym = both[2];
       var frag = document.createDocumentFragment();
       res.classes.forEach(function (c) {
         var plan = res.plans[c.grade];
-        if (plan) frag.appendChild(ovCard(c, plan, res.books[c.grade], res.week, files.filter(function (f) { return f.grade === c.grade; })));
+        if (plan) frag.appendChild(ovCard(c, plan, res.books[c.grade], res.week, files.filter(function (f) { return f.grade === c.grade; }), ym));
       });
       var common = files.filter(function (f) { return f.grade == null; });
       if (common.length) {
@@ -2600,6 +2661,7 @@
 
   el("overviewBtn").addEventListener("click", openOverview);
   el("overviewClose").addEventListener("click", function () { closeFull(el("overview")); });
+  el("overviewYear").addEventListener("click", function () { window.open("year.html", "_blank", "noopener"); });
 
   /* ---------- quiz ---------- */
 

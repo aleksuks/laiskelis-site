@@ -581,6 +581,24 @@ button.pin:hover { color: var(--ink); }
 .ov-bar i.test { box-shadow: inset 0 0 0 2px var(--ink); }
 .ov-bar i.now { outline: 3px solid var(--blue); outline-offset: 1px; }
 .ov-bar i.cyc { margin-left: 4px; }
+/* the year map (246) */
+.ym { width: 100%; display: grid; gap: 2px; }
+.ym h4 { margin: 4px 0 2px; font-size: 16px; color: var(--ink-dim); }
+.ym-month { border-radius: 10px; padding: 3px 8px; }
+.ym-month summary { cursor: pointer; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; font-size: 15px; }
+.ym-name { width: 6.2em; flex: none; font-weight: 700; }
+.ym-topic { flex: 1; min-width: 0; }
+.ym-past summary { color: var(--ink-dim); }
+.ym-now { background: rgba(0, 0, 0, 0.05); }
+.ym-at { box-shadow: inset 0 0 0 2px var(--green); }
+.ym-tag { font-size: 13px; font-weight: 700; padding: 0 8px; border-radius: 10px; border: 2px solid currentColor; }
+.ym-tag.now { color: var(--blue); }
+.ym-tag.at { color: var(--green); }
+.ym-month dl { margin: 4px 0 4px 7.2em; display: grid; gap: 3px; font-size: 15px; }
+.ym-month dl div { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 8px; }
+.ym-month dt { color: var(--ink-dim); }
+.ym-month dd { margin: 0; }
+@media (max-width: 560px) { .ym-month dl { margin-left: 0; } }
 .ov-facts { margin: 0; display: grid; gap: 4px; width: 100%; font-size: 15px; }
 .ov-facts div { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 10px; }
 .ov-facts dt { color: var(--ink-dim); }
