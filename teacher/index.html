@@ -1936,7 +1936,7 @@
 
   /* The year map (246): per month, topic / vocabulary / grammar. The calendar month is where the
      class should be; the month of its "Pasiekta" lesson (plan weeks → dates, break weeks skipped)
-     is where it is. */
+     is where it is. Only the calendar month opens (user 2026-11-18). */
   var YM_NAMES = ["Rugsėjis", "Spalis", "Lapkritis", "Gruodis", "Sausis", "Vasaris", "Kovas", "Balandis", "Gegužė", "Birželis"];
 
   function ymOrd(iso) {                 // "2027-03-10" → 7 (1 = September … 10 = June)
@@ -1971,7 +1971,7 @@
     months.forEach(function (m) {
       var d = document.createElement("details");
       d.className = "ym-month" + (m.ord === nowOrd ? " ym-now" : "") + (m.ord === atOrd ? " ym-at" : "") + (nowOrd && m.ord < nowOrd ? " ym-past" : "");
-      if (m.ord === nowOrd || m.ord === atOrd) d.open = true;
+      if (m.ord === nowOrd) d.open = true;
       var s = document.createElement("summary");
       s.append(ovCell(YM_NAMES[m.ord - 1], "ym-name"), ovCell(m.topic, "ym-topic"));
       if (m.ord === nowOrd) s.appendChild(ovCell("pagal planą", "ym-tag now"));
