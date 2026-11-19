@@ -193,6 +193,7 @@
     <span class="live-count" id="liveCount"></span>
     <button class="btn quiet" type="button" id="liveBack" aria-label="Atgal">←</button>
     <button class="btn" type="button" id="liveNext">Toliau</button>
+    <button class="btn quiet" type="button" id="liveDice" title="Atsitiktinis klausimas (K)" aria-label="Atsitiktinis klausimas">🎲</button>
     <button class="btn quiet" type="button" id="liveWheel">Ratas</button>
     <button class="btn quiet" type="button" id="liveClose">Uždaryti</button>
   </div>
@@ -3096,6 +3097,30 @@
     renderLive();
   }
 
+  // 🎲: straight to a random question (rule cards skipped), for a quiz the class
+  // has done before. No repeats until every question has come up once; a
+  // question that comes up again can be answered again.
+  function liveDice() {
+    var n = live.quiz.questions.length;
+    if (!n) return;
+    var cur = live.steps[live.at].q;
+    live.diced = live.diced || {};
+    if (cur !== undefined) live.diced[cur] = true;
+    var left = [];
+    for (var i = 0; i < n; i++) if (!live.diced[i]) left.push(i);
+    if (!left.length) {
+      live.diced = {};
+      for (i = 0; i < n; i++) if (i !== cur || n === 1) left.push(i);
+    }
+    var pick = left[Math.floor(Math.random() * left.length)];
+    live.diced[pick] = true;
+    delete live.picks[pick];
+    live.at = live.steps.findIndex(function (s) { return s.q === pick; });
+    live.revealed = null;
+    renderLive();
+  }
+
+  el("liveDice").addEventListener("click", liveDice);
   el("liveNext").addEventListener("click", liveNext);
   el("liveBack").addEventListener("click", function () {
     if (live.at > 0) { live.at--; live.revealed = null; renderLive(); }
@@ -3109,6 +3134,7 @@
     var step = live.steps[live.at];
     if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); liveNext(); }
     else if (e.key === "ArrowLeft") el("liveBack").click();
+    else if (e.key === "k" || e.key === "K") liveDice();
     else if (step.q !== undefined && /^[1-4]$/.test(e.key)) pickLive(step.q, Number(e.key) - 1);
   });
 
