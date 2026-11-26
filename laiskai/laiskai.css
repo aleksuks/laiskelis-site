@@ -74,13 +74,22 @@ h2 { font-family: var(--type); font-weight: 400; font-size: 24px; margin: 0 0 18
 .browse { margin: 0 0 48px; }
 .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
 .chips a { display: block; text-decoration: none; transition: transform .2s ease; }
-.chips a.signed { padding: 4px; }
 .chips a:hover { transform: translateY(-2px) rotate(-1deg); }
 .chips a:active { transform: scale(.97); }
-/* Fit each sign in the same box, so a long ribbon and a square label read as
-   the same size of button. */
-.chips li { display: flex; align-items: center; justify-content: center; }
-.chip-sign { width: auto; height: auto; max-height: 76px; max-width: min(220px, 40vw); filter: drop-shadow(0 3px 4px rgba(60,40,20,.14)); }
+/* Topic tiles: one size, centred grid, the sign centred in each. */
+.tiles { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+.tile {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 6px;
+  padding: 14px 14px 10px; text-decoration: none; color: var(--sub);
+  box-shadow: 0 1px 0 var(--line), 0 10px 18px -14px rgba(60,40,20,.35);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.tile:hover { transform: translateY(-2px); box-shadow: 0 1px 0 var(--line), 0 16px 24px -14px rgba(60,40,20,.4); }
+.tile:active { transform: scale(.98); }
+.tile .art { aspect-ratio: 2.2; display: grid; place-items: center; }
+.tile .art img { height: auto; filter: drop-shadow(0 3px 4px rgba(60,40,20,.14)); }
+.tile .n { text-align: center; font-size: 14px; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
 .pill {
   display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px;
   border: 1px solid var(--line); border-radius: 999px; background: var(--sheet);
@@ -135,9 +144,8 @@ footer p { margin: 0; }
 
 @media (max-width: 600px) {
   .top nav a:not(.btn) { display: none; }
-  .chips { flex-direction: column; align-items: flex-start; gap: 14px; }
-  .chips li { justify-content: flex-start; }
-  .chip-sign { max-width: 100%; max-height: 62px; }
+  .tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { padding: 10px 8px 8px; }
   .wall { columns: 1; }
   .note a { transform: none; }
 }

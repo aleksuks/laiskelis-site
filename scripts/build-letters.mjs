@@ -13,7 +13,7 @@
 // month, by the week's topic and by idea. There is no author index, and none
 // may be added.
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -212,6 +212,31 @@ const signImg = (l, cls) => {
   const src = signSrc(l);
   return src ? `<img class="${cls}" src="${src}" alt="${esc(l.topic_title)}" loading="lazy">` : "";
 };
+// A WebP's pixel size from its header (VP8X, VP8 or VP8L), to size signs by shape.
+function webpSize(file) {
+  const b = readFileSync(file);
+  const t = b.toString("ascii", 12, 16);
+  if (t === "VP8X") return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+  if (t === "VP8 ") return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+  if (t === "VP8L") { const v = b.readUInt32LE(21); return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1]; }
+  return null;
+}
+// Signs come in every shape, from a square label to a long ribbon. In a tile of
+// aspect TILE_A each one gets the same painted area, capped by the tile's
+// width and height, so they read as one size. Returns a width in % of the tile.
+const TILE_A = 2.2, AREA = 0.4, MAX_W = 0.92, MAX_H = 0.88;
+function signWidth(l) {
+  const f = signFile(l);
+  const size = f && existsSync(join(ROOT, f)) ? webpSize(join(ROOT, f)) : null;
+  if (!size) return 70;
+  const a = size[0] / size[1];
+  let w = Math.sqrt((AREA * a) / TILE_A); // as a fraction of the tile width
+  w = Math.min(w, MAX_W, (MAX_H * a) / TILE_A);
+  return Math.round(w * 1000) / 10;
+}
+const laiskai = (n) =>
+  `${n} ${n % 10 === 1 && n % 100 !== 11 ? "laiškas" : n % 10 === 0 || (n % 100 > 10 && n % 100 < 20) ? "laiškų" : "laiškai"}`;
+
 // A small, steady tilt per letter (from its id), so the wall reads as paper.
 const tilt = (l) => ((parseInt(l.id.slice(0, 4), 16) % 9) - 4) * 0.3;
 const topicKey = (l) => l.topic_week || slugify(l.topic_title) || "tema";
@@ -266,7 +291,7 @@ function entries(list, { showTopic = true } = {}) {
 }
 
 function groupPage({ heading, kicker, path, list, title, sign = "" }) {
-  const body = `<header class="head">${sign ? `<div class="big-sign">${sign}</div>` : ""}<p class="kicker">${esc(kicker)}</p><h1${sign ? ' class="sr"' : ""}>${esc(heading)}</h1><p class="count">${list.length} ${list.length % 10 === 1 && list.length % 100 !== 11 ? "laiškas" : list.length % 10 === 0 || (list.length % 100 > 10 && list.length % 100 < 20) ? "laiškų" : "laiškai"}</p></header>
+  const body = `<header class="head">${sign ? `<div class="big-sign">${sign}</div>` : ""}<p class="kicker">${esc(kicker)}</p><h1${sign ? ' class="sr"' : ""}>${esc(heading)}</h1><p class="count">${laiskai(list.length)}</p></header>
 ${entries(list, { showTopic: !sign })}
 <p class="back"><a href="./">← Visi laiškai</a></p>`;
   return page({
@@ -317,14 +342,25 @@ const topicList = [...topics].sort((a, b) => (a[1][0].topic_week < b[1][0].topic
 const ideaList = [...ideas].sort((a, b) => (a[1][0].idea < b[1][0].idea ? -1 : a[1][0].idea > b[1][0].idea ? 1 : 0));
 const monthList = [...months].sort((a, b) => (a[0] < b[0] ? 1 : -1));
 
-// Topics are their painted signs; ideas (and a topic without a sign) are pills.
-const chips = (items, label, pick, withSign = false) =>
+// Topics: equal paper tiles in a grid, each with its sign (same area, centred)
+// and how many letters it holds. Ideas stay pills.
+const tiles = (items, label) =>
+  items.length
+    ? `<section class="browse"><h2>${label}</h2><ul class="tiles">${items
+        .map(([f, list]) => {
+          const l = list[0];
+          const src = signSrc(l);
+          const art = src
+            ? `<img src="${src}" alt="${esc(l.topic_title)}" style="width:${signWidth(l)}%" loading="lazy">`
+            : `<span class="pill">${esc(l.topic_title)}</span>`;
+          return `<li><a class="tile" href="${f}"><span class="art">${art}</span><span class="n">${laiskai(list.length)}</span></a></li>`;
+        })
+        .join("")}</ul></section>`
+    : "";
+const chips = (items, label, pick) =>
   items.length
     ? `<section class="browse"><h2>${label}</h2><ul class="chips">${items
-        .map(([f, list]) => {
-          const img = withSign ? signImg(list[0], "chip-sign") : "";
-          return `<li><a href="${f}"${img ? ' class="signed"' : ""}>${img || `<span class="pill">${esc(pick(list[0]))}</span>`}</a></li>`;
-        })
+        .map(([f, list]) => `<li><a href="${f}"><span class="pill">${esc(pick(list[0]))}</span></a></li>`)
         .join("")}</ul></section>`
     : "";
 
@@ -333,7 +369,7 @@ const indexBody = `<header class="head">
 <h1>Laiškai iš Kapinių</h1>
 <p class="lead">Čia guli laiškeliai, kurie jau baigė savo kelionę, o jų autoriai leido juos skelbti. Trumpi, tikri tekstai apie įvairiausius dalykus. Prie kiekvieno — tik slapyvardis, kuriuo jis pasirašytas.</p>
 </header>
-${chips(topicList, "Savaitės temos", (l) => l.topic_title, true)}
+${tiles(topicList, "Savaitės temos")}
 ${chips(ideaList, "Idėjos", (l) => l.idea)}
 ${
   monthList.length

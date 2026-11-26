@@ -170,11 +170,9 @@
 
   .topics .center { text-align: center; }
   .topics .lead { margin-inline: auto; }
-  .topics .board { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px 44px; margin-top: 44px; }
-  .topics .board img { height: clamp(64px, 9vw, 118px); width: auto; transition: transform .25s ease; }
-  .topics .board img:nth-child(odd) { transform: rotate(-2deg); }
-  .topics .board img:nth-child(even) { transform: rotate(2deg); }
-  .topics .board img:hover { transform: rotate(0) scale(1.03); }
+  .topics .board { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 44px auto 0; max-width: 900px; }
+  .topics .board li { aspect-ratio: 2.2; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 0 var(--line), 0 10px 18px -14px rgba(60,40,20,.35); }
+  .topics .board img { height: auto; filter: drop-shadow(0 3px 4px rgba(60,40,20,.14)); }
 
   .safe .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 44px; border-top: 1px solid var(--line); padding-top: 36px; }
   .safe .cols p { color: var(--sub); }
@@ -202,6 +200,7 @@
     .env-live .hero .visual { min-height: 34svh; }
     .env-live .hero .visual .env-still { display: none; }
     .ways .grid, .grave .wrap, .safe .cols { grid-template-columns: 1fr; }
+    .topics .board { grid-template-columns: 1fr 1fr; gap: 10px; }
     .grave .pile { height: 280px; }
     .flight .stage { align-items: flex-end; padding-bottom: 8svh; }
     .flight li h3 { font-size: 42px; }
@@ -323,14 +322,15 @@
       <p class="kicker">Savaitės tema</p>
       <h2 id="h-topics">Kiekvieną savaitę — nauja tema</h2>
       <p class="lead">Už temas balsuoja patys rašantys. Laimėjusi tema visą savaitę kabo programėlės danguje.</p>
-      <div class="board">
-        <img src="img/temos/2026-09-27-hobiai.webp" alt="Hobiai" width="755" height="360" loading="lazy">
-        <img src="img/temos/2026-10-04-vaikystes-istorijos.webp" alt="Vaikystės istorijos" width="690" height="480" loading="lazy">
-        <img src="img/temos/2026-10-18-kraupios-istorijos.webp" alt="Kraupios istorijos" width="762" height="352" loading="lazy">
-        <img src="img/temos/2026-10-25-melai-tevam.webp" alt="Melai tėvam" width="824" height="215" loading="lazy">
-        <img src="img/temos/2026-11-15-istorijos-is-mokyklos.webp" alt="Istorijos iš mokyklos" width="750" height="413" loading="lazy">
-        <img src="img/temos/2026-11-22-didziausios-baimes.webp" alt="Didžiausios baimės" width="699" height="393" loading="lazy">
-      </div>
+      <!-- Equal tiles; each sign sized to the same painted area (scripts/build-letters.mjs signWidth). -->
+      <ul class="board">
+        <li><img src="img/temos/2026-09-27-hobiai.webp" alt="Hobiai" width="755" height="360" style="width:61.8%" loading="lazy"></li>
+        <li><img src="img/temos/2026-10-04-vaikystes-istorijos.webp" alt="Vaikystės istorijos" width="690" height="480" style="width:51.1%" loading="lazy"></li>
+        <li><img src="img/temos/2026-10-18-kraupios-istorijos.webp" alt="Kraupios istorijos" width="762" height="352" style="width:62.7%" loading="lazy"></li>
+        <li><img src="img/temos/2026-10-25-melai-tevam.webp" alt="Melai tėvam" width="824" height="215" style="width:83.5%" loading="lazy"></li>
+        <li><img src="img/temos/2026-11-15-istorijos-is-mokyklos.webp" alt="Istorijos iš mokyklos" width="750" height="413" style="width:57.5%" loading="lazy"></li>
+        <li><img src="img/temos/2026-11-22-didziausios-baimes.webp" alt="Didžiausios baimės" width="699" height="393" style="width:56.9%" loading="lazy"></li>
+      </ul>
     </div>
   </section>
 
