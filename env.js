@@ -270,7 +270,8 @@ async function start() {
     );
     // A little dip as the postmark lands.
     env.position.z -= Math.sin(mark * Math.PI) * 0.08;
-    flutter.amp.value = 0.012 + fly * 0.09;
+    // Paper only flutters in flight: at rest the open flap would wave on its own.
+    flutter.amp.value = fly * 0.09;
     flutter.time.value = timer.t;
 
     canvas.style.opacity = raw > 1.02 ? "0" : "1";
