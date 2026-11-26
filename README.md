@@ -17,6 +17,27 @@ This repo is the whole of **laiskelis.lt**, and it now has two jobs.
 Plain static HTML. No build step, no dependencies, nothing to install.
 Served by GitHub Pages from the root of `main`.
 
+## The front page
+
+`index.html` (styles inline) and `env.js`: the envelope that rests open in
+the hero and, as `#kelione` scrolls, takes the letter in, closes, is sealed,
+stamped, postmarked and flies off. It is the app's own painted layers
+(`img/env-*.webp`, `seal`, `stamp`, `postmark`, `paper`, from the app repo's
+`assets/images`) assembled in 3D. Without WebGL, under reduced motion or if
+the module fails, the page shows `img/envelope-still.webp` and the three steps
+stack as plain text.
+
+Two files are not hand-written, and that is the reason written down for them:
+
+- `vendor/three.min.js`: three.js r187 (MIT), tree-shaken to the classes
+  `env.js` imports (130 KB gzipped). Rebuild only if `env.js` needs a class it
+  lacks: an entry file re-exporting those classes from three's npm package,
+  built with vite in lib mode (ES, minified). Nothing on the site builds it.
+- `fonts/SpecialElite-Regular.ttf`: the app's typewriter face (Apache 2.0).
+
+`img/temos/` holds past weekly topic signs, copied from the app repo's
+`assets/images/topic-signs/`.
+
 ## The teacher's dashboard
 
 **Purpose.** One place to open at the start of a lesson and leave open all

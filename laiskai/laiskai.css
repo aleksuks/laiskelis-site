@@ -1,0 +1,65 @@
+/* Copied to laiskai/laiskai.css by scripts/build-letters.mjs; edit it here.
+   Sits on top of ../legal.css (bone page, brick accent, no dark variant). */
+
+.head { margin-bottom: 28px; }
+.head h1 { font-size: 28px; line-height: 1.25; overflow-wrap: anywhere; }
+.kicker {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--subtext);
+}
+.lead { color: var(--subtext); font-style: italic; max-width: 56ch; margin: 12px 0 0; }
+
+/* The letter: a sheet of paper lying on the bone page. */
+.sheet {
+  background: #fbf7f0;
+  border: 1px solid var(--border);
+  padding: 28px 24px 22px;
+  box-shadow: 1px 2px 0 var(--border);
+}
+.sheet .text {
+  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  font-size: 18px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sheet .drawing {
+  display: block;
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  margin: 24px auto 0;
+  border: 1px solid var(--border);
+}
+.sign {
+  margin: 24px 0 0;
+  text-align: right;
+  font-family: Georgia, "Iowan Old Style", Palatino, serif;
+  font-style: italic;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.about { margin-top: 22px; color: var(--subtext); font-size: 14px; }
+.about p { margin: 2px 0; color: var(--subtext); overflow-wrap: anywhere; }
+
+.browse h2, .month h2 { font-size: 17px; }
+.chips { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.chips a { overflow-wrap: anywhere; }
+
+.entries { list-style: none; padding: 0; margin: 0; }
+.entries li { padding: 10px 0; border-bottom: 1px dotted var(--border); overflow-wrap: anywhere; }
+.entries a { color: var(--text); text-decoration-color: var(--border); text-underline-offset: 3px; }
+.entries a:hover { color: var(--accent); }
+.tag { font-size: 12px; color: var(--subtext); white-space: nowrap; }
+.back { margin-top: 28px; font-size: 14px; }
+
+footer p { margin: 0; }
+
+@media (max-width: 480px) {
+  .sheet { padding: 22px 16px 18px; }
+  .sheet .text, .sign { font-size: 17px; }
+}
