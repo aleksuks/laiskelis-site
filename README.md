@@ -35,8 +35,11 @@ Two files are not hand-written, and that is the reason written down for them:
   built with vite in lib mode (ES, minified). Nothing on the site builds it.
 - `fonts/SpecialElite-Regular.ttf`: the app's typewriter face (Apache 2.0).
 
-`img/temos/` holds past weekly topic signs, copied from the app repo's
-`assets/images/topic-signs/`.
+`img/temos/<week>-<slug>.webp` holds each week's winning topic sign, copied
+from the app repo's `assets/images/topic-signs/` (not the `-glow` files). The
+front page shows some, and the letter archive uses them as its topic buttons
+and on every letter. **When a new week's sign is painted, copy it here too**;
+a topic without one falls back to a plain text label.
 
 ## The teacher's dashboard
 

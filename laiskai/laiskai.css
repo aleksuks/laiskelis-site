@@ -1,65 +1,147 @@
 /* Copied to laiskai/laiskai.css by scripts/build-letters.mjs; edit it here.
-   Sits on top of ../legal.css (bone page, brick accent, no dark variant). */
+   Same look as the front page: bone grain, brick, the app's typewriter. */
 
-.head { margin-bottom: 28px; }
-.head h1 { font-size: 28px; line-height: 1.25; overflow-wrap: anywhere; }
-.kicker {
-  margin: 0 0 6px;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--subtext);
+@font-face {
+  font-family: "Special Elite";
+  src: url("../fonts/SpecialElite-Regular.ttf") format("truetype");
+  font-display: swap;
 }
-.lead { color: var(--subtext); font-style: italic; max-width: 56ch; margin: 12px 0 0; }
 
-/* The letter: a sheet of paper lying on the bone page. */
+:root {
+  color-scheme: light;
+  --bone: #e7dec8;
+  --sheet: #fbf7f0;
+  --ink: #2b2620;
+  --sub: #5f5546;
+  --line: #cfc4aa;
+  --brick: #96160f;
+  --brick-dark: #7d1009;
+  --on-brick: #f7f1e4;
+  --type: "Special Elite", "Courier New", monospace;
+  --text: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --pad: clamp(20px, 5vw, 48px);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bone) url("../img/bone.jpg") repeat;
+  color: var(--ink);
+  font: 17px/1.6 var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--brick); }
+:focus-visible { outline: 2px solid var(--brick); outline-offset: 3px; }
+.wrap { width: min(1120px, 100% - 2 * var(--pad)); margin-inline: auto; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------------------------------------------------------- header */
+.top {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bone) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.top .wrap { display: flex; align-items: center; gap: 20px; height: 60px; }
+.brand { display: flex; align-items: center; gap: 9px; color: var(--brick); text-decoration: none; font-family: var(--type); font-size: 22px; min-height: 44px; }
+.brand img { width: 30px; height: 30px; }
+.top nav { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+.top nav a:not(.btn) { color: var(--ink); text-decoration: none; padding: 10px 0; }
+.top nav a:not(.btn):hover { text-decoration: underline; }
+.btn {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px;
+  background: var(--brick); color: var(--on-brick); text-decoration: none;
+  border-radius: 10px; font-family: var(--type); font-size: 15px;
+  transition: background-color .15s ease, transform .15s ease;
+}
+.btn:hover { background: var(--brick-dark); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px) scale(.98); }
+
+main { padding-block: 48px 72px; }
+
+/* ---------------------------------------------------------- heads */
+.head { margin-bottom: 36px; }
+.kicker { font-family: var(--type); color: var(--brick); font-size: 15px; margin: 0 0 10px; }
+h1 { font-family: var(--type); font-weight: 400; font-size: clamp(34px, 5vw, 56px); line-height: 1.05; margin: 0 0 16px; overflow-wrap: anywhere; }
+h2 { font-family: var(--type); font-weight: 400; font-size: 24px; margin: 0 0 18px; }
+.lead { color: var(--sub); font-size: 19px; max-width: 52ch; margin: 0; }
+.count { color: var(--sub); margin: 0; }
+.big-sign { margin: 0 0 18px; }
+.big-sign img { height: clamp(90px, 16vw, 170px); width: auto; }
+
+/* ---------------------------------------------------------- topic signs and pills */
+.browse { margin: 0 0 48px; }
+.chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+.chips a { display: block; text-decoration: none; transition: transform .2s ease; }
+.chips a.signed { padding: 4px; }
+.chips a:hover { transform: translateY(-2px) rotate(-1deg); }
+.chips a:active { transform: scale(.97); }
+/* Fit each sign in the same box, so a long ribbon and a square label read as
+   the same size of button. */
+.chips li { display: flex; align-items: center; justify-content: center; }
+.chip-sign { width: auto; height: auto; max-height: 76px; max-width: min(220px, 40vw); filter: drop-shadow(0 3px 4px rgba(60,40,20,.14)); }
+.pill {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--sheet);
+  color: var(--ink); font-family: var(--type); font-size: 15px; overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------- the wall of notes */
+.month { margin-top: 56px; }
+.month h2 { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.wall { list-style: none; padding: 0; margin: 0; columns: 3 300px; column-gap: 26px; }
+.note { break-inside: avoid; margin: 0 0 26px; padding: 4px; }
+.note a {
+  display: flex; flex-direction: column; gap: 14px;
+  background: var(--sheet); color: var(--ink); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 3px;
+  padding: 22px 22px 16px;
+  box-shadow: 0 1px 0 var(--line), 0 10px 18px -12px rgba(60,40,20,.35);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.note a:hover { transform: rotate(0deg) translateY(-3px); box-shadow: 0 1px 0 var(--line), 0 16px 24px -12px rgba(60,40,20,.4); }
+.note a:active { transform: scale(.99); }
+.note .ex { font-family: var(--type); font-size: 16px; line-height: 1.55; overflow-wrap: anywhere; }
+.note .pic svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); }
+.note .by { align-self: flex-end; font-family: var(--type); color: var(--brick); overflow-wrap: anywhere; }
+.note .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px dashed var(--line); padding-top: 10px; color: var(--sub); font-size: 13px; }
+.note .mini { height: 30px; width: auto; max-width: 55%; object-fit: contain; }
+
+/* ---------------------------------------------------------- one letter */
+.letter { max-width: 680px; margin-inline: auto; }
 .sheet {
-  background: #fbf7f0;
-  border: 1px solid var(--border);
-  padding: 28px 24px 22px;
-  box-shadow: 1px 2px 0 var(--border);
+  background: var(--sheet);
+  border: 1px solid var(--line); border-radius: 3px;
+  padding: clamp(26px, 5vw, 48px);
+  box-shadow: 0 1px 0 var(--line), 0 18px 30px -18px rgba(60,40,20,.4);
+  transform: rotate(var(--tilt, 0deg));
 }
-.sheet .text {
-  font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  font-size: 18px;
-  line-height: 1.75;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.sheet .drawing {
-  display: block;
-  width: 100%;
-  max-width: 360px;
-  height: auto;
-  margin: 24px auto 0;
-  border: 1px solid var(--border);
-}
-.sign {
-  margin: 24px 0 0;
-  text-align: right;
-  font-family: Georgia, "Iowan Old Style", Palatino, serif;
-  font-style: italic;
-  font-size: 18px;
-  overflow-wrap: anywhere;
-}
+.sheet .text { font-family: var(--type); font-size: clamp(17px, 2vw, 20px); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sheet .drawing { display: block; width: 100%; max-width: 420px; height: auto; margin: 26px auto 0; border: 1px solid var(--line); }
+.sign { margin: 28px 0 0; text-align: right; font-family: var(--type); font-size: 20px; color: var(--brick); overflow-wrap: anywhere; }
+.date { margin: 4px 0 0; text-align: right; color: var(--sub); font-size: 14px; }
+.about { margin-top: 36px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; color: var(--sub); }
+.about p { margin: 0; overflow-wrap: anywhere; }
+.topic { display: block; transition: transform .2s ease; }
+.topic:hover { transform: translateY(-2px) rotate(-1deg); }
+.topic .sign-img { height: 90px; width: auto; }
+.back { margin-top: 40px; }
+.back a { display: inline-block; padding: 10px 0; }
 
-.about { margin-top: 22px; color: var(--subtext); font-size: 14px; }
-.about p { margin: 2px 0; color: var(--subtext); overflow-wrap: anywhere; }
-
-.browse h2, .month h2 { font-size: 17px; }
-.chips { list-style: none; padding: 0; margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.chips a { overflow-wrap: anywhere; }
-
-.entries { list-style: none; padding: 0; margin: 0; }
-.entries li { padding: 10px 0; border-bottom: 1px dotted var(--border); overflow-wrap: anywhere; }
-.entries a { color: var(--text); text-decoration-color: var(--border); text-underline-offset: 3px; }
-.entries a:hover { color: var(--accent); }
-.tag { font-size: 12px; color: var(--subtext); white-space: nowrap; }
-.back { margin-top: 28px; font-size: 14px; }
-
+footer { border-top: 1px solid var(--line); padding-block: 28px 44px; color: var(--sub); font-size: 15px; }
 footer p { margin: 0; }
 
-@media (max-width: 480px) {
-  .sheet { padding: 22px 16px 18px; }
-  .sheet .text, .sign { font-size: 17px; }
+@media (max-width: 600px) {
+  .top nav a:not(.btn) { display: none; }
+  .chips { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .chips li { justify-content: flex-start; }
+  .chip-sign { max-width: 100%; max-height: 62px; }
+  .wall { columns: 1; }
+  .note a { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }

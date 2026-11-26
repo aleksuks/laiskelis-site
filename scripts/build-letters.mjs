@@ -13,7 +13,7 @@
 // month, by the week's topic and by idea. There is no author index, and none
 // may be added.
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -178,17 +178,20 @@ function page({ title, description, path, body, type = "article" }) {
 <meta property="og:image" content="${SITE}/feature-graphic.png">
 <link rel="icon" href="../favicon.png">
 <link rel="apple-touch-icon" href="../icon.png">
-<link rel="stylesheet" href="../legal.css">
+<link rel="preload" href="../fonts/SpecialElite-Regular.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="laiskai.css">
 </head>
 <body>
-<div class="wrap">
-<nav class="top"><a href="../">Laiškelis</a><a href="./">Laiškai iš Kapinių</a></nav>
+<header class="top"><div class="wrap">
+<a class="brand" href="../"><img src="../img/mark.webp" alt="" width="30" height="30">Laiškelis</a>
+<nav aria-label="Pagrindinė"><a href="./">Laiškai iš Kapinių</a><a class="btn" href="${STORE}">Atsisiųsti</a></nav>
+</div></header>
+<main class="wrap">
 ${body}
-<footer>
+</main>
+<footer><div class="wrap">
 <p>„Laiškelis“ — programėlė, kurioje laiškeliai keliauja pas nepažįstamuosius. <a href="${STORE}">Atsisiųsk iš „App Store“</a> ir parašyk savo.</p>
-</footer>
-</div>
+</div></footer>
 </body>
 </html>
 `;
@@ -197,6 +200,20 @@ ${body}
 const letterFile = (l) => `${l.id}.html`;
 const slugify = (s) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// The topic's painted sign, as the app shows it: img/temos/<week>-<slug>.webp,
+// copied from the app repo's assets/images/topic-signs. A topic without one
+// keeps a plain text label.
+const signFile = (l) => (l.topic_week && l.topic_title ? `img/temos/${l.topic_week}-${slugify(l.topic_title)}.webp` : null);
+const signSrc = (l) => {
+  const f = signFile(l);
+  return f && existsSync(join(ROOT, f)) ? `../${f}` : null;
+};
+const signImg = (l, cls) => {
+  const src = signSrc(l);
+  return src ? `<img class="${cls}" src="${src}" alt="${esc(l.topic_title)}" loading="lazy">` : "";
+};
+// A small, steady tilt per letter (from its id), so the wall reads as paper.
+const tilt = (l) => ((parseInt(l.id.slice(0, 4), 16) % 9) - 4) * 0.3;
 const topicKey = (l) => l.topic_week || slugify(l.topic_title) || "tema";
 const topicFile = (l) => `tema-${topicKey(l)}.html`;
 // A short hash of the idea text, so a page keeps its address as ideas come and go.
@@ -205,18 +222,21 @@ const ideaFile = (l) => `ideja-${createHash("sha1").update(l.idea).digest("hex")
 function letterPage(l) {
   const text = strip(l.body);
   const svg = drawingSvg(l.drawing);
-  const meta = [
-    `<p>${esc(monthLabel(l._month))}</p>`,
-    l.topic_title ? `<p>Savaitės tema: <a href="${topicFile(l)}">${esc(l.topic_title)}</a></p>` : "",
-    l.idea ? `<p>Parašyta pagal idėją: <a href="${ideaFile(l)}">„${esc(l.idea)}“</a></p>` : "",
-  ].join("");
+  const topic = l.topic_title
+    ? `<a class="topic" href="${topicFile(l)}">${signImg(l, "sign-img") || `<span class="pill">${esc(l.topic_title)}</span>`}<span class="sr">Savaitės tema: ${esc(l.topic_title)}</span></a>`
+    : "";
   const body = `<article class="letter">
-<div class="sheet">
+<div class="sheet" style="--tilt:${tilt(l)}deg">
 <div class="text">${esc(text)}</div>
 ${svg}
 <p class="sign">— ${esc(l.author_nickname)}</p>
+<p class="date">${esc(monthLabel(l._month))}</p>
 </div>
-<div class="about">${meta}</div>
+<div class="about">
+${topic}
+${l.idea ? `<p>Parašyta pagal idėją: <a href="${ideaFile(l)}">„${esc(l.idea)}“</a></p>` : ""}
+</div>
+<p class="back"><a href="./">← Visi laiškai</a></p>
 </article>`;
   return page({
     title: `Laiškas nuo ${l.author_nickname} — Laiškelis`,
@@ -226,18 +246,28 @@ ${svg}
   });
 }
 
-function entries(list) {
-  return `<ul class="entries">${list
+// Each letter as its own note: its words, its drawing, who signed it, and the
+// week's sign it was written under.
+function entries(list, { showTopic = true } = {}) {
+  return `<ul class="wall">${list
     .map((l) => {
-      const ex = excerpt(strip(l.body), 160) || "(piešinys)";
-      return `<li><a href="${letterFile(l)}">${esc(ex)}</a>${drawingSvg(l.drawing) ? ' <span class="tag">su piešiniu</span>' : ""}</li>`;
+      const text = strip(l.body);
+      const ex = excerpt(text, 220);
+      const svg = drawingSvg(l.drawing);
+      const sign = showTopic ? signImg(l, "mini") : "";
+      return `<li class="note" style="--tilt:${tilt(l)}deg"><a href="${letterFile(l)}">` +
+        (ex ? `<span class="ex">${esc(ex)}</span>` : "") +
+        (svg ? `<span class="pic">${svg}</span>` : "") +
+        `<span class="by">— ${esc(l.author_nickname)}</span>` +
+        `<span class="foot"><span>${esc(monthLabel(l._month))}</span>${sign}</span>` +
+        `</a></li>`;
     })
     .join("")}</ul>`;
 }
 
-function groupPage({ heading, kicker, path, list, title }) {
-  const body = `<header class="head"><p class="kicker">${esc(kicker)}</p><h1>${esc(heading)}</h1></header>
-${entries(list)}
+function groupPage({ heading, kicker, path, list, title, sign = "" }) {
+  const body = `<header class="head">${sign ? `<div class="big-sign">${sign}</div>` : ""}<p class="kicker">${esc(kicker)}</p><h1${sign ? ' class="sr"' : ""}>${esc(heading)}</h1><p class="count">${list.length} ${list.length % 10 === 1 && list.length % 100 !== 11 ? "laiškas" : list.length % 10 === 0 || (list.length % 100 > 10 && list.length % 100 < 20) ? "laiškų" : "laiškai"}</p></header>
+${entries(list, { showTopic: !sign })}
 <p class="back"><a href="./">← Visi laiškai</a></p>`;
   return page({
     title: `${title} — Laiškelis`,
@@ -275,7 +305,7 @@ for (const l of rows) {
 
 for (const [file, list] of topics) {
   const t = list[0];
-  write(file, groupPage({ heading: t.topic_title, kicker: "Savaitės tema", path: file.replace(/\.html$/, ""), list, title: `Savaitės tema: ${t.topic_title}` }));
+  write(file, groupPage({ heading: t.topic_title, kicker: "Savaitės tema", path: file.replace(/\.html$/, ""), list, title: `Savaitės tema: ${t.topic_title}`, sign: signImg(t, "sign-img") }));
 }
 for (const [file, list] of ideas) {
   const i = list[0].idea;
@@ -287,10 +317,14 @@ const topicList = [...topics].sort((a, b) => (a[1][0].topic_week < b[1][0].topic
 const ideaList = [...ideas].sort((a, b) => (a[1][0].idea < b[1][0].idea ? -1 : a[1][0].idea > b[1][0].idea ? 1 : 0));
 const monthList = [...months].sort((a, b) => (a[0] < b[0] ? 1 : -1));
 
-const chips = (items, label, pick) =>
+// Topics are their painted signs; ideas (and a topic without a sign) are pills.
+const chips = (items, label, pick, withSign = false) =>
   items.length
     ? `<section class="browse"><h2>${label}</h2><ul class="chips">${items
-        .map(([f, list]) => `<li><a href="${f}">${esc(pick(list[0]))}</a></li>`)
+        .map(([f, list]) => {
+          const img = withSign ? signImg(list[0], "chip-sign") : "";
+          return `<li><a href="${f}"${img ? ' class="signed"' : ""}>${img || `<span class="pill">${esc(pick(list[0]))}</span>`}</a></li>`;
+        })
         .join("")}</ul></section>`
     : "";
 
@@ -299,7 +333,7 @@ const indexBody = `<header class="head">
 <h1>Laiškai iš Kapinių</h1>
 <p class="lead">Čia guli laiškeliai, kurie jau baigė savo kelionę, o jų autoriai leido juos skelbti. Trumpi, tikri tekstai apie įvairiausius dalykus. Prie kiekvieno — tik slapyvardis, kuriuo jis pasirašytas.</p>
 </header>
-${chips(topicList, "Savaitės temos", (l) => l.topic_title)}
+${chips(topicList, "Savaitės temos", (l) => l.topic_title, true)}
 ${chips(ideaList, "Idėjos", (l) => l.idea)}
 ${
   monthList.length
