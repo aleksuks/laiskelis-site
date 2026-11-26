@@ -1,6 +1,7 @@
 // The envelope on the front page: the app's own painted layers (letters-app
-// assets/images/envelopes/cream) assembled in 3D. It rests open in the hero,
-// and the #kelione section's scroll drives its ceremony: the sheet slides in,
+// assets/images/envelopes/cream) assembled in 3D. It fades in, resting open,
+// as #kelione arrives (the hero has the still splash art), and that section's
+// scroll drives its ceremony: the sheet slides in,
 // the flap closes, the seal goes on, it turns over for the stamp and the
 // postmark, and flies off. Native scroll only; the canvas never takes input.
 // Without WebGL, under reduced motion, or if this module fails, the page
@@ -277,7 +278,9 @@ async function start() {
     flutter.amp.value = fly * 0.09;
     flutter.time.value = timer.t;
 
-    canvas.style.opacity = raw > 1.02 ? "0" : "1";
+    // The hero has the still splash art; the 3D envelope fades in as #kelione
+    // arrives, already at step 01, and is gone once the flight is over.
+    canvas.style.opacity = raw > 1.02 ? "0" : String(clamp((raw + 0.12) / 0.1));
     renderer.render(scene, camera);
   }
 

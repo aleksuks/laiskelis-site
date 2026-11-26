@@ -19,8 +19,10 @@ Served by GitHub Pages from the root of `main`.
 
 ## The front page
 
-`index.html` (styles inline) and `env.js`: the envelope that rests open in
-the hero and, as `#kelione` scrolls, takes the letter in, closes, is sealed,
+`index.html` (styles inline) and `env.js`. The hero shows the app's splash
+art (`img/envelope-still.webp`, the app's `splash-envelope.png`, credited to
+its illustrator). The 3D envelope fades in as `#kelione` arrives, rests open
+at step 01 and, as the section scrolls, takes the letter in, closes, is sealed,
 stamped, postmarked and flies off. It is the app's own painted layers
 (`img/env-*.webp`, `seal`, `stamp`, `postmark`, `paper`, from the app repo's
 `assets/images`) assembled in 3D. Without WebGL, under reduced motion or if
@@ -105,16 +107,12 @@ accident — linked from nowhere, but fetchable — and now they are not.
 
 ## Deploying
 
-Push to `main`. That is the whole procedure.
+Push to `main`. That is the whole procedure: GitHub Pages publishes the
+repo root of `main` (legacy build, no build command) to laiskelis.lt, usually
+within a minute. `gh api repos/aleksuks/laiskelis-site/pages/builds/latest`
+shows whether the last push has gone live.
 
-`netlify.toml` says the publish directory is the repo root and there is no
-build command; it lives here rather than in the Netlify dashboard so the
-setting is recorded somewhere a person reading this repo can find it.
-
-`CNAME` is a GitHub Pages leftover from before the split. Netlify ignores
-it and it is left in place deliberately — it documents which domain this
-repo is, and it is what would re-configure Pages automatically if this ever
-needed to move again in a hurry.
+`CNAME` is what ties Pages to the laiskelis.lt domain; do not delete it.
 
 ## The feedback board
 
