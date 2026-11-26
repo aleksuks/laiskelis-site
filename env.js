@@ -55,8 +55,9 @@ async function start() {
   // Paper flutter: z pushed by a wave along x only, so every layer (and the
   // closed flap, whose local x is the envelope's) bends as one sheet.
   const flutter = { amp: { value: 0 }, time: { value: 0 } };
-  const paperMat = (opts) => {
-    const m = new T.MeshStandardMaterial({ roughness: 0.92, metalness: 0, alphaTest: 0.5, ...opts });
+  // Every layer, the postmark and the seal included, must bend the same way,
+  // or a flat layer cuts in and out of the waving paper under it (flicker).
+  const withFlutter = (m) => {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uAmp = flutter.amp;
       sh.uniforms.uTime = flutter.time;
@@ -68,6 +69,10 @@ async function start() {
     m.customProgramCacheKey = () => "flutter";
     return m;
   };
+  // alphaToCoverage: the painted ink outline sits right on the cut-out edge,
+  // and a hard alpha test makes it shimmer once the envelope is small.
+  const paperMat = (opts) =>
+    withFlutter(new T.MeshStandardMaterial({ roughness: 0.92, metalness: 0, alphaTest: 0.5, alphaToCoverage: true, ...opts }));
   const plane = (w, h, mat, segs = 24) => {
     const mesh = new T.Mesh(new T.PlaneGeometry(w, h, segs, 1), mat);
     mesh.castShadow = true;
@@ -85,6 +90,11 @@ async function start() {
   const env = new T.Group();
   scene.add(env);
 
+  // The art is painted inside a transparent margin: x 38-941 of 980, y 35-690
+  // of 728. The address side and the letter are sized to that, not the quad.
+  const PW = (W * 903) / 980, PH = (H * 655) / 728;
+  const PBOTTOM = H / 2 - (H * 690) / 728;
+
   // Back of the envelope (the flap side) faces the camera at rest.
   const inside = plane(W, H, paperMat({ map: interior }));
   inside.position.z = -0.004;
@@ -95,65 +105,78 @@ async function start() {
   // its own layer so it can land.
   const front = document.createElement("canvas");
   front.width = 1024;
-  front.height = Math.round((1024 * 728) / 980);
+  front.height = Math.round((1024 * PH) / PW);
   {
     const g = front.getContext("2d");
     const ptn = g.createPattern(paper.image, "repeat");
     g.fillStyle = ptn;
     g.fillRect(0, 0, front.width, front.height);
+    // The same dark ink edge the painted back has.
+    g.strokeStyle = "rgba(43,38,32,.85)";
+    g.lineWidth = 5;
+    g.strokeRect(3, 3, front.width - 6, front.height - 6);
     g.drawImage(stamp.image, front.width - 200, 44, 150, 188);
     g.fillStyle = "#2b2620";
     g.font = '46px "Special Elite"';
-    g.fillText("Nepažįstamajam", 330, 470);
+    g.fillText("Nepažįstamajam", 330, 450);
     g.font = '34px "Special Elite"';
-    g.fillText("kažkur Lietuvoje", 330, 530);
+    g.fillText("kažkur Lietuvoje", 330, 510);
     g.strokeStyle = "rgba(43,38,32,.35)";
     g.lineWidth = 2;
-    for (const y of [490, 550]) { g.beginPath(); g.moveTo(320, y); g.lineTo(820, y); g.stroke(); }
+    for (const y of [470, 530]) { g.beginPath(); g.moveTo(320, y); g.lineTo(820, y); g.stroke(); }
   }
   const frontTex = new T.CanvasTexture(front);
   frontTex.colorSpace = T.SRGBColorSpace;
-  const frontMesh = plane(W, H, paperMat({ map: mirrored(frontTex), side: T.BackSide }));
+  const frontMesh = plane(PW, PH, paperMat({ map: mirrored(frontTex), side: T.BackSide }));
   frontMesh.position.z = -0.01;
 
   // White postmark art, inked dark.
-  const pm = plane((W * 0.5), (W * 0.5 * 244) / 446, new T.MeshBasicMaterial({ map: mirrored(postmark), color: 0x2a2440, transparent: true, opacity: 0, side: T.BackSide, depthWrite: false }), 1);
+  const pm = plane((W * 0.5), (W * 0.5 * 244) / 446, withFlutter(new T.MeshBasicMaterial({ map: mirrored(postmark), color: 0x2a2440, transparent: true, opacity: 0, side: T.BackSide, depthWrite: false })), 8);
+  pm.castShadow = false;
   // Seen from behind local x runs right to left: the stamp is at -x.
-  pm.position.set(-W * 0.2, H * 0.3, -0.016);
-  pm.rotation.z = 0.12;
+  // Placed in its geometry, not its transform, so its x is the envelope's
+  // and it ripples exactly with the paper under it.
+  pm.geometry.rotateZ(0.12).translate(-PW * 0.2, PH * 0.3, 0);
+  pm.position.z = -0.016;
 
   // The letter itself, typed.
   const sheetC = document.createElement("canvas");
+  // Narrower and shorter than the painted body, so once in it never shows
+  // past the envelope's bottom or sides.
+  const SW = PW * 0.88, SH = PH * 0.86;
   sheetC.width = 768;
-  sheetC.height = 720;
+  sheetC.height = Math.round((768 * SH) / SW);
   {
     const g = sheetC.getContext("2d");
     g.fillStyle = g.createPattern(paper.image, "repeat");
-    g.fillRect(0, 0, 768, 720);
+    g.fillRect(0, 0, sheetC.width, sheetC.height);
     g.fillStyle = "#2b2620";
     g.font = '40px "Special Elite"';
     g.fillText("Labas, nepažįstamasis,", 56, 104);
     g.fillStyle = "rgba(43,38,32,.28)";
-    for (let i = 0; i < 6; i++) g.fillRect(56, 168 + i * 62, i === 5 ? 380 : 640 - (i % 2) * 70, 16);
+    for (let i = 0; i < 6; i++) g.fillRect(56, 160 + i * 56, i === 5 ? 380 : 640 - (i % 2) * 70, 16);
   }
   const sheetTex = new T.CanvasTexture(sheetC);
   sheetTex.colorSpace = T.SRGBColorSpace;
-  const SW = W * 0.86, SH = (SW * 720) / 768;
+  // Tucked in: its bottom a little above the painted bottom edge.
+  const SHEET_IN = PBOTTOM + H * 0.03 + SH / 2;
   const sheet = plane(SW, SH, paperMat({ map: sheetTex }), 12);
   sheet.position.z = 0.001;
 
-  // Flap, hinged on the top edge: outside painted, inside its lining.
+  // Flap, hinged on the painted top edge (35 px under the art's own top, in
+  // both the pocket and the flap art), so it opens without a gap.
+  const EDGE = (W * 35) / 980;
   const flap = new T.Group();
-  flap.position.set(0, H / 2, 0.012);
+  flap.position.set(0, H / 2 - EDGE, 0.012);
   const flapGeo = new T.PlaneGeometry(W, FH, 24, 1);
-  flapGeo.translate(0, -FH / 2, 0);
+  flapGeo.translate(0, -FH / 2 + EDGE, 0);
   const flapA = new T.Mesh(flapGeo, paperMat({ map: flapOut }));
   const flapB = new T.Mesh(flapGeo, paperMat({ map: mirrored(flapIn), side: T.BackSide }));
   flapA.castShadow = flapB.castShadow = true;
   flap.add(flapA, flapB);
 
-  const sealMesh = plane(W * 0.26, W * 0.26, new T.MeshStandardMaterial({ map: seal, roughness: 0.45, alphaTest: 0.5 }), 1);
-  sealMesh.position.set(0, -FH + W * 0.05, 0.004);
+  const sealMesh = plane(W * 0.26, W * 0.26, withFlutter(new T.MeshStandardMaterial({ map: seal, roughness: 0.45, alphaTest: 0.5, alphaToCoverage: true })), 8);
+  sealMesh.position.set(0, -FH + EDGE + W * 0.05, 0.004);
   flap.add(sealMesh);
 
   env.add(inside, sheet, pocketMesh, flap, frontMesh, pm);
@@ -213,10 +236,12 @@ async function start() {
     const mark = span(p, 0.62, 0.67);
     const fly = span(p, 0.68, 0.97);
 
-    sheet.position.y = (1 - sIn) * H * 0.62 + 0.0;
+    sheet.position.y = SHEET_IN + (1 - sIn) * SH * 0.62;
     sheet.visible = close < 0.98;
-    // Open: the flap lies back past upright; closed: flat over the pocket.
-    flap.rotation.x = (1 - close) * 2.75;
+    // Open: standing up, leaning ~17 degrees back, behind the letter. Closing
+    // folds it forward over the letter (through -90 degrees, towards the
+    // viewer), never back through the envelope.
+    flap.rotation.x = (1 - close) * -(Math.PI + 0.3);
     flap.position.z = 0.012 + (1 - close) * 0.004;
     sealMesh.visible = sealOn > 0;
     sealMesh.scale.setScalar(1 + (1 - sealOn) * 0.6);
