@@ -105,12 +105,23 @@ const ring = (r) => (r.length < 3 ? "" : `M${r[0][0]} ${r[0][1]}` + r.slice(1).m
 
 // Returns an inline <svg> string, or "" when the jsonb isn't a valid drawing.
 // Fills go under every line, as in toCrayonStrokes. No filters.
-function drawingSvg(d) {
+// thumb: for the list pages, where a drawing is ~300px wide: every stroke
+// thinned to at most THUMB_PTS points and rounded to whole units, which
+// cuts a page from megabytes to a fraction without a visible difference.
+const THUMB_PTS = 40;
+const thin = (p) => {
+  const step = Math.max(1, Math.ceil(p.length / THUMB_PTS));
+  const out = p.filter((_, i) => i % step === 0);
+  if (out[out.length - 1] !== p[p.length - 1]) out.push(p[p.length - 1]);
+  return out.map(([x, y]) => [Math.round(x), Math.round(y)]);
+};
+function drawingSvg(d, thumb = false) {
   if (!d || d.v !== 1 || !num(d.w) || !num(d.h) || d.w <= 0 || d.h <= 0 || !Array.isArray(d.strokes)) return "";
   const fills = [];
   const lines = [];
-  for (const s of d.strokes) {
-    if (!s || !num(s.c) || !num(s.s) || !pts(s.p)) return "";
+  for (const s0 of d.strokes) {
+    if (!s0 || !num(s0.c) || !num(s0.s) || !pts(s0.p)) return "";
+    const s = thumb ? { ...s0, p: thin(s0.p), h: Array.isArray(s0.h) && s0.h.every(pts) ? s0.h.map(thin) : s0.h } : s0;
     if (s.h != null && !(Array.isArray(s.h) && s.h.every(pts))) return "";
     const color = typeof s.k === "string" && /^#[0-9a-fA-F]{6}$/.test(s.k) ? s.k : CRAYONS[s.c] ?? CRAYONS[0];
     if (s.f === 1) {
@@ -131,16 +142,25 @@ function drawingSvg(d) {
 
 // ---------------------------------------------------------------- data
 
+// The API hands back at most 1000 rows a request, so the archive is read in
+// pages until one comes back short. LETTERS_FILE (a JSON array) replaces the
+// fetch, for trying a build locally.
 async function load() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_letters`, {
-    method: "POST",
-    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-    body: "{}",
-  });
-  if (!res.ok) throw new Error(`get_public_letters: HTTP ${res.status}`);
-  const rows = await res.json();
-  if (!Array.isArray(rows)) throw new Error("get_public_letters: not an array");
-  return rows;
+  if (process.env.LETTERS_FILE) return JSON.parse(readFileSync(process.env.LETTERS_FILE, "utf8"));
+  const PAGE = 1000;
+  const rows = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_public_letters?limit=${PAGE}&offset=${offset}`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!res.ok) throw new Error(`get_public_letters: HTTP ${res.status}`);
+    const page = await res.json();
+    if (!Array.isArray(page)) throw new Error("get_public_letters: not an array");
+    rows.push(...page);
+    if (page.length < PAGE) return rows;
+  }
 }
 
 const vilnius = (iso) => {
@@ -278,7 +298,7 @@ function entries(list, { showTopic = true } = {}) {
     .map((l) => {
       const text = strip(l.body);
       const ex = excerpt(text, 220);
-      const svg = drawingSvg(l.drawing);
+      const svg = drawingSvg(l.drawing, true);
       const sign = showTopic ? signImg(l, "mini") : "";
       return `<li class="note" style="--tilt:${tilt(l)}deg"><a href="${letterFile(l)}">` +
         (ex ? `<span class="ex">${esc(ex)}</span>` : "") +
@@ -290,17 +310,34 @@ function entries(list, { showTopic = true } = {}) {
     .join("")}</ul>`;
 }
 
-function groupPage({ heading, kicker, path, list, title, sign = "" }) {
-  const body = `<header class="head">${sign ? `<div class="big-sign">${sign}</div>` : ""}<p class="kicker">${esc(kicker)}</p><h1${sign ? ' class="sr"' : ""}>${esc(heading)}</h1><p class="count">${laiskai(list.length)}</p></header>
-${entries(list, { showTopic: !sign })}
+// A group (a month, a topic, an idea) is written as pages of PER letters:
+// base.html, base-2.html, ... with previous / next links.
+const PER = 60;
+const pageName = (base, n) => (n === 1 ? `${base}.html` : `${base}-${n}.html`);
+function writeGroup({ base, heading, kicker, list, title, sign = "" }) {
+  const pages = Math.max(1, Math.ceil(list.length / PER));
+  for (let n = 1; n <= pages; n++) {
+    const slice = list.slice((n - 1) * PER, n * PER);
+    const pager =
+      pages > 1
+        ? `<nav class="pager" aria-label="Puslapiai">${n > 1 ? `<a href="${pageName(base, n - 1)}">← Ankstesni</a>` : "<span></span>"}<span>${n} / ${pages}</span>${n < pages ? `<a href="${pageName(base, n + 1)}">Kiti →</a>` : "<span></span>"}</nav>`
+        : "";
+    const body = `<header class="head">${sign ? `<div class="big-sign">${sign}</div>` : ""}<p class="kicker">${esc(kicker)}</p><h1${sign ? ' class="sr"' : ""}>${esc(heading)}</h1><p class="count">${laiskai(list.length)}</p></header>
+${entries(slice, { showTopic: !sign })}
+${pager}
 <p class="back"><a href="./">← Visi laiškai</a></p>`;
-  return page({
-    title: `${title} — Laiškelis`,
-    description: `Laiškeliai iš „Laiškelio“ Kapinių: ${heading}. Trumpi tikri tekstai, kuriuos autoriai leido skelbti.`,
-    path,
-    body,
-    type: "website",
-  });
+    write(
+      pageName(base, n),
+      page({
+        title: `${title}${n > 1 ? ` (${n})` : ""} — Laiškelis`,
+        description: `Laiškeliai iš „Laiškelio“ Kapinių: ${heading}. Trumpi tikri tekstai nepažįstamiesiems.`,
+        path: pageName(base, n).replace(/\.html$/, ""),
+        body,
+        type: "website",
+      })
+    );
+  }
+  return pages;
 }
 
 // ---------------------------------------------------------------- build
@@ -328,13 +365,19 @@ for (const l of rows) {
   if (l.idea) push(ideas, ideaFile(l), l);
 }
 
+let pageCount = 0;
+const baseOf = (file) => file.replace(/\.html$/, "");
 for (const [file, list] of topics) {
   const t = list[0];
-  write(file, groupPage({ heading: t.topic_title, kicker: "Savaitės tema", path: file.replace(/\.html$/, ""), list, title: `Savaitės tema: ${t.topic_title}`, sign: signImg(t, "sign-img") }));
+  pageCount += writeGroup({ base: baseOf(file), heading: t.topic_title, kicker: "Savaitės tema", list, title: `Savaitės tema: ${t.topic_title}`, sign: signImg(t, "sign-img") });
 }
 for (const [file, list] of ideas) {
   const i = list[0].idea;
-  write(file, groupPage({ heading: `„${i}“`, kicker: "Idėja, pagal kurią parašyta", path: file.replace(/\.html$/, ""), list, title: `Idėja: ${i}` }));
+  pageCount += writeGroup({ base: baseOf(file), heading: `„${i}“`, kicker: "Idėja, pagal kurią parašyta", list, title: `Idėja: ${i}` });
+}
+const monthFile = (m) => `menuo-${monthKey(m)}`;
+for (const [, list] of months) {
+  pageCount += writeGroup({ base: monthFile(list[0]._month), heading: monthLabel(list[0]._month), kicker: "Mėnuo", list, title: monthLabel(list[0]._month) });
 }
 
 // Topics newest week first; ideas alphabetical.
@@ -367,24 +410,29 @@ const chips = (items, label, pick) =>
 const indexBody = `<header class="head">
 <p class="kicker">Kapinės</p>
 <h1>Laiškai iš Kapinių</h1>
-<p class="lead">Čia guli laiškeliai, kurie jau baigė savo kelionę, o jų autoriai leido juos skelbti. Trumpi, tikri tekstai apie įvairiausius dalykus. Prie kiekvieno — tik slapyvardis, kuriuo jis pasirašytas.</p>
+<p class="lead">Čia guli laiškeliai, kurių kelionė jau baigėsi, t. y. praėjo viena savaitė arba jie buvo išbalsuoti.</p>
 </header>
 ${tiles(topicList, "Savaitės temos")}
 ${chips(ideaList, "Idėjos", (l) => l.idea)}
 ${
   monthList.length
-    ? monthList.map(([, list]) => `<section class="month"><h2>${esc(monthLabel(list[0]._month))}</h2>${entries(list)}</section>`).join("\n")
+    ? `<section class="browse"><h2>Pagal mėnesį</h2><ul class="chips">${monthList
+        .map(([, list]) => `<li><a href="${pageName(monthFile(list[0]._month), 1)}"><span class="pill">${esc(monthLabel(list[0]._month))} · ${list.length}</span></a></li>`)
+        .join("")}</ul></section>
+<section class="month"><h2>Naujausi</h2>${entries(rows.slice(0, PER))}${
+        rows.length > PER ? `<p class="more"><a class="btn" href="${pageName(monthFile(rows[0]._month), 1)}">Daugiau laiškų</a></p>` : ""
+      }</section>`
     : '<p class="muted">Kol kas čia tuščia.</p>'
 }`;
 write(
   "index.html",
   page({
     title: "Laiškai iš Kapinių — Laiškelis",
-    description: "Trumpi tikri laiškeliai nepažįstamiesiems, kuriuos autoriai leido skelbti. Pagal mėnesį, savaitės temą ir idėją.",
+    description: "Laiškeliai iš „Laiškelio“ Kapinių, kurių kelionė jau baigėsi. Pagal mėnesį, savaitės temą ir idėją.",
     path: "",
     body: indexBody,
     type: "website",
   })
 );
 
-console.log(`${rows.length} letters, ${topics.size} topics, ${ideas.size} ideas, ${months.size} months -> ${rows.length + topics.size + ideas.size + 1} pages`);
+console.log(`${rows.length} letters, ${topics.size} topics, ${ideas.size} ideas, ${months.size} months -> ${rows.length + pageCount + 1} pages`);

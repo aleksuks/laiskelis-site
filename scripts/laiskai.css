@@ -137,6 +137,9 @@ h2 { font-family: var(--type); font-weight: 400; font-size: 24px; margin: 0 0 18
 .topic:hover { transform: translateY(-2px) rotate(-1deg); }
 .topic .sign-img { height: 90px; width: auto; }
 .back { margin-top: 40px; }
+.pager { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; font-family: var(--type); color: var(--sub); }
+.pager a { display: inline-block; padding: 10px 0; }
+.more { text-align: center; margin-top: 12px; }
 .back a { display: inline-block; padding: 10px 0; }
 
 footer { border-top: 1px solid var(--line); padding-block: 28px 44px; color: var(--sub); font-size: 15px; }
