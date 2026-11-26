@@ -379,7 +379,7 @@
   .htiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
   .htiles button { padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 44px; }
   .htiles button:disabled { opacity: 0.45; }
-  .htiles svg { width: 52px; height: 52px; }
+  .htiles .who-ic { width: 56px; height: 56px; }
   .htiles .ru { font-weight: 700; font-size: 16px; line-height: 1.15; }
   .htiles .lt { font-size: 13px; color: var(--ink-dim); line-height: 1.15; }
   .hpreview { background: #fff; border: 2px dashed var(--frame); border-radius: 14px; padding: 12px 14px; font-size: 18px; color: var(--blue); font-weight: 700; min-height: 48px; }
@@ -515,7 +515,7 @@
     <div class="top"><span id="hRound"></span><span class="top-right"><span class="dtime" id="hTime"></span></span></div>
     <div class="waiting" id="hWait"><p class="note" id="hWaitText"></p></div>
     <div class="screen" id="hBuild" hidden>
-      <div class="hwho"><small>Aprašyk</small><b id="hName"></b></div>
+      <div class="hwho"><small id="hHead">Aprašyk</small><b id="hName"></b></div>
       <div class="hgender" id="hGender">
         <button type="button" data-g="m" aria-pressed="false">Он</button>
         <button type="button" data-g="f" aria-pressed="false">Она</button>
@@ -544,7 +544,7 @@
 <script src="../teacher/insights.js?v=202611111500"></script>
 <script src="../teacher/plants.js?v=202611111900"></script>
 <script src="../teacher/draw.js?v=202610291300"></script>
-<script src="../teacher/who.js?v=202611261200"></script>
+<script src="../teacher/who.js?v=202611261500"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -2025,7 +2025,10 @@
       hLocal.done = w.mine.done;
       hLocal.dirty = false;
       el("hMsg").hidden = true;
-      el("hName").textContent = w.mine.name || "?";
+      var self = w.list && w.list.self;
+      el("hHead").textContent = self ? "Sukurk savo namus ir kambarį" : "Aprašyk";
+      el("hName").textContent = self ? "" : w.mine.name || "?";
+      el("hName").hidden = !!self;
       renderWhoList();
     }
     el("hRound").textContent = w.round ? "Raundas " + w.round : "Kas tai?";
@@ -2038,7 +2041,9 @@
   }
 
   function renderWhoList() {
-    var list = who.list || {}, words = list.words || [], g = hLocal.gender, over = hLeft() <= 0;
+    var list = who.list || {}, words = list.words || [], over = hLeft() <= 0;
+    var noGender = list.gender === false, g = noGender ? "m" : hLocal.gender;
+    el("hGender").hidden = noGender;
     el("hGender").querySelectorAll("button").forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.g === g));
       b.disabled = over;
@@ -2081,7 +2086,7 @@
     if (!lines.length) {
       var e = document.createElement("p");
       e.className = "empty";
-      e.textContent = g ? "Pasirink žodžius." : "Pirma pasirink: он ar она?";
+      e.textContent = g ? "Pasirink." : "Pirma pasirink: он ar она?";
       pv.appendChild(e);
     }
     lines.forEach(function (t) {
@@ -2114,8 +2119,9 @@
     else {
       var inGroup = function (key) { return list.words.some(function (x) { return x.k === key && x.g === w.g; }); };
       if (gr && gr.one) hLocal.picks = hLogic(hLocal.picks, inGroup);
-      if (w.g === "char" && list.char_max && hLocal.picks.filter(inGroup).length >= list.char_max) {
-        whoMsg("Daugiausia " + list.char_max + " charakterio žodžiai.");
+      var max = gr && gr.max || (w.g === "char" && list.char_max);
+      if (max && !gr.one && hLocal.picks.filter(inGroup).length >= max) {
+        whoMsg("Čia daugiausia " + max + ".");
         return;
       }
       hLocal.picks.push(k);
@@ -2127,7 +2133,7 @@
   function hLogic(picks, inGroup) { return picks.filter(function (key) { return !inGroup(key); }); }
 
   el("hDone").addEventListener("click", function () {
-    if (!hLocal.gender) { whoMsg("Pirma pasirink: он ar она?"); return; }
+    if (!hLocal.gender && !(who.list && who.list.gender === false)) { whoMsg("Pirma pasirink: он ar она?"); return; }
     if (hLocal.picks.length < 2) { whoMsg("Pasirink bent du žodžius."); return; }
     el("hMsg").hidden = true;
     hLocal.done = true;

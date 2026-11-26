@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611261200">
+<link rel="stylesheet" href="style.css?v=202611261500">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -439,7 +439,7 @@
 <script src="insights.js?v=202611111500"></script>
 <script src="plants.js?v=202611121200"></script>
 <script src="draw.js?v=202610291300"></script>
-<script src="who.js?v=202611261200"></script>
+<script src="who.js?v=202611261500"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -4578,9 +4578,12 @@
     if (hg.open) {
       var nm = document.createElement("b");
       nm.textContent = names[c.target] || "?";
-      var auth = document.createElement("span");
-      auth.textContent = "Aprašė: " + (names[c.id] || "?");
-      ans.append(nm, auth);
+      ans.appendChild(nm);
+      if (c.target !== c.id) {
+        var auth = document.createElement("span");
+        auth.textContent = "Aprašė: " + (names[c.id] || "?");
+        ans.appendChild(auth);
+      }
     } else {
       var q = document.createElement("b");
       q.className = "who-q";

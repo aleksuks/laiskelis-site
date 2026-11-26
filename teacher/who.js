@@ -94,8 +94,16 @@ var Who = (function () {
       '<path d="M8 22 q-3 5 0 7 q3 -2 0 -7Z M40 22 q3 5 0 7 q-3 -2 0 -7Z" fill="#5aa9e6"/>',
   };
 
-  // ICONS are constants of this file, never text from the database.
+  // ICONS are constants of this file, never text from the database; "png:<name>"
+  // is a painted icon in teacher/art (teacher_home.py in the letters app).
   function icon(key) {
+    if (/^png:[a-z0-9-]+$/.test(key || "")) {
+      var img = document.createElement("img");
+      img.className = "who-ic";
+      img.src = "/teacher/art/" + key.slice(4) + ".png";
+      img.alt = "";
+      return img;
+    }
     var ns = "http://www.w3.org/2000/svg";
     var s = document.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 48 48");
@@ -113,8 +121,24 @@ var Who = (function () {
   }
   function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+  // A grade-7 home (253, kind "home"), in the first person: the student's own.
+  function describeHome(list, picks) {
+    var by = {}, g = {};
+    (list.words || []).forEach(function (w) { by[w.k] = w; });
+    (picks || []).forEach(function (k) { var w = by[k]; if (w) (g[w.g] = g[w.g] || []).push(w.m); });
+    var out = [];
+    var at = (g.where || []).concat(g.home || []);
+    if (at.length) out.push("Я живу " + at.join(", ") + ".");
+    if (g.floor) out.push("Моя комната " + g.floor[0] + ".");
+    if (g.house) out.push("У нас есть " + joinRu(g.house) + ".");
+    if (g.room) out.push("В моей комнате есть " + joinRu(g.room) + ".");
+    if (g.pets) out.push("У меня есть " + joinRu(g.pets) + ".");
+    return out;
+  }
+
   // The description as sentences, in the order of the list's groups.
   function describe(list, gender, picks) {
+    if (list && list.kind === "home") return describeHome(list, picks);
     var by = {};
     (list.words || []).forEach(function (w) { by[w.k] = w; });
     var g = {};
