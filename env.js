@@ -242,7 +242,10 @@ async function start() {
     // folds it forward over the letter (through -90 degrees, towards the
     // viewer), never back through the envelope.
     flap.rotation.x = (1 - close) * -(Math.PI + 0.3);
-    flap.position.z = 0.012 + (1 - close) * 0.004;
+    // Open, it leans back from a hinge in front of the letter (z 0.001), so
+    // its base cut through the raised sheet. Hinge it behind the letter until
+    // the letter is in (then the sheet sits below the hinge) and closing starts.
+    flap.position.z = close > 0 ? 0.012 + (1 - close) * 0.004 : -0.002;
     sealMesh.visible = sealOn > 0;
     sealMesh.scale.setScalar(1 + (1 - sealOn) * 0.6);
     pm.material.opacity = mark * 0.85;
