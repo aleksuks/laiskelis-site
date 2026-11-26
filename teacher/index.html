@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Caveat:wght@700&display=swap">
-<link rel="stylesheet" href="style.css?v=202611181500">
+<link rel="stylesheet" href="style.css?v=202611261200">
 <link rel="stylesheet" href="art.css?v=202610151450">
 </head>
 <body>
@@ -273,6 +273,22 @@
   <div class="leaders" id="drawTop" hidden></div>
 </div>
 
+<!-- ---------- "Kas tai?" (251): describe a classmate with words and icons, the class guesses who ---------- -->
+<div class="full" id="whoGame" hidden>
+  <div class="bar">
+    <h2 class="full-title" id="whoTitle"></h2>
+    <span class="live-count" id="whoCount"></span>
+    <button class="btn quiet" type="button" id="whoBack" aria-label="Atgal" hidden>←</button>
+    <button class="btn" type="button" id="whoNext" hidden>Toliau</button>
+    <button class="btn quiet" type="button" id="whoMore" hidden>+30 s</button>
+    <button class="btn" type="button" id="whoStop" hidden>Baigti</button>
+    <button class="btn quiet" type="button" id="whoClose">Uždaryti</button>
+  </div>
+  <p id="whoError" class="msg" hidden style="margin: 0 20px"></p>
+  <div class="quiz-pick" id="whoPick"></div>
+  <div class="words-stage draw-stage" id="whoStage" hidden></div>
+</div>
+
 <!-- ---------- Lygiai: pick the rules, then every student's level in them as plants, for the whole class ---------- -->
 <div class="full" id="skills" hidden>
   <div class="bar">
@@ -423,6 +439,7 @@
 <script src="insights.js?v=202611111500"></script>
 <script src="plants.js?v=202611121200"></script>
 <script src="draw.js?v=202610291300"></script>
+<script src="who.js?v=202611261200"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
@@ -4311,6 +4328,286 @@
     })(t0);
   }
 
+  /* ---------- "Kas tai?" (251) ---------- */
+
+  // Phones join (lobby); every phone gets a classmate in the game and builds
+  // that person's description from the word list (build); then the board
+  // shows the descriptions one by one, the class guesses out loud and the
+  // click shows the name (guess). Who describes whom comes to this screen
+  // only in 'guess'. Polls in lobby and build only.
+  var WHO_POLL_MS = 2000, WHO_MIN_PICKS = 2;   // tuning knobs
+  var hg = null;            // { cls, board, mode: pick|game, step, open, moving }
+  var hgPoll = null;
+
+  function whoFail(err) {
+    if (err && err.code === "teacher_denied") { closeWho(); return signOut(); }
+    el("whoError").textContent = err.code === "teacher_word_few" ? "Reikia bent dviejų telefonų." : err.message;
+    el("whoError").hidden = false;
+  }
+
+  function openWho() {
+    hg = { cls: current, mode: "pick", step: 0, open: false };
+    el("whoError").hidden = true;
+    openFull(el("whoGame"));
+    rpc("teacher_who_board", { p_token: token, p_class: hg.cls.id }).then(function (b) {
+      if (b && b.live) { hg.board = b; hg.mode = "game"; hgStartPoll(); renderWho(); }
+      else showWhoPick();
+    }).catch(whoFail);
+  }
+
+  function closeWho() {
+    hgStopPoll();
+    closeFull(el("whoGame"));
+    hg = null;
+  }
+
+  function showWhoPick() {
+    hg.mode = "pick";
+    hg.board = null;
+    hgStopPoll();
+    renderWho();
+    el("whoPick").replaceChildren();
+    rpc("teacher_who_sets_for", { p_token: token, p_grade: hg.cls.grade }).then(function (list) {
+      if (!list.length) {
+        var none = document.createElement("p");
+        none.className = "pick-head";
+        none.textContent = "Šiai klasei žodžių sąrašo dar nėra";
+        el("whoPick").appendChild(none);
+      }
+      list.forEach(function (s) {
+        var card = document.createElement("div");
+        card.className = "quiz-card";
+        var h = document.createElement("h3");
+        h.textContent = s.title;
+        var meta = document.createElement("p");
+        meta.className = "skill";
+        meta.textContent = s.topic + " · " + s.n + " žodž.";
+        var row = document.createElement("div");
+        row.className = "quiz-go";
+        var b = document.createElement("button");
+        b.className = "btn";
+        b.type = "button";
+        b.textContent = "Pradėti";
+        b.addEventListener("click", function () {
+          b.disabled = true;
+          rpc("teacher_who_start", { p_token: token, p_class: hg.cls.id, p_set: s.id })
+            .then(function () {
+              hg.cls.live_run = hg.cls.live_game = null;
+              renderLiveDot();
+              hg.mode = "game";
+              hg.board = { phase: "lobby" };
+              return refreshWho();
+            })
+            .then(hgStartPoll)
+            .catch(whoFail)
+            .then(function () { b.disabled = false; });
+        });
+        row.appendChild(b);
+        card.append(h, meta, row);
+        el("whoPick").appendChild(card);
+      });
+    }).catch(whoFail);
+  }
+
+  function refreshWho() {
+    if (!hg) return Promise.resolve();
+    return rpc("teacher_who_board", { p_token: token, p_class: hg.cls.id }).then(function (b) {
+      if (!hg) return;
+      var was = hg.board && hg.board.phase + ":" + hg.board.round;
+      hg.board = b;
+      if (!b || !b.live) hgStopPoll();
+      if (b && was !== b.phase + ":" + b.round) { hg.step = 0; hg.open = false; }
+      whoAutoAdvance();
+      renderWho();
+    }).catch(whoFail);
+  }
+
+  function hgTick() { if (!(hg && hg.board && hg.board.phase === "guess")) refreshWho(); }
+  function hgStartPoll() { if (!hgPoll && !document.hidden) hgPoll = setInterval(hgTick, WHO_POLL_MS); }
+  function hgStopPoll() { if (hgPoll) { clearInterval(hgPoll); hgPoll = null; } }
+
+  function whoPresent() {
+    var b = hg.board;
+    return (b.phones || []).filter(function (p) { return p.seen_s <= b.present_s; });
+  }
+
+  // Build ends by itself when every phone pressed "Baigiau" or the time is up (+2 s for the last saves).
+  function whoAutoAdvance() {
+    var b = hg.board;
+    if (!b || !b.live || hg.moving || b.phase !== "build") return;
+    var cards = b.cards || [];
+    if (cards.length && (b.left_s <= -2 || cards.every(function (c) { return c.done; }))) setWhoPhase("guess");
+  }
+
+  function setWhoPhase(phase) {
+    if (hg.moving) return;
+    hg.moving = true;
+    return rpc("teacher_who_phase", { p_token: token, p_game: hg.board.id, p_phase: phase })
+      .then(function () { Sound.fanfare(); if (hg) hg.moving = false; return refreshWho(); })
+      .catch(whoFail)
+      .then(function () { if (hg) hg.moving = false; });
+  }
+
+  function dealWho() {
+    if (hg.moving) return;
+    hg.moving = true;
+    el("whoNext").disabled = true;
+    return rpc("teacher_who_deal", { p_token: token, p_game: hg.board.id })
+      .then(function () { Sound.pop(); el("whoError").hidden = true; hgStartPoll(); hg.moving = false; return refreshWho(); })
+      .catch(whoFail)
+      .then(function () { if (hg) hg.moving = false; el("whoNext").disabled = false; });
+  }
+
+  function whoCards() {
+    return (hg.board.cards || []).filter(function (c) { return c.picks && c.picks.length >= WHO_MIN_PICKS; });
+  }
+
+  function whoNext() {
+    var b = hg.board;
+    if (!b || !b.live) return;
+    if (b.phase === "lobby") return dealWho();
+    if (b.phase === "build") return setWhoPhase("guess");
+    var n = whoCards().length;
+    if (hg.step < n) {
+      if (!hg.open) { hg.open = true; Sound.pop(); }
+      else { hg.step++; hg.open = false; }
+      return renderWho();
+    }
+    return dealWho();
+  }
+
+  function whoBack() {
+    if (hg.open) hg.open = false;
+    else if (hg.step > 0) { hg.step--; hg.open = true; }
+    renderWho();
+  }
+
+  function renderWho() {
+    if (!hg) return;
+    var b = hg.board, m = hg.mode, live = b && b.live;
+    var phase = m === "game" && b ? b.phase : m;
+    el("whoTitle").textContent = m === "pick" ? "Kas tai? " + hg.cls.grade + " klasė" :
+      "Kas tai?" + (b && b.round ? " · " + b.round + " raundas" : "");
+    el("whoPick").hidden = m !== "pick";
+    el("whoStage").hidden = m !== "game";
+    el("whoStop").hidden = !live;
+    el("whoMore").hidden = !(live && phase === "build");
+    var n = phase === "guess" && b.cards ? whoCards().length : 0;
+    el("whoBack").hidden = !(live && phase === "guess" && (hg.step > 0 || hg.open));
+    el("whoNext").hidden = m === "pick" || !live;
+    el("whoNext").textContent = phase === "lobby" ? "Kurti!" : phase === "build" ? "Spėti →" :
+      hg.step < n ? (hg.open ? "Toliau →" : "Kas tai?") : "Kitas raundas";
+    var left = b && b.left_s !== undefined ? Math.max(0, b.left_s) : 0;
+    el("whoCount").textContent = m !== "game" || !b ? "" :
+      phase === "build" ? "⏱ " + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0") :
+      phase === "lobby" ? "Telefonų: " + whoPresent().length :
+      phase === "guess" && hg.step < n ? hg.step + 1 + " / " + n : "";
+    if (m !== "game" || !b || !b.phase) return;
+    if (!live) return el("whoStage").replaceChildren();
+    if (phase === "lobby") renderWhoLobby();
+    else if (phase === "build") renderWhoProgress();
+    else renderWhoGuess();
+  }
+
+  function renderWhoLobby() {
+    var b = hg.board, names = b.names || {};
+    var main = document.createElement("div");
+    main.className = "dmain";
+    var chips = document.createElement("div");
+    chips.className = "dchips";
+    whoPresent().forEach(function (p) { chips.appendChild(drawChip(names[p.id] || "?", "on")); });
+    main.append(chips);
+    el("whoStage").replaceChildren(joinAside("Telefonų: " + whoPresent().length), main);
+  }
+
+  function renderWhoProgress() {
+    var b = hg.board, names = b.names || {}, cards = b.cards || [];
+    var main = document.createElement("div");
+    main.className = "dmain";
+    var h = document.createElement("h3");
+    h.className = "dhead";
+    h.textContent = cards.filter(function (c) { return c.done; }).length + " / " + cards.length;
+    var timer = document.createElement("div");
+    timer.className = "dclock" + (b.left_s <= 10 ? " low" : "");
+    var left = Math.max(0, b.left_s);
+    timer.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+    var chips = document.createElement("div");
+    chips.className = "dchips";
+    cards.forEach(function (c) {
+      chips.appendChild(drawChip((c.done ? "✓ " : c.n ? "✏️ " : "… ") + (names[c.id] || "?"), c.done ? "on" : ""));
+    });
+    main.append(h, timer, chips);
+    el("whoStage").replaceChildren(joinAside("Telefonų: " + whoPresent().length), main);
+  }
+
+  function renderWhoGuess() {
+    var b = hg.board, names = b.names || {}, list = whoCards(), words = b.list || {};
+    var stage = document.createElement("div");
+    stage.className = "who-board";
+    if (hg.step >= list.length) {
+      var end = document.createElement("p");
+      end.className = "who-end";
+      end.textContent = list.length ? "Visi aprašymai parodyti." : "Niekas nieko neaprašė.";
+      stage.appendChild(end);
+      return el("whoStage").replaceChildren(stage);
+    }
+    var c = list[hg.step];
+    var by = {};
+    (words.words || []).forEach(function (w) { by[w.k] = w; });
+    var icons = document.createElement("div");
+    icons.className = "who-icons";
+    c.picks.forEach(function (k) {
+      var w = by[k];
+      if (!w) return;
+      var t = document.createElement("figure");
+      t.appendChild(Who.icon(w.ic));
+      var cap = document.createElement("figcaption");
+      cap.textContent = Who.form(w, c.gender);
+      t.appendChild(cap);
+      icons.appendChild(t);
+    });
+    var text = document.createElement("div");
+    text.className = "who-text";
+    Who.describe(words, c.gender, c.picks).forEach(function (line) {
+      var p = document.createElement("p");
+      p.textContent = line;
+      text.appendChild(p);
+    });
+    var ans = document.createElement("div");
+    ans.className = "who-answer";
+    if (hg.open) {
+      var nm = document.createElement("b");
+      nm.textContent = names[c.target] || "?";
+      var auth = document.createElement("span");
+      auth.textContent = "Aprašė: " + (names[c.id] || "?");
+      ans.append(nm, auth);
+    } else {
+      var q = document.createElement("b");
+      q.className = "who-q";
+      q.textContent = "Кто это?";
+      ans.appendChild(q);
+    }
+    stage.append(text, icons, ans);
+    el("whoStage").replaceChildren(stage);
+  }
+
+  el("whoClose").addEventListener("click", closeWho);
+  el("whoNext").addEventListener("click", whoNext);
+  el("whoBack").addEventListener("click", whoBack);
+  el("whoMore").addEventListener("click", function () {
+    rpc("teacher_who_more", { p_token: token, p_game: hg.board.id }).then(refreshWho).catch(whoFail);
+  });
+  el("whoStop").addEventListener("click", function () {
+    if (!confirm("Baigti žaidimą?")) return;
+    rpc("teacher_who_stop", { p_token: token, p_game: hg.board.id }).then(refreshWho).catch(whoFail);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!hg || el("whoGame").hidden || e.target.closest("textarea, input")) return;
+    if (!hg.board || hg.mode !== "game" || hg.board.phase !== "guess" || !hg.board.live) return;
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); whoNext(); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); whoBack(); }
+  });
+
   /* ---------- Žaidimai ---------- */
 
   // The class games behind one tray button: a card per game; a game the
@@ -4320,6 +4617,8 @@
       text: "Skyriaus žodžiai: susipažinti, poros, lenta." },
     { title: "Piešiu ir spėju", open: openDraw, board: "teacher_draw_board", args: { p_drawings: false },
       text: "Piešia rusiškai, spėja lietuviškai." },
+    { title: "Kas tai?", open: openWho, board: "teacher_who_board",
+      text: "Aprašo klasės draugą žodžiais, klasė spėja, kas tai." },
   ];
 
   function openGames() {

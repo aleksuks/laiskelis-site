@@ -820,6 +820,19 @@ button.pin:hover { color: var(--ink); }
 .dhow { font-size: clamp(18px, 1.5vw, 30px); margin: 0; max-width: 46em; }
 .dclock { font-family: var(--marker); font-size: clamp(80px, 12vw, 220px); line-height: 0.9; font-variant-numeric: tabular-nums; color: var(--ink); }
 .dclock.low { color: var(--red); }
+
+/* "Kas tai?" (251): one description at a time, the name on the click */
+.who-board { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; gap: 3vh; min-height: 0; overflow-y: auto; }
+.who-text p { margin: 0 0 1vh; font-size: clamp(30px, 3.6vw, 80px); line-height: 1.15; font-weight: 700; color: var(--blue); }
+.who-icons { display: flex; flex-wrap: wrap; gap: 14px; }
+.who-icons figure { margin: 0; width: clamp(80px, 7.5vw, 150px); text-align: center; }
+.who-icons svg { width: 100%; height: auto; display: block; }
+.who-icons figcaption { font-size: clamp(14px, 1.1vw, 22px); color: var(--ink-dim); }
+.who-answer { display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap; }
+.who-answer b { font-family: var(--marker); font-size: clamp(56px, 7vw, 150px); line-height: 1; color: var(--green); }
+.who-answer b.who-q { color: var(--ink); }
+.who-answer span { font-size: clamp(18px, 1.5vw, 30px); color: var(--ink-dim); }
+.who-end { font-size: clamp(30px, 3vw, 60px); text-align: center; color: var(--ink-dim); }
 .dchips { display: flex; flex-wrap: wrap; gap: 8px; }
 .dchip { font-size: clamp(18px, 1.5vw, 30px); padding: 4px 14px; border-radius: 999px; border: 2px solid var(--frame); color: var(--ink-dim); background: #fff; }
 .dchip.on { border-color: var(--green); color: var(--green); font-weight: 700; }

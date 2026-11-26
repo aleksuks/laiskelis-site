@@ -366,6 +366,25 @@
   .dres .ru { font-weight: 700; color: var(--blue); }
   .dres .pts { font-family: var(--marker); font-size: 28px; line-height: 1; color: var(--green); }
   .dres .pts.zero { color: var(--ink-dim); }
+
+  /* "Kas tai?" (251): a classmate's description from words with icons */
+  .hwho { background: #fff; border: 3px solid var(--blue); border-radius: 18px; padding: 12px 16px; text-align: center; }
+  .hwho small { display: block; color: var(--ink-dim); font-size: 15px; }
+  .hwho b { font-size: 30px; color: var(--blue); }
+  .hgender { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hgender button, .htiles button { border: 2px solid var(--frame); border-radius: 14px; background: #fff; font: inherit; color: var(--ink); }
+  .hgender button { font-size: 24px; font-weight: 700; min-height: 54px; }
+  .hgender button[aria-pressed="true"], .htiles button[aria-pressed="true"] { border-color: var(--blue); box-shadow: inset 0 0 0 2px var(--blue); background: #eef4ff; }
+  .hgroup h3 { margin: 0 0 6px; font-size: 18px; color: var(--ink-dim); }
+  .htiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .htiles button { padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 44px; }
+  .htiles button:disabled { opacity: 0.45; }
+  .htiles svg { width: 52px; height: 52px; }
+  .htiles .ru { font-weight: 700; font-size: 16px; line-height: 1.15; }
+  .htiles .lt { font-size: 13px; color: var(--ink-dim); line-height: 1.15; }
+  .hpreview { background: #fff; border: 2px dashed var(--frame); border-radius: 14px; padding: 12px 14px; font-size: 18px; color: var(--blue); font-weight: 700; min-height: 48px; }
+  .hpreview p { margin: 0 0 4px; }
+  .hpreview .empty { color: var(--ink-dim); font-weight: 400; }
 </style>
 </head>
 <body>
@@ -491,6 +510,24 @@
     <p id="dMsg" class="msg" hidden></p>
   </div>
 
+  <!-- "Kas tai?" (251) -->
+  <div id="who" class="screen" hidden>
+    <div class="top"><span id="hRound"></span><span class="top-right"><span class="dtime" id="hTime"></span></span></div>
+    <div class="waiting" id="hWait"><p class="note" id="hWaitText"></p></div>
+    <div class="screen" id="hBuild" hidden>
+      <div class="hwho"><small>Aprašyk</small><b id="hName"></b></div>
+      <div class="hgender" id="hGender">
+        <button type="button" data-g="m" aria-pressed="false">Он</button>
+        <button type="button" data-g="f" aria-pressed="false">Она</button>
+      </div>
+      <div class="screen" id="hList"></div>
+      <div class="hpreview" id="hPreview"></div>
+      <button class="btn" type="button" id="hDone">Baigiau</button>
+      <p class="verdict ok" id="hSent" hidden>Išsiųsta. Dar gali keisti.</p>
+    </div>
+    <p id="hMsg" class="msg" hidden></p>
+  </div>
+
   <div id="pinView" class="screen" hidden>
     <h1>Tavo naujas PIN</h1>
     <p class="newpin" id="newPin"></p>
@@ -507,10 +544,11 @@
 <script src="../teacher/insights.js?v=202611111500"></script>
 <script src="../teacher/plants.js?v=202611111900"></script>
 <script src="../teacher/draw.js?v=202610291300"></script>
+<script src="../teacher/who.js?v=202611261200"></script>
 <script>
 (function () {
   var el = function (id) { return document.getElementById(id); };
-  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView", "game", "draw"];
+  var SCREENS = ["login", "mood", "rule", "question", "result", "stats", "pinView", "game", "draw", "who"];
   var TOKEN_KEY = "mokinys.token";
 
   var QUESTION_SECONDS = 30;   // per question; a timeout counts as wrong
@@ -711,6 +749,8 @@
       run = res.run;
       if (run) run.order = scramble(run.content, run.id + "|" + res.name);
       sendAway();   // reopened after closing the browser: no longer away
+      if (res.who) { game = null; draw = null; who = res.who; showWho(); return; }
+      who = null;
       if (res.draw) { game = null; draw = res.draw; showDraw(); return; }
       draw = null;
       if (res.game) { game = res.game; showGame(); return; }
@@ -719,7 +759,7 @@
       if (run) route(); else openStats();
     }).catch(function (err) {
       if (signedOut(err)) return;
-      if (screen === "game" || screen === "draw") return;   // a missed poll: the next one tries again
+      if (screen === "game" || screen === "draw" || screen === "who") return;   // a missed poll: the next one tries again
       if (screen === "stats") statsError(err.message); else showLogin(err.message);
     });
   }
@@ -1555,7 +1595,7 @@
 
   // Coming back to the tab is the moment a quiz may have started.
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && token && (screen === "stats" || screen === "game" || screen === "draw")) refresh();
+    if (!document.hidden && token && (screen === "stats" || screen === "game" || screen === "draw" || screen === "who")) refresh();
     if (!document.hidden && screen === "login") checkGuestOpen();
   });
 
@@ -1957,6 +1997,185 @@
   function drawMsg(text) {
     el("dMsg").textContent = text;
     el("dMsg").hidden = false;
+  }
+
+  /* ---------- "Kas tai?" (251) ---------- */
+
+  // Build: the classmate's name, он / она, the word list with an icon beside
+  // each word; the phone writes the description and saves every change (one
+  // save in flight, the newest wins). The picks are the phone's own until
+  // the next round; the poll only brings the phase and the clock.
+  var who = null;
+  var hLocal = { key: "", gender: null, picks: [], done: false, saving: false, dirty: false, timer: null, tick: null, deadline: 0 };
+
+  function hLeft() { return Math.ceil((hLocal.deadline - Date.now()) / 1000); }
+
+  function showWho() {
+    clearTimers();
+    startGamePoll();
+    keepAwake();
+    var w = who, key = w.id + ":" + w.round;
+    hLocal.deadline = Date.now() + w.left_s * 1000;
+    var building = w.phase === "build" && w.mine;
+    if (building && key !== hLocal.key) {
+      if (hLocal.key && screen === "who") Sound.pop();
+      hLocal.key = key;
+      hLocal.gender = w.mine.gender;
+      hLocal.picks = (w.mine.picks || []).slice();
+      hLocal.done = w.mine.done;
+      hLocal.dirty = false;
+      el("hMsg").hidden = true;
+      el("hName").textContent = w.mine.name || "?";
+      renderWhoList();
+    }
+    el("hRound").textContent = w.round ? "Raundas " + w.round : "Kas tai?";
+    el("hBuild").hidden = !building;
+    el("hWait").hidden = !!building;
+    el("hWaitText").textContent = w.phase === "guess" ? "👀 Žiūrėk į ekraną. Кто это?" :
+      w.phase === "build" ? "Palauk kito raundo." : "👀 Žiūrėk į ekraną.";
+    if (screen !== "who") show("who");
+    tickWho();
+  }
+
+  function renderWhoList() {
+    var list = who.list || {}, words = list.words || [], g = hLocal.gender, over = hLeft() <= 0;
+    el("hGender").querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.g === g));
+      b.disabled = over;
+    });
+    var box = el("hList");
+    box.replaceChildren();
+    (list.groups || []).forEach(function (gr) {
+      var ws = words.filter(function (w) { return w.g === gr.g; });
+      if (!ws.length) return;
+      var sec = document.createElement("section");
+      sec.className = "hgroup";
+      var h = document.createElement("h3");
+      h.textContent = gr.t;
+      var tiles = document.createElement("div");
+      tiles.className = "htiles";
+      ws.forEach(function (w) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.dataset.k = w.k;
+        b.setAttribute("aria-pressed", String(hLocal.picks.indexOf(w.k) >= 0));
+        b.disabled = !g || over;
+        var ru = document.createElement("span");
+        ru.className = "ru";
+        ru.textContent = Who.form(w, g);
+        b.append(Who.icon(w.ic), ru);
+        if (w.lt) {
+          var lt = document.createElement("span");
+          lt.className = "lt";
+          lt.textContent = w.lt;
+          b.appendChild(lt);
+        }
+        tiles.appendChild(b);
+      });
+      sec.append(h, tiles);
+      box.appendChild(sec);
+    });
+    var pv = el("hPreview");
+    pv.replaceChildren();
+    var lines = g ? Who.describe(list, g, hLocal.picks) : [];
+    if (!lines.length) {
+      var e = document.createElement("p");
+      e.className = "empty";
+      e.textContent = g ? "Pasirink žodžius." : "Pirma pasirink: он ar она?";
+      pv.appendChild(e);
+    }
+    lines.forEach(function (t) {
+      var p = document.createElement("p");
+      p.textContent = t;
+      pv.appendChild(p);
+    });
+    el("hDone").hidden = hLocal.done;
+    el("hDone").disabled = over;
+    el("hSent").hidden = !hLocal.done;
+  }
+
+  el("hGender").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b || b.disabled || !who || !who.mine) return;
+    hLocal.gender = b.dataset.g;
+    renderWhoList();
+    saveWho();
+  });
+
+  el("hList").addEventListener("click", function (e) {
+    var b = e.target.closest("button");
+    if (!b || b.disabled || !who || !who.list) return;
+    var list = who.list, k = b.dataset.k;
+    var w = list.words.filter(function (x) { return x.k === k; })[0];
+    var gr = list.groups.filter(function (x) { return x.g === w.g; })[0];
+    var i = hLocal.picks.indexOf(k);
+    el("hMsg").hidden = true;
+    if (i >= 0) hLocal.picks.splice(i, 1);
+    else {
+      var inGroup = function (key) { return list.words.some(function (x) { return x.k === key && x.g === w.g; }); };
+      if (gr && gr.one) hLocal.picks = hLogic(hLocal.picks, inGroup);
+      if (w.g === "char" && list.char_max && hLocal.picks.filter(inGroup).length >= list.char_max) {
+        whoMsg("Daugiausia " + list.char_max + " charakterio žodžiai.");
+        return;
+      }
+      hLocal.picks.push(k);
+      Sound.pop();
+    }
+    renderWhoList();
+    saveWho();
+  });
+  function hLogic(picks, inGroup) { return picks.filter(function (key) { return !inGroup(key); }); }
+
+  el("hDone").addEventListener("click", function () {
+    if (!hLocal.gender) { whoMsg("Pirma pasirink: он ar она?"); return; }
+    if (hLocal.picks.length < 2) { whoMsg("Pasirink bent du žodžius."); return; }
+    el("hMsg").hidden = true;
+    hLocal.done = true;
+    Sound.right();
+    renderWhoList();
+    saveWho(true);
+  });
+
+  // A short wait gathers quick taps into one save; one save in flight.
+  function saveWho(now) {
+    if (!who || who.phase !== "build" || !who.mine) return;
+    hLocal.dirty = true;
+    if (hLocal.timer) clearTimeout(hLocal.timer);
+    hLocal.timer = setTimeout(sendWho, now ? 0 : 400);
+  }
+  function sendWho() {
+    hLocal.timer = null;
+    if (!who || !hLocal.dirty) return;
+    if (hLocal.saving) return;
+    hLocal.saving = true;
+    hLocal.dirty = false;
+    var game = who.id;
+    rpc("teacher_student_who_save", { p_token: token, p_game: game, p_gender: hLocal.gender,
+                                      p_picks: hLocal.picks, p_done: hLocal.done })
+      .catch(function (err) {
+        if (signedOut(err)) return;
+        if (err.code !== "teacher_quiz_closed") whoMsg(err.message);
+      })
+      .then(function () {
+        hLocal.saving = false;
+        if (hLocal.dirty && who && who.id === game) sendWho();
+      });
+  }
+
+  // The clock, from the board's time and re-read on every poll; at zero the list locks.
+  function tickWho() {
+    if (hLocal.tick) { clearTimeout(hLocal.tick); hLocal.tick = null; }
+    if (!(who && screen === "who" && who.phase === "build" && who.mine)) { el("hTime").textContent = ""; return; }
+    var s = Math.max(0, hLeft()), over = s <= 0;
+    el("hTime").textContent = "⏱ " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    el("hTime").classList.toggle("low", s <= 10);
+    if (over) { if (hLocal.dirty) sendWho(); renderWhoList(); return; }
+    hLocal.tick = setTimeout(tickWho, 500);
+  }
+
+  function whoMsg(text) {
+    el("hMsg").textContent = text;
+    el("hMsg").hidden = false;
   }
 
   /* ---------- new PIN ---------- */
