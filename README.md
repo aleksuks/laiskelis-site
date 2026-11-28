@@ -124,6 +124,13 @@ key in `feedbackas/api.js` is public by design — it is the same key that
 ships inside the app bundle, and every table it can reach is protected by
 row-level security rather than by the key being secret.
 
+## The Ne nu card workshop
+
+`/nenu/` is a writing tool for a party card game, behind a passcode and
+`noindex`, linked from nowhere. A tenant like the others: one page, its data
+in `nenu_*` tables in the app's Supabase project (migration
+`209_nenu.sql` in the app repo). Cards are never stored in this repo.
+
 ## Licence
 
 Content and artwork © Aleksandras Abrutis. The App Store badge is Apple's

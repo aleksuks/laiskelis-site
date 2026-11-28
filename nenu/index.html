@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ne nu · Card Workshop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Barlow+Condensed:wght@700;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light dark;
+--table:light-dark(#383E42,#23272a);--table2:light-dark(#2c3134,#1a1d1f);--bin:#007CB0;
+--paper:light-dark(#fbf7f2,#141012);--ink:light-dark(#1b1515,#f2ebe7);--mute:light-dark(#6d6260,#a99d99);
+--line:light-dark(#e6ddd6,#2d2527);--chip:light-dark(#f1e9e2,#231c1e);--yel:#F7B500;--blk:#1b1d1f;--wht:#ffffff}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(28px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+.top{background:var(--table);color:#fff}
+.top h1{font:800 clamp(34px,5.4vw,54px)/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;margin:0 0 6px;text-wrap:balance}
+.top p.sub{margin:0 0 24px;opacity:.9;max-width:62ch}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(20px,3vw,40px);align-items:start}
+label{font-weight:600;font-size:14px;display:block;margin:0 0 6px}
+textarea,input[type=text],input[type=search],select{width:100%;font:16px/1.45 Inter,sans-serif;border:2px solid transparent;border-radius:12px;padding:12px 14px;background:var(--wht);color:var(--blk)}
+textarea{min-height:120px;resize:vertical;font:500 19px/1.4 Rubik,sans-serif}
+textarea:focus,input:focus,select:focus,button:focus-visible{outline:3px solid var(--yel);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+button{font:600 15px Inter,sans-serif;min-height:44px;padding:0 16px;border-radius:12px;border:2px solid currentColor;background:transparent;color:inherit;cursor:pointer}
+button.solid{background:var(--yel);color:var(--blk);border-color:var(--yel)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.seg{display:inline-flex;border:2px solid #fff;border-radius:12px;overflow:hidden}
+.seg button{border:0;border-radius:0;min-width:64px}
+.seg button[aria-pressed=true]{background:#fff;color:var(--table2)}
+.hint{font-size:14px;opacity:.92;margin:10px 0 0}
+.hint code{background:rgba(0,0,0,.22);padding:1px 6px;border-radius:6px}
+.card{position:relative;border-radius:16px;padding:18px 18px 40px;font:700 20px/1.25 Rubik,sans-serif;box-shadow:0 10px 0 rgba(0,0,0,.18),0 18px 30px rgba(0,0,0,.18);overflow-wrap:anywhere;white-space:pre-wrap}
+.card.black{background:var(--bin);color:#fff}.card.white{background:var(--wht);color:var(--bin)}
+.card .foot .logo{font:800 13px 'Barlow Condensed',sans-serif;letter-spacing:.04em;opacity:1}
+.card .blank{display:inline-block;width:4.2em;border-bottom:3px solid currentColor;margin:0 .1em;transform:translateY(-.2em)}
+.card .foot{position:absolute;left:18px;right:18px;bottom:12px;display:flex;justify-content:space-between;font:600 12px Inter,sans-serif;opacity:.7}
+.big{min-height:300px;font-size:clamp(22px,2.6vw,30px);transform:rotate(-1.5deg)}
+.big.empty{opacity:.55}
+.meters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:28px}
+.m b{display:block;font:800 26px 'Barlow Condensed',sans-serif}.m span{font-size:13px;opacity:.9}
+.bar{height:8px;border-radius:8px;background:rgba(0,0,0,.25);margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--yel)}
+.left{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;margin-top:32px;padding-top:24px;border-top:2px solid rgba(255,255,255,.25)}
+.left b{font:800 clamp(28px,3.6vw,42px)/1 'Barlow Condensed',sans-serif;display:block}.left span{opacity:.9;font-size:15px}
+.dice{display:inline-flex;gap:10px;align-items:center}.dice svg{width:26px;height:26px;flex:none}
+.dice.roll svg{animation:roll .5s ease-out}@keyframes roll{to{transform:rotate(360deg)}}
+.m em{font-style:normal;font-size:13px;display:block;margin-top:4px;opacity:.95}
+.note{background:var(--yel);color:var(--blk);border-radius:12px;padding:10px 14px;margin:0 0 18px;font-size:14px}
+.test{background:var(--table2);color:#fff}
+.deal{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:center}
+.deal .card{min-height:180px;font-size:clamp(20px,2.3vw,26px)}
+.deal mark{background:var(--wht);color:var(--bin);border-radius:8px;padding:0 .25em;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+h2{font:800 clamp(26px,3.2vw,36px)/1.05 'Barlow Condensed',sans-serif;margin:0 0 14px}
+.filters{display:grid;grid-template-columns:auto minmax(0,180px) minmax(0,1fr);gap:10px;align-items:center;margin-bottom:20px}
+.tabs{display:inline-flex;gap:6px;flex-wrap:wrap}
+.tabs button{border-color:var(--line)}.tabs button[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.filters select,.filters input{border-color:var(--line)}
+.deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px}
+.item .card{min-height:150px;font-size:17px;box-shadow:0 4px 0 rgba(0,0,0,.12)}
+.item.cut .card{opacity:.4;text-decoration:line-through}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.acts button{min-height:36px;padding:0 10px;font-size:13px;border-color:var(--line)}
+.acts button[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.acts .del{margin-left:auto;color:#c0392b}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;background:var(--chip);border-radius:20px;padding:2px 9px}.tag.warn{background:var(--yel);color:var(--blk)}
+.empty-state{border:2px dashed var(--line);border-radius:16px;padding:32px;text-align:center;color:var(--mute)}
+.exp{border-top:1px solid var(--line)}
+.exp .row button{border-color:var(--line)}
+#out{min-height:220px;font:13px/1.5 ui-monospace,Menlo,monospace;background:var(--chip);color:var(--ink);border:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--blk);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}.big{transform:none}.dice.roll svg{animation:none}}
+@media(max-width:800px){.grid,.deal{grid-template-columns:minmax(0,1fr)}.meters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:minmax(0,1fr)}.big{min-height:200px}}
+#gate{position:fixed;inset:0;z-index:5;background:var(--table);color:#fff;display:grid;place-items:center;padding:16px}
+#gate[hidden]{display:none}
+#gate form{width:min(360px,100%)}
+#gate h1{font:800 54px/1 'Barlow Condensed',sans-serif;margin:0 0 18px}
+#gate button{width:100%;margin-top:12px}
+#gateErr{min-height:1.5em;margin:12px 0 0;color:var(--yel)}
+.note button{min-height:32px;margin-left:8px}
+</style>
+</head>
+<body>
+<div id="gate" hidden><form id="gateForm">
+  <h1>NE NU</h1>
+  <label for="pass">Passcode</label>
+  <input type="password" id="pass" autocomplete="current-password" required>
+  <button class="solid" id="enter">Open the workshop</button>
+  <p id="gateErr" role="alert"></p>
+</form></div>
+<section class="band top"><div class="wrap">
+  <h1>NE NU · Card workshop</h1>
+  <p class="sub">Type a card and it sorts itself: a line with <b>___</b> or ending in <b>?</b> becomes a blue prompt card, anything else a white answer card. Paste many lines to add them all at once.</p>
+  <div id="banner"></div>
+  <div class="grid">
+    <div>
+      <label for="txt">New card</label>
+      <textarea id="txt" placeholder="Ką močiutė rado po lova? ___" aria-describedby="hint"></textarea>
+      <p class="hint" id="hint">Enter adds the card. Write every blank where a <b>vardininkas</b> noun fits, and keep white cards in vardininkas too. Use <code>___</code> twice for Pick 2.</p>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Card type">
+          <button data-mode="auto" aria-pressed="true">Auto</button><button data-mode="black" aria-pressed="false">Prompt</button><button data-mode="white" aria-pressed="false">Answer</button>
+        </div>
+        <select id="pick" aria-label="Pick count" style="width:auto"><option value="0">Pick: auto</option><option value="1">Pick 1</option><option value="2">Pick 2</option><option value="3">Pick 3</option></select>
+      </div>
+      <div class="row">
+        <input type="text" id="tags" placeholder="Tags, comma separated (stay on for the next card)" aria-label="Tags">
+      </div>
+      <div class="row">
+        <button class="solid" id="add" disabled>Connecting…</button>
+        <button id="cancel" hidden>Cancel edit</button>
+      </div>
+    </div>
+    <div><div id="preview" class="card white big empty" aria-live="polite">Your card appears here.</div></div>
+  </div>
+  <div class="left"><div id="left"></div><button class="solid dice" id="diceTop"><svg viewBox="0 0 26 26" aria-hidden="true"><rect x="2" y="2" width="22" height="22" rx="6" fill="#fff" stroke="#141111" stroke-width="2"/><g fill="#141111"><circle cx="8" cy="8" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="13" cy="13" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></g></svg>Roll a matchup</button></div>
+  <div class="meters" id="meters"></div>
+</div></section>
+
+<section class="band test" id="dealSec"><div class="wrap">
+  <h2>Test deal</h2>
+  <div class="deal">
+    <div id="dealCard" class="card black">Add a few prompt and answer cards, then deal.</div>
+    <div>
+      <p style="margin:0 0 10px">Deals a random prompt card with random answers, the way a round would read out loud.</p>
+      <div class="row"><button class="solid dice" id="dealBtn"><svg viewBox="0 0 26 26" aria-hidden="true"><rect x="2" y="2" width="22" height="22" rx="6" fill="#fff" stroke="#141111" stroke-width="2"/><g fill="#141111"><circle cx="8" cy="8" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="13" cy="13" r="2"/><circle cx="8" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></g></svg>Roll</button><button id="reWhite">New answers only</button></div>
+      <label style="margin-top:14px;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="incD" checked> Include drafts, not only kept cards</label>
+    </div>
+  </div>
+</div></section>
+
+<section class="band"><div class="wrap">
+  <h2 id="deckTitle">The deck</h2>
+  <div class="filters">
+    <div class="tabs" role="group" aria-label="Type filter"><button data-t="all" aria-pressed="true">All</button><button data-t="black" aria-pressed="false">Prompt</button><button data-t="white" aria-pressed="false">Answer</button></div>
+    <select id="fStatus" aria-label="Status filter"><option value="active">Draft + keep</option><option value="keep">Keep</option><option value="draft">Draft</option><option value="cut">Cut</option><option value="all">Everything</option></select>
+    <input type="search" id="fSearch" placeholder="Search text or tags" aria-label="Search">
+  </div>
+  <div class="deck" id="deck"></div>
+</div></section>
+
+<section class="band exp"><div class="wrap">
+  <h2>Export and backup</h2>
+  <p style="margin:0 0 6px;color:var(--mute)">Cut cards are never exported. Markdown is sorted into Prompt Pick 1/2/3 and Answer; CSV has one row per card for a printer or a layout tool.</p>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="expD" checked> Include drafts</label>
+  <div class="row">
+    <button id="eMd">Markdown</button><button id="eCsv">CSV</button><button id="eJson">JSON backup</button>
+    <label class="filebtn" style="margin:0"><input type="file" id="imp" accept=".json,.csv,.txt,.md" style="position:absolute;opacity:0;width:1px;height:1px"><span role="button" tabindex="0" id="impBtn" style="display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:2px solid var(--line);border-radius:12px;cursor:pointer">Import file</span></label>
+  </div>
+  <div class="row"><button id="copy" hidden>Copy text</button><button id="logout">Log out on this device</button></div>
+  <textarea id="out" readonly hidden aria-label="Export output"></textarea>
+</div></section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TARGET={p1:85,p2:12,p3:3,w:500};
+let cards=[],store=null,mode='auto',editing=null,fType='all',dealt=null;
+const pending=new Set();
+const blanks=t=>(t.match(/_{2,}/g)||[]).length;
+const isQ=t=>/\?\s*$/.test(t);
+const norm=t=>t.toLowerCase().replace(/\s+/g,' ').trim();
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),2200)};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+function classify(text,m=mode,ov=+$('#pick').value){
+  const b=blanks(text);
+  if(m==='white'||(m==='auto'&&!b&&!isQ(text)))return{type:'white',pick:0};
+  return{type:'black',pick:ov||Math.min(3,Math.max(1,b))};
+}
+function body(t){return esc(t).replace(/_{2,}/g,'<span class="blank"></span>')}
+function cardHTML(c){
+  const foot=c.type==='black'?`<span class="logo">NE NU</span><span>Pick ${c.pick}${c.pick===3?' · Draw 2':''}</span>`:'<span class="logo">NE NU</span><span></span>';
+  return `<div class="card ${c.type}">${body(c.text)}<div class="foot">${foot}</div></div>`;
+}
+function lint(c,dupes){
+  const out=[],w=c.text.trim().split(/\s+/).length,b=blanks(c.text);
+  if(c.type==='white'&&w>6)out.push('long');
+  if(c.type==='white'&&b)out.push('has blank');
+  if(c.type==='black'&&!b&&!isQ(c.text))out.push('no blank');
+  if(c.type==='black'&&b&&b!==c.pick)out.push('pick ≠ blanks');
+  if(dupes.get(norm(c.text))>1)out.push('duplicate');
+  return out;
+}
+function counts(){
+  const a=cards.filter(c=>c.status!=='cut'),bl=a.filter(c=>c.type==='black');
+  return{p1:bl.filter(c=>c.pick===1).length,p2:bl.filter(c=>c.pick===2).length,p3:bl.filter(c=>c.pick===3).length,w:a.filter(c=>c.type==='white').length};
+}
+function renderMeters(){
+  const n=counts(),L={p1:'Prompt · Pick 1',p2:'Prompt · Pick 2',p3:'Prompt · Pick 3',w:'Answer'};
+  const go=k=>Math.max(0,TARGET[k]-n[k]),tot=Object.keys(TARGET).reduce((s,k)=>s+go(k),0),bk=go('p1')+go('p2')+go('p3');
+  $('#left').innerHTML=tot?`<b>${tot} cards left to write</b><span>${bk} prompt (${go('p1')} Pick 1 · ${go('p2')} Pick 2 · ${go('p3')} Pick 3) and ${go('w')} answer cards. Cut cards don’t count.</span>`:`<b>Target reached</b><span>Every slot is filled. Now cut the weak ones and write better ones.</span>`;
+  $('#meters').innerHTML=Object.keys(L).map(k=>`<div class="m"><b>${n[k]} <small style="font-size:14px;opacity:.8">/ ${TARGET[k]}</small></b><span>${L[k]}</span><div class="bar"><i style="width:${Math.min(100,n[k]/TARGET[k]*100)}%"></i></div><em>${go(k)?go(k)+' to go':'Done'}</em></div>`).join('');
+}
+function renderDeck(){
+  const st=$('#fStatus').value,q=norm($('#fSearch').value);
+  const dupes=new Map();cards.forEach(c=>{if(c.status!=='cut'){const k=norm(c.text);dupes.set(k,(dupes.get(k)||0)+1)}});
+  const list=cards.filter(c=>(fType==='all'||c.type===fType)&&(st==='all'||(st==='active'?c.status!=='cut':c.status===st))&&(!q||norm(c.text).includes(q)||(c.tags||[]).some(t=>norm(t).includes(q))))
+    .sort((a,b)=>(b.created||0)-(a.created||0));
+  $('#deckTitle').textContent=`The deck · ${list.length} shown of ${cards.length}`;
+  if(!list.length){$('#deck').innerHTML=`<div class="empty-state" style="grid-column:1/-1">${cards.length?'No cards match these filters.':'No cards yet. Write the first one at the top.'}</div>`;return}
+  $('#deck').innerHTML=list.map(c=>{
+    const ro=!store;
+    const sb=['keep','draft','cut'].map(s=>`<button data-act="${s}" data-id="${esc(c.id)}" aria-pressed="${c.status===s}" ${ro?'disabled':''}>${s[0].toUpperCase()+s.slice(1)}</button>`).join('');
+    const tg=(c.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')+lint(c,dupes).map(w=>`<span class="tag warn">${esc(w)}</span>`).join('');
+    return `<div class="item ${c.status==='cut'?'cut':''}">${cardHTML(c)}<div class="tags">${tg}</div><div class="acts">${sb}<button data-act="edit" data-id="${esc(c.id)}" ${ro?'disabled':''}>Edit</button><button class="del" data-act="del" data-id="${esc(c.id)}" ${ro?'disabled':''}>Delete</button></div></div>`;
+  }).join('');
+}
+function render(){renderMeters();renderDeck();if(!dealt)deal()}
+function preview(){
+  const t=$('#txt').value.trim(),p=$('#preview');
+  const lines=t.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!t){p.className='card white big empty';p.textContent='Your card appears here.';return}
+  if(lines.length>1){p.className='card white big';p.innerHTML=`${lines.length} lines → ${lines.length} cards<div class="foot"><span>${lines.filter(l=>classify(l).type==='black').length} prompt · ${lines.filter(l=>classify(l).type==='white').length} answer</span><span></span></div>`;return}
+  const c=classify(t);p.className=`card ${c.type} big`;p.innerHTML=cardHTML({...c,text:t}).replace(/^<div class="card [a-z]+">|<\/div>$/g,'');
+}
+function setMode(m){mode=m;$$('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));preview()}
+
+async function addFromInput(){
+  if(!store)return;
+  const raw=$('#txt').value,tags=$('#tags').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const lines=raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!lines.length)return;
+  const btn=$('#add');btn.disabled=true;
+  try{
+    if(editing){
+      const old=cards.find(c=>c.id===editing);
+      if(old){const c={...old,text:lines.join(' ').slice(0,500),...classify(lines.join(' ')),tags:tags.slice(0,10).map(t=>t.slice(0,40)),updated:Date.now()};await store.put(c)}
+      endEdit();toast('Card saved');
+    }else{
+      await store.putMany(lines.map(l=>({id:uid(),text:l.slice(0,500),...classify(l,lines.length>1?'auto':mode,lines.length>1?0:undefined),status:'draft',tags:tags.slice(0,10).map(t=>t.slice(0,40)),created:Date.now()})));
+      toast(lines.length>1?`${lines.length} cards added`:'Card added');
+    }
+    $('#txt').value='';preview();
+  }catch(e){toast(saveError(e))}
+  btn.disabled=false;$('#txt').focus();
+}
+function startEdit(c){
+  editing=c.id;$('#txt').value=c.text;$('#tags').value=(c.tags||[]).join(', ');
+  setMode(c.type);$('#pick').value=c.type==='black'?String(c.pick):'0';
+  $('#add').textContent='Save card';$('#cancel').hidden=false;preview();
+  window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});$('#txt').focus();
+}
+function endEdit(){editing=null;$('#add').textContent='Add card';$('#cancel').hidden=true;$('#pick').value='0';setMode('auto')}
+
+function deal(keepBlack){
+  const inc=$('#incD').checked,pool=cards.filter(c=>c.status==='keep'||(inc&&c.status==='draft'));
+  const bl=pool.filter(c=>c.type==='black'),wh=pool.filter(c=>c.type==='white'),el=$('#dealCard');
+  if(!bl.length||!wh.length){el.textContent='Add at least one prompt and one answer card, then deal.';dealt=null;return}
+  const b=keepBlack&&dealt&&bl.find(c=>c.id===dealt.id)||bl[Math.floor(Math.random()*bl.length)];dealt=b;
+  const ws=[...wh].sort(()=>Math.random()-.5).slice(0,b.pick).map(w=>w.text.replace(/[.!]\s*$/,''));
+  let i=0;const m=t=>`<mark>${esc(t)}</mark>`;
+  let h=esc(b.text).replace(/_{2,}/g,()=>m(ws[i++]||'…'));
+  if(!blanks(b.text))h+='<br><br>'+ws.map(m).join(' + ');
+  el.innerHTML=h+`<div class="foot"><span class="logo">NE NU</span><span>Pick ${b.pick}</span></div>`;
+}
+
+const mdOf=pool=>{
+  const by=(t,p)=>pool.filter(c=>c.type===t&&(p==null||c.pick===p));
+  const sec=(h,arr,num)=>`## ${h} (${arr.length})\n\n`+(arr.length?arr.map((c,i)=>(num?`${i+1}. `:'- ')+c.text).join('\n'):'_none yet_')+'\n';
+  return `# Ne nu – card deck\n\nExported ${new Date().toISOString().slice(0,10)} · ${pool.length} cards\n\n`+
+    sec('Prompt cards · Pick 1',by('black',1),1)+'\n'+sec('Prompt cards · Pick 2',by('black',2),1)+'\n'+sec('Prompt cards · Pick 3 (Draw 2)',by('black',3),1)+'\n'+sec('Answer cards',by('white'),1);
+};
+const q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+const csvOf=pool=>'﻿type,pick,text,status,tags\n'+pool.map(c=>[c.type,c.pick,c.text,c.status,(c.tags||[]).join('; ')].map(q).join(',')).join('\n');
+function exportPool(){const inc=$('#expD').checked;return cards.filter(c=>c.status==='keep'||(inc&&c.status==='draft')).sort((a,b)=>(a.created||0)-(b.created||0))}
+function offer(filename,data){
+  const o=$('#out');o.hidden=false;o.value=data;$('#copy').hidden=false;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'text/plain;charset=utf-8'}));a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  toast('Downloaded '+filename);
+}
+function parseCSV(t){
+  const rows=[];let r=[],f='',inQ=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(inQ){if(ch==='"'){if(t[i+1]==='"'){f+='"';i++}else inQ=false}else f+=ch}
+    else if(ch==='"')inQ=true;else if(ch===','){r.push(f);f=''}else if(ch==='\n'){r.push(f);rows.push(r);r=[];f=''}else if(ch!=='\r')f+=ch}
+  if(f||r.length){r.push(f);rows.push(r)}return rows;
+}
+async function importText(name,t){
+  t=t.replace(/^﻿/,'');let list=[];
+  if(/\.json$/i.test(name)){const a=JSON.parse(t);list=(Array.isArray(a)?a:[]).filter(c=>c&&typeof c.text==='string')}
+  else if(/^type,pick,text/i.test(t)){const rows=parseCSV(t).slice(1);list=rows.filter(r=>r[2]).map(r=>({type:r[0]==='black'?'black':'white',pick:+r[1]||0,text:r[2],status:['keep','draft','cut'].includes(r[3])?r[3]:'draft',tags:(r[4]||'').split(';').map(s=>s.trim()).filter(Boolean)}))}
+  else list=t.split('\n').map(s=>s.replace(/^\s*([-*]|\d+\.)\s+/,'').trim()).filter(l=>l&&!l.startsWith('#')&&l!=='_none yet_').map(l=>({text:l,...classify(l,'auto',0)}));
+  const have=new Set(cards.map(c=>c.id)),add=[];
+  for(const c of list){
+    const id=typeof c.id==='string'&&/^[A-Za-z0-9_-]{1,40}$/.test(c.id)?c.id:uid(),text=String(c.text).trim().slice(0,500);
+    if(!text||have.has(id))continue;have.add(id);
+    add.push({id,text,type:c.type==='black'?'black':'white',pick:c.type==='black'?Math.min(3,Math.max(1,Math.round(+c.pick)||1)):0,status:['keep','draft','cut'].includes(c.status)?c.status:'draft',tags:Array.isArray(c.tags)?c.tags.slice(0,10).map(t=>String(t).slice(0,40)):[],created:Math.round(+c.created)||Date.now()+add.length,updated:Math.round(+c.updated)||null});
+  }
+  if(add.length)await store.putMany(add);
+  toast(`Imported ${add.length} cards${list.length>add.length?`, skipped ${list.length-add.length}`:''}`);
+}
+
+// The deck lives in the nenu_ tables (migration 209 in the app repo). The key
+// is public by design: the tables are closed and every call wants a session.
+const API='https://fuskxhhwkanenwmmoytu.supabase.co/rest/v1/rpc/',KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1c2t4aGh3a2FuZW53bW1veXR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDQyMTQsImV4cCI6MjA5ODM4MDIxNH0.zpfGW8G5kx5UVmVA-ypC_vZoFd5KnG1UTAyaDt9c6dw',TOKEN='nenu.token';
+let token=null,writes=0,busy=0,loadedAt=0;
+try{token=localStorage.getItem(TOKEN)}catch(e){}
+const keepToken=t=>{token=t;try{t?localStorage.setItem(TOKEN,t):localStorage.removeItem(TOKEN)}catch(e){}};
+async function rpc(name,args){
+  const stop=new AbortController(),timer=setTimeout(()=>stop.abort(),20000);
+  try{
+    const r=await fetch(API+name,{method:'POST',signal:stop.signal,headers:{'Content-Type':'application/json',apikey:KEY,Authorization:'Bearer '+KEY},body:JSON.stringify(args)});
+    const d=await r.json().catch(()=>null);
+    if(!r.ok)throw{code:d&&d.message};
+    return d;
+  }finally{clearTimeout(timer)}
+}
+function saveError(e){
+  if(e&&e.code==='nenu_denied'){showGate('Log in again.');return'Not saved: log in again'}
+  if(e&&e.code==='nenu_too_many')return'The deck is full';
+  return'Could not save. Check the connection and try again.';
+}
+async function write(fn){writes++;busy++;try{await fn()}finally{busy--;writes++}}
+const merge=list=>{for(const c of list){const i=cards.findIndex(x=>x.id===c.id);i<0?cards.push(c):cards[i]=c}render()};
+const remote={
+  put:c=>remote.putMany([c]),
+  putMany:list=>write(async()=>{for(let i=0;i<list.length;i+=500){const part=list.slice(i,i+500);await rpc('nenu_cards_save',{p_token:token,p_cards:part});merge(part)}}),
+  del:id=>write(async()=>{await rpc('nenu_card_delete',{p_token:token,p_id:id});cards=cards.filter(c=>c.id!==id);render()})
+};
+function ready(){$('#add').disabled=!store;$('#add').textContent=!store?'Connecting…':editing?'Save card':'Add card'}
+function showGate(msg){keepToken(null);store=null;cards=[];dealt=null;render();ready();$('#gate').hidden=false;$('#gateErr').textContent=msg||'';$('#pass').focus()}
+// A list that crossed a save on the way is stale; it is dropped.
+async function load(){
+  if(!token||busy)return;
+  const seen=writes;
+  try{
+    const list=await rpc('nenu_cards_list',{p_token:token});
+    if(seen!==writes||!token)return;
+    cards=list;loadedAt=Date.now();store=remote;$('#banner').innerHTML='';ready();render();
+  }catch(e){
+    if(e&&e.code==='nenu_denied')return showGate('Log in again.');
+    $('#banner').innerHTML='<div class="note">Can’t reach the card storage.<button id="retry">Try again</button></div>';
+    $('#retry').onclick=load;
+  }
+}
+$('#gateForm').onsubmit=async e=>{
+  e.preventDefault();const b=$('#enter');b.disabled=true;$('#gateErr').textContent='';
+  try{
+    const r=await rpc('nenu_login',{p_passcode:$('#pass').value});
+    if(r.token){keepToken(r.token);$('#pass').value='';$('#gate').hidden=true;await load()}
+    else $('#gateErr').textContent=r.error==='locked'?'Too many wrong tries. Wait 15 minutes.':r.error==='unset'?'No passcode is set yet.':'Wrong passcode.';
+  }catch(err){$('#gateErr').textContent='Can’t connect. Check the internet and try again.'}
+  b.disabled=false;
+};
+$('#logout').onclick=async()=>{const t=token;showGate();$('#out').value='';$('#out').hidden=true;$('#copy').hidden=true;try{await rpc('nenu_logout',{p_token:t})}catch(e){}};
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-loadedAt>15000)load()});
+
+$$('.seg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('#pick').onchange=preview;
+$('#txt').addEventListener('input',preview);
+$('#txt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addFromInput()}if(e.key==='Escape'&&editing){endEdit();$('#txt').value='';preview()}});
+$('#add').onclick=addFromInput;
+$('#cancel').onclick=()=>{endEdit();$('#txt').value='';preview()};
+$$('.tabs button').forEach(b=>b.onclick=()=>{fType=b.dataset.t;$$('.tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderDeck()});
+$('#fStatus').onchange=renderDeck;$('#fSearch').addEventListener('input',renderDeck);
+const spin=b=>{b.classList.remove('roll');void b.offsetWidth;b.classList.add('roll')};
+$('#dealBtn').onclick=e=>{spin(e.currentTarget);deal()};
+$('#diceTop').onclick=e=>{spin(e.currentTarget);deal();$('#dealSec').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'})};$('#reWhite').onclick=()=>deal(true);$('#incD').onchange=()=>deal();
+$('#deck').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-act]');if(!b||!store)return;
+  const c=cards.find(x=>x.id===b.dataset.id);if(!c||pending.has(c.id))return;const a=b.dataset.act;
+  if(a==='edit')return startEdit(c);
+  if(a==='del'){if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='Sure? Delete';setTimeout(()=>{b.dataset.sure='';b.textContent='Delete'},3000);return}}
+  pending.add(c.id);
+  try{if(a==='del'){await store.del(c.id);toast('Deleted')}else if(c.status!==a)await store.put({...c,status:a,updated:Date.now()})}catch(err){toast(saveError(err))}
+  pending.delete(c.id);
+});
+$$('#eMd,#eCsv,#eJson').forEach(b=>b.addEventListener('click',e=>{if(!store){e.stopImmediatePropagation();toast('Not connected yet')}},true));
+$('#eMd').onclick=()=>offer('card-deck.md',mdOf(exportPool()));
+$('#eCsv').onclick=()=>offer('card-deck.csv',csvOf(exportPool()));
+$('#eJson').onclick=()=>offer('card-deck-backup.json',JSON.stringify(cards,null,1));
+$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText($('#out').value);toast('Copied')}catch(e){$('#out').select();toast('Select all and copy')}};
+$('#impBtn').onclick=()=>$('#imp').click();$('#impBtn').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#imp').click()}};
+$('#imp').onchange=async e=>{const f=e.target.files[0];if(!f||!store)return;try{await importText(f.name,await f.text())}catch(err){toast('Import failed: '+(err.message||'bad file'))}e.target.value=''};
+
+render();preview();
+token?load():showGate();
+}
+</script>
+</body>
+</html>
