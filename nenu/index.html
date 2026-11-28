@@ -245,7 +245,8 @@ async function addFromInput(){
 }
 function startEdit(c){
   editing=c.id;$('#txt').value=c.text;$('#tags').value=(c.tags||[]).join(', ');
-  setMode(c.type);$('#pick').value=c.type==='black'?String(c.pick):'0';
+  const own=c.type==='black'&&c.pick!==classify(c.text,c.type,0).pick;
+  $('#pick').value=own?String(c.pick):'0';setMode(c.type);
   $('#add').textContent='Save card';$('#cancel').hidden=false;preview();
   window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});$('#txt').focus();
 }
